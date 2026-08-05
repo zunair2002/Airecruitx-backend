@@ -2,67 +2,304 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Airecruitx - Google Sign-In Test</title>
+  <title>Airecruitx - API Test Console</title>
   <style>
-    body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    body { font-family: sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; }
+    h2 { margin-top: 0; }
+    section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    section h3 { margin-top: 0; }
+    input, textarea, select { width: 100%; padding: 8px; margin: 4px 0 10px; box-sizing: border-box; font-size: 14px; }
+    textarea { font-family: monospace; font-size: 12px; height: 70px; }
     button { padding: 10px 16px; font-size: 14px; cursor: pointer; margin-right: 8px; }
-    textarea { width: 100%; height: 100px; margin-top: 8px; font-family: monospace; font-size: 12px; }
-    pre { background: #f4f4f4; padding: 12px; overflow-x: auto; }
+    pre { background: #f4f4f4; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    .token-box { background: #fffbe6; border: 1px solid #f0d000; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
+    .token-box textarea { height: 50px; }
+    label { font-weight: bold; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h2>Google Sign-In Test</h2>
-  <p>Fill in your Firebase <b>Web app</b> config below (Firebase Console → Project Settings → General → Your apps → Web app).</p>
-  <textarea id="config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+  <h2>Airecruitx - API Test Console</h2>
+  <p>Simple test page for the auth + resume flow. All calls use the current token below.</p>
 
-  <p>
-    <button id="signInBtn">Sign in with Google</button>
-    <button id="callBackendBtn">Send idToken to /api/auth/google</button>
-  </p>
+  <div class="token-box">
+    <label>Current auth token (auto-filled after signup/login, used by protected calls)</label>
+    <textarea id="token" placeholder="Paste or auto-fill a JWT here"></textarea>
+  </div>
 
-  <h4>ID Token (copy this into Postman)</h4>
-  <textarea id="tokenOutput" readonly></textarea>
+  <section>
+    <h3>1. Signup (password flow)</h3>
+    <input id="signupName" placeholder="Name" value="Test Candidate" />
+    <input id="signupEmail" placeholder="Email" value="candidate@test.com" />
+    <input id="signupPassword" type="password" placeholder="Password (min 6 chars)" value="test1234" />
+    <select id="signupRole">
+      <option value="candidate">candidate</option>
+      <option value="hr">hr</option>
+      <option value="admin">admin</option>
+    </select>
+    <button id="signupBtn">Sign Up</button>
+    <pre id="signupOutput">-</pre>
+  </section>
 
-  <h4>Backend response</h4>
-  <pre id="backendOutput">-</pre>
+  <section>
+    <h3>2. Login (password flow)</h3>
+    <input id="loginEmail" placeholder="Email" value="candidate@test.com" />
+    <input id="loginPassword" type="password" placeholder="Password" value="test1234" />
+    <button id="loginBtn">Login</button>
+    <pre id="loginOutput">-</pre>
+  </section>
+
+  <section>
+    <h3>3. Google Sign-In</h3>
+    <p>Fill in your Firebase <b>Web app</b> config (Firebase Console → Project Settings → General → Your apps → Web app).</p>
+    <textarea id="config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+    <button id="googleSignInBtn">Sign in with Google</button>
+    <button id="googleBackendBtn">Send idToken to /api/auth/google</button>
+    <pre id="googleOutput">-</pre>
+  </section>
+
+  <section>
+    <h3>4. Me / Logout (protected)</h3>
+    <button id="meBtn">GET /api/auth/me</button>
+    <button id="logoutBtn">POST /api/auth/logout</button>
+    <pre id="meOutput">-</pre>
+  </section>
+
+  <section>
+    <h3>5. Resume Upload (protected)</h3>
+    <input id="resumeFile" type="file" accept=".pdf,.docx" />
+    <button id="resumeBtn">Upload Resume</button>
+    <pre id="resumeOutput">-</pre>
+  </section>
+
+  <section>
+    <h3>6. Practice Interview (protected)</h3>
+    <button id="startInterviewBtn">Start / Resume Interview</button>
+    <div id="interviewQuestions"></div>
+    <h4>Final report</h4>
+    <pre id="interviewOutput">-</pre>
+  </section>
+
+  <section>
+    <h3>7. Certificate (protected)</h3>
+    <p>Uses the sessionId from the completed interview above. Only works if score is above the pass threshold.</p>
+    <button id="certificateBtn">Generate / Get Certificate</button>
+    <pre id="certificateOutput">-</pre>
+  </section>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    const tokenEl = document.getElementById("token");
 
-    let idToken = "";
+    const setToken = (t) => { tokenEl.value = t || ""; };
+    const authHeaders = () => ({ Authorization: `Bearer ${tokenEl.value.trim()}` });
 
-    document.getElementById("signInBtn").addEventListener("click", async () => {
+    const showJson = (elId, data) => {
+      document.getElementById(elId).textContent = JSON.stringify(data, null, 2);
+    };
+
+    document.getElementById("signupBtn").addEventListener("click", async () => {
       try {
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: document.getElementById("signupName").value,
+            email: document.getElementById("signupEmail").value,
+            password: document.getElementById("signupPassword").value,
+            role: document.getElementById("signupRole").value,
+          }),
+        });
+        const data = await res.json();
+        showJson("signupOutput", data);
+      } catch (err) {
+        showJson("signupOutput", { error: err.message });
+      }
+    });
+
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById("loginEmail").value,
+            password: document.getElementById("loginPassword").value,
+          }),
+        });
+        const data = await res.json();
+        showJson("loginOutput", data);
+        if (data.success) setToken(data.data.token);
+      } catch (err) {
+        showJson("loginOutput", { error: err.message });
+      }
+    });
+
+    let googleIdToken = "";
+    document.getElementById("googleSignInBtn").addEventListener("click", async () => {
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+        const { getAuth, GoogleAuthProvider, signInWithPopup } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+
         const firebaseConfig = JSON.parse(document.getElementById("config").value);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
         const result = await signInWithPopup(auth, provider);
-        idToken = await result.user.getIdToken();
-
-        document.getElementById("tokenOutput").value = idToken;
+        googleIdToken = await result.user.getIdToken();
+        showJson("googleOutput", { idToken: googleIdToken });
       } catch (err) {
-        document.getElementById("tokenOutput").value = "Error: " + err.message;
+        showJson("googleOutput", { error: err.message });
       }
     });
 
-    document.getElementById("callBackendBtn").addEventListener("click", async () => {
-      if (!idToken) {
-        document.getElementById("backendOutput").textContent = "Sign in first to get an idToken.";
+    document.getElementById("googleBackendBtn").addEventListener("click", async () => {
+      if (!googleIdToken) {
+        showJson("googleOutput", { error: "Sign in with Google first to get an idToken." });
         return;
       }
       try {
         const res = await fetch("/api/auth/google", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken, role: "candidate" }),
+          body: JSON.stringify({ idToken: googleIdToken, role: "candidate" }),
         });
         const data = await res.json();
-        document.getElementById("backendOutput").textContent = JSON.stringify(data, null, 2);
+        showJson("googleOutput", data);
+        if (data.success) setToken(data.data.token);
       } catch (err) {
-        document.getElementById("backendOutput").textContent = "Error: " + err.message;
+        showJson("googleOutput", { error: err.message });
+      }
+    });
+
+    document.getElementById("meBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/auth/me", { headers: authHeaders() });
+        showJson("meOutput", await res.json());
+      } catch (err) {
+        showJson("meOutput", { error: err.message });
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/auth/logout", { method: "POST", headers: authHeaders() });
+        showJson("meOutput", await res.json());
+      } catch (err) {
+        showJson("meOutput", { error: err.message });
+      }
+    });
+
+    document.getElementById("resumeBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("resumeFile");
+      if (!fileInput.files.length) {
+        showJson("resumeOutput", { error: "Choose a PDF/DOCX file first." });
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.append("resume", fileInput.files[0]);
+
+        const res = await fetch("/api/resume/upload", {
+          method: "POST",
+          headers: authHeaders(), // don't set Content-Type manually — browser sets multipart boundary
+          body: formData,
+        });
+        showJson("resumeOutput", await res.json());
+      } catch (err) {
+        showJson("resumeOutput", { error: err.message });
+      }
+    });
+
+    // --- Practice Interview ---
+    const interviewQuestionsEl = document.getElementById("interviewQuestions");
+    let currentSessionId = null;
+
+    const renderInterview = (session) => {
+      currentSessionId = session.sessionId;
+
+      if (session.status === "completed") {
+        interviewQuestionsEl.innerHTML = "";
+        showJson("interviewOutput", session);
+        return;
+      }
+
+      showJson("interviewOutput", { status: session.status, round: session.round });
+
+      interviewQuestionsEl.innerHTML = "";
+      session.questions.forEach((q) => {
+        const wrapper = document.createElement("div");
+        wrapper.style.marginBottom = "10px";
+
+        const label = document.createElement("label");
+        label.textContent = `Q${q.index + 1}. ${q.question}`;
+        wrapper.appendChild(label);
+
+        const textarea = document.createElement("textarea");
+        textarea.value = q.answer || "";
+        wrapper.appendChild(textarea);
+
+        const submitBtn = document.createElement("button");
+        submitBtn.textContent = q.answer ? "Update Answer" : "Submit Answer";
+        submitBtn.addEventListener("click", async () => {
+          try {
+            const res = await fetch("/api/interview/answer", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...authHeaders() },
+              body: JSON.stringify({
+                sessionId: session.sessionId,
+                questionIndex: q.index,
+                answer: textarea.value,
+              }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              renderInterview(data.data);
+            } else {
+              showJson("interviewOutput", data);
+            }
+          } catch (err) {
+            showJson("interviewOutput", { error: err.message });
+          }
+        });
+        wrapper.appendChild(submitBtn);
+
+        interviewQuestionsEl.appendChild(wrapper);
+      });
+    };
+
+    document.getElementById("startInterviewBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/interview/start", {
+          method: "POST",
+          headers: authHeaders(),
+        });
+        const data = await res.json();
+        if (data.success) {
+          renderInterview(data.data);
+        } else {
+          showJson("interviewOutput", data);
+        }
+      } catch (err) {
+        showJson("interviewOutput", { error: err.message });
+      }
+    });
+
+    // --- Certificate ---
+    document.getElementById("certificateBtn").addEventListener("click", async () => {
+      if (!currentSessionId) {
+        showJson("certificateOutput", { error: "Start/complete an interview above first." });
+        return;
+      }
+      try {
+        const res = await fetch("/api/certificate/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ sessionId: currentSessionId }),
+        });
+        const data = await res.json();
+        showJson("certificateOutput", data);
+      } catch (err) {
+        showJson("certificateOutput", { error: err.message });
       }
     });
   </script>

@@ -23,9 +23,7 @@ const userSchema = new Schema<IUser>(
     firebaseUid: {
       type: String,
       required: false, 
-      unique: true,
-      sparse: true, // Allows multiple null values for firebaseUid
-      index: true,
+      unique: false,
     },
     name: {
       type: String,
@@ -69,13 +67,20 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+userSchema.index(
+  { firebaseUid: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { firebaseUid: { $type: "string" } },
+  }
+);
+
 // Only hash the password when it is set/changed, and only for the "password" auth flow.
 // Google-authenticated users never have a password, so this simply skips them.
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password") || !this.password) {
     return next();
   }
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
