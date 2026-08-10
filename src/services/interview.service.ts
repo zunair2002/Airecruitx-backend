@@ -1,48 +1,121 @@
 import { InterviewSession, IInterviewSession } from "../models/interviewSession.model";
-import { ROUND1_QUESTIONS, ROUND2_QUESTIONS } from "../data/interviewQuestions";
 import { AppError } from "../utils/AppError";
+import * as ollamaService from "./ollama.service";
+import { ChatMessage } from "./ollama.service";
 
-const MIN_MEANINGFUL_ANSWER_LENGTH = 15; // chars — a lazy/empty-ish answer won't count as "good"
-const PASS_SCORE = 60;
+const OVERALL_VERDICTS = ["Good", "Average", "Needs Improvement"] as const;
+type OverallVerdict = (typeof OVERALL_VERDICTS)[number];
 
-const questionsForRound = (round: 1 | 2): string[] =>
-  round === 1 ? ROUND1_QUESTIONS : ROUND2_QUESTIONS;
+interface ParsedReply {
+  feedbackText: string;
+  score?: number;
+  nextQuestionNumber?: number;
+  nextQuestionText?: string;
+  isComplete: boolean;
+  overallVerdict?: OverallVerdict;
+}
 
-const roundForStatus = (status: IInterviewSession["status"]): 1 | 2 =>
-  status === "round1" ? 1 : 2;
+// The model (see OllamaLLM/Modelfile) always replies in a predictable shape:
+// an optional "<feedback>. Score: X/10." for the answer just given, followed by
+// either "Question N: <text>" or, on the final turn, "Interview complete." plus
+// an "Overall performance: <verdict>" line. We parse that structured text here
+// instead of asking the model for JSON, since small local models follow a fixed
+// narrative template far more reliably than they follow a JSON schema.
+const parseAssistantReply = (reply: string): ParsedReply => {
+  const questionMatch = reply.match(/Question\s*(\d+)\s*:\s*([^\n]+)/i);
+  const completeIndex = reply.search(/interview\s+complete/i);
+  const verdictMatch = reply.match(/Overall performance:\s*(Good|Average|Needs Improvement)/i);
+  const scoreMatch = reply.match(/(\d{1,2})\s*\/\s*10/);
 
-// Simple placeholder evaluation: an answer "counts" if it shows a real attempt (length-based).
-// Kept intentionally basic since the practice module only needs a pass/fail result for now.
-const evaluate = (session: IInterviewSession): { score: number; result: "pass" | "fail"; feedback: string } => {
-  const total = session.answers.length;
-  const goodAnswers = session.answers.filter(
-    (a) => a.answer.trim().length >= MIN_MEANINGFUL_ANSWER_LENGTH
-  ).length;
+  const cutIndex = questionMatch
+    ? questionMatch.index ?? reply.length
+    : completeIndex >= 0
+      ? completeIndex
+      : reply.length;
 
-  const score = total === 0 ? 0 : Math.round((goodAnswers / total) * 100);
-  const result: "pass" | "fail" = score >= PASS_SCORE ? "pass" : "fail";
-  const feedback =
-    result === "pass"
-      ? "Great job! Your answers were clear and well thought out. Certificate unlocked."
-      : "Some answers need more detail and clarity. Review the questions, practice explaining your thinking out loud, and try again.";
+  const feedbackText = reply.slice(0, cutIndex).trim() || reply.trim();
 
-  return { score, result, feedback };
+  return {
+    feedbackText,
+    score: scoreMatch ? Math.min(10, Math.max(0, parseInt(scoreMatch[1], 10))) : undefined,
+    nextQuestionNumber: questionMatch ? parseInt(questionMatch[1], 10) : undefined,
+    nextQuestionText: questionMatch ? questionMatch[2].trim() : undefined,
+    isComplete: completeIndex >= 0,
+    overallVerdict: verdictMatch ? (verdictMatch[1] as OverallVerdict) : undefined,
+  };
 };
 
-export const startInterview = async (userId: string): Promise<IInterviewSession> => {
+const hasNextStep = (parsed: ParsedReply): boolean =>
+  parsed.isComplete || (!!parsed.nextQuestionNumber && !!parsed.nextQuestionText);
+
+// Sends `messages`, and if the model's reply doesn't move the interview forward
+// (no next question, no completion — small local models occasionally stop short
+// after giving feedback) nudges it once to continue. Returns the full list of
+// {message, reply} exchanges so the caller can persist them all to session history.
+const runTurn = async (
+  history: ChatMessage[],
+  userMessage: ChatMessage
+): Promise<{ exchanges: ChatMessage[]; parsed: ParsedReply }> => {
+  const exchanges: ChatMessage[] = [userMessage];
+  let reply = await ollamaService.chat([...history, ...exchanges]);
+  exchanges.push({ role: "assistant", content: reply });
+  let parsed = parseAssistantReply(reply);
+
+  if (!hasNextStep(parsed)) {
+    const nudge: ChatMessage = { role: "user", content: "Continue: give the next question now." };
+    exchanges.push(nudge);
+    const reply2 = await ollamaService.chat([...history, ...exchanges]);
+    exchanges.push({ role: "assistant", content: reply2 });
+    const parsed2 = parseAssistantReply(reply2);
+
+    parsed = {
+      feedbackText: parsed.feedbackText || parsed2.feedbackText,
+      score: parsed.score ?? parsed2.score,
+      nextQuestionNumber: parsed2.nextQuestionNumber,
+      nextQuestionText: parsed2.nextQuestionText,
+      isComplete: parsed2.isComplete,
+      overallVerdict: parsed2.overallVerdict ?? parsed.overallVerdict,
+    };
+  }
+
+  return { exchanges, parsed };
+};
+
+export const startInterview = async (
+  userId: string,
+  applicationId?: string
+): Promise<IInterviewSession> => {
   const existing = await InterviewSession.findOne({
     userId,
     status: { $ne: "completed" },
   });
   if (existing) return existing;
 
-  return InterviewSession.create({ userId, status: "round1", answers: [] });
+  const session = await InterviewSession.create({
+    userId,
+    applicationId,
+    status: "in_progress",
+    messages: [],
+    turns: [],
+  });
+
+  const { exchanges, parsed } = await runTurn([], { role: "user", content: "Begin the interview." });
+
+  if (!parsed.nextQuestionNumber || !parsed.nextQuestionText) {
+    throw new AppError("The interview model did not return a valid opening question", 502);
+  }
+
+  session.messages.push(...exchanges);
+  session.currentQuestionNumber = parsed.nextQuestionNumber;
+  session.currentQuestion = parsed.nextQuestionText;
+
+  await session.save();
+  return session;
 };
 
 export const submitAnswer = async (
   userId: string,
   sessionId: string,
-  questionIndex: number,
   answer: string
 ): Promise<IInterviewSession> => {
   const session = await InterviewSession.findOne({ _id: sessionId, userId });
@@ -52,36 +125,38 @@ export const submitAnswer = async (
   if (session.status === "completed") {
     throw new AppError("This interview is already completed", 400);
   }
-
-  const round = roundForStatus(session.status);
-  const questions = questionsForRound(round);
-
-  if (questionIndex < 0 || questionIndex >= questions.length) {
-    throw new AppError("Invalid question index", 400);
+  if (!session.currentQuestionNumber || !session.currentQuestion) {
+    throw new AppError("Interview session is in an invalid state", 500);
   }
 
-  // Save immediately, overwriting any previous answer for the same question so progress is never lost.
-  const existingAnswerIdx = session.answers.findIndex(
-    (a) => a.round === round && a.questionIndex === questionIndex
-  );
-  const entry = { round, questionIndex, question: questions[questionIndex], answer };
-  if (existingAnswerIdx >= 0) {
-    session.answers[existingAnswerIdx] = entry;
-  } else {
-    session.answers.push(entry);
-  }
+  const questionNumber = session.currentQuestionNumber;
+  const questionText = session.currentQuestion;
 
-  const answeredInRound = session.answers.filter((a) => a.round === round).length;
-  const roundComplete = answeredInRound >= questions.length;
+  const { exchanges, parsed } = await runTurn(session.messages, { role: "user", content: answer });
+  session.messages.push(...exchanges);
+  session.turns.push({
+    questionNumber,
+    question: questionText,
+    answer,
+    feedback: parsed.feedbackText,
+    score: parsed.score ?? 0,
+  });
 
-  if (roundComplete && round === 1) {
-    session.status = "round2";
-  } else if (roundComplete && round === 2) {
-    const { score, result, feedback } = evaluate(session);
+  if (parsed.isComplete) {
+    const totalScore = session.turns.reduce((sum, t) => sum + t.score, 0);
+    const averageOutOf10 = session.turns.length ? totalScore / session.turns.length : 0;
+
     session.status = "completed";
-    session.score = score;
-    session.result = result;
-    session.feedback = feedback;
+    session.score = Math.round(averageOutOf10 * 10); // normalize /10 average to a /100 score
+    session.result = parsed.overallVerdict === "Needs Improvement" ? "fail" : "pass";
+    session.feedback = exchanges[exchanges.length - 1].content;
+    session.currentQuestionNumber = undefined;
+    session.currentQuestion = undefined;
+  } else if (parsed.nextQuestionNumber && parsed.nextQuestionText) {
+    session.currentQuestionNumber = parsed.nextQuestionNumber;
+    session.currentQuestion = parsed.nextQuestionText;
+  } else {
+    throw new AppError("The interview model returned an unexpected response", 502);
   }
 
   await session.save();
@@ -98,5 +173,3 @@ export const getSession = async (
   }
   return session;
 };
-
-export { questionsForRound, roundForStatus };

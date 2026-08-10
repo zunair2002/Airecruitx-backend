@@ -2,306 +2,449 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Airecruitx - API Test Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airecruitx - API Console</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; }
-    h2 { margin-top: 0; }
-    section { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
-    section h3 { margin-top: 0; }
-    input, textarea, select { width: 100%; padding: 8px; margin: 4px 0 10px; box-sizing: border-box; font-size: 14px; }
-    textarea { font-family: monospace; font-size: 12px; height: 70px; }
-    button { padding: 10px 16px; font-size: 14px; cursor: pointer; margin-right: 8px; }
-    pre { background: #f4f4f4; padding: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
-    .token-box { background: #fffbe6; border: 1px solid #f0d000; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
-    .token-box textarea { height: 50px; }
-    label { font-weight: bold; font-size: 13px; }
+    :root {
+      --primary: #90caf9;
+      --success: #66bb6a;
+      --danger: #ef5350;
+      --dark: #333;
+      --light: #777;
+      --border: #e0e0e0;
+      --bg: #fcfcfc;
+    }
+    body { font-family: 'Roboto', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: var(--dark); overflow-x: hidden; }
+    .auth-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-card { background: white; width: 100%; max-width: 380px; padding: 40px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+    .auth-card h2 { text-align: center; font-weight: 400; margin-bottom: 30px; color: var(--primary); }
+    .input-group { margin-bottom: 25px; }
+    .input-group input, .input-group select, .input-group textarea { width: 100%; border: none; border-bottom: 1px solid var(--border); padding: 10px 0; font-size: 16px; outline: none; background: transparent; transition: border-color 0.3s; box-sizing: border-box; }
+    .input-group input:focus { border-bottom: 2px solid var(--primary); }
+    .btn-main { width: 100%; background-color: var(--primary); color: white; border: none; padding: 15px; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 2px; text-transform: capitalize; font-weight: 500; }
+    .btn-main:hover { opacity: 0.9; }
+    .divider { display: flex; align-items: center; text-align: center; margin: 30px 0; color: var(--light); font-size: 14px; }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+    .divider:not(:empty)::before { margin-right: .5em; }
+    .divider:not(:empty)::after { margin-left: .5em; }
+    .social-icons { display: flex; justify-content: center; gap: 30px; }
+    .social-icons img { width: 32px; cursor: pointer; transition: transform 0.2s; }
+    .toggle-auth { text-align: center; margin-top: 20px; font-size: 14px; color: var(--light); }
+    .toggle-auth span { color: var(--primary); cursor: pointer; font-weight: bold; }
+    .dashboard-container { display: none; max-width: 1000px; margin: 40px auto; padding: 0 20px; }
+    .dashboard-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); padding-bottom: 10px; margin-bottom: 30px; }
+    section { background: white; border-radius: 8px; padding: 25px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    h3 { margin-top: 0; color: var(--primary); border-left: 4px solid var(--primary); padding-left: 10px; font-weight: 500; }
+    pre { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+    .token-box { background: #fff9c4; padding: 15px; border-radius: 5px; margin-bottom: 20px; border: 1px solid #fbc02d; }
+    textarea { width: 100%; height: 60px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; box-sizing: border-box; font-family: monospace; resize: vertical; }
+    .hidden { display: none; }
+    .list-item { border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 6px; background: #fafafa; position: relative; }
+    .btn-small { padding: 6px 14px; font-size: 12px; margin-right: 5px; cursor: pointer; border: 1px solid var(--primary); background: white; color: var(--primary); border-radius: 4px; font-weight: 500; }
+    .btn-small:hover { background: var(--primary); color: white; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+    .status-pending { background: #fff3e0; color: #ef6c00; }
+    .status-selected { background: #e8f5e9; color: #2e7d32; }
+    .status-rejected { background: #ffebee; color: #c62828; }
+    .schedule-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
+    .schedule-box input { padding: 8px; margin-right: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
   </style>
 </head>
 <body>
-  <h2>Airecruitx - API Test Console</h2>
-  <p>Simple test page for the auth + resume flow. All calls use the current token below.</p>
 
-  <div class="token-box">
-    <label>Current auth token (auto-filled after signup/login, used by protected calls)</label>
-    <textarea id="token" placeholder="Paste or auto-fill a JWT here"></textarea>
+  <div class="auth-container" id="authView">
+    <div class="auth-card" id="loginCard">
+      <h2>Login</h2>
+      <div class="input-group"><input id="loginEmail" type="email" placeholder="Email" value="candidate@test.com" /></div>
+      <div class="input-group"><input id="loginPassword" type="password" placeholder="Password" value="test1234" /></div>
+      <button class="btn-main" id="loginBtn">Login</button>
+      <div class="divider">or login with</div>
+      <div class="social-icons">
+        <img src="https://cdn-icons-png.flaticon.com/512/124/124010.png" alt="FB">
+        <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" id="googleTrigger">
+      </div>
+      <div class="toggle-auth">Don't have an account? <span onclick="toggleAuth(true)">Sign Up</span></div>
+      <pre id="loginOutput" class="hidden"></pre>
+    </div>
+
+    <div class="auth-card hidden" id="signupCard">
+      <h2>Sign Up</h2>
+      <div class="input-group"><input id="signupName" type="text" placeholder="Full Name" value="Test Candidate" /></div>
+      <div class="input-group"><input id="signupEmail" type="email" placeholder="Email" value="candidate@test.com" /></div>
+      <div class="input-group"><input id="signupPassword" type="password" placeholder="Password" value="test1234" /></div>
+      <div class="input-group">
+        <select id="signupRole">
+          <option value="candidate">Candidate</option>
+          <option value="hr">HR / Recruiter</option>
+        </select>
+      </div>
+      <button class="btn-main" id="signupBtn">Sign Up</button>
+      <div class="toggle-auth">Already have an account? <span onclick="toggleAuth(false)">Login</span></div>
+      <pre id="signupOutput" class="hidden"></pre>
+    </div>
+
+    <div id="googleConfigArea" class="auth-card hidden" style="margin-top:20px;">
+        <h3>Google Config</h3>
+        <textarea id="config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+        <div style="margin-top:10px;">
+            <button id="googleSignInBtn" class="btn-small">1. Google Popup</button>
+            <button id="googleBackendBtn" class="btn-small">2. Send to Backend</button>
+        </div>
+        <pre id="googleOutput">-</pre>
+    </div>
   </div>
 
-  <section>
-    <h3>1. Signup (password flow)</h3>
-    <input id="signupName" placeholder="Name" value="Test Candidate" />
-    <input id="signupEmail" placeholder="Email" value="candidate@test.com" />
-    <input id="signupPassword" type="password" placeholder="Password (min 6 chars)" value="test1234" />
-    <select id="signupRole">
-      <option value="candidate">candidate</option>
-      <option value="hr">hr</option>
-      <option value="admin">admin</option>
-    </select>
-    <button id="signupBtn">Sign Up</button>
-    <pre id="signupOutput">-</pre>
-  </section>
+  <div class="dashboard-container" id="dashboardView">
+    <div class="dashboard-header">
+      <h2 id="welcomeText">Dashboard</h2>
+      <button class="btn-small" id="logoutBtn" style="border-color:var(--danger); color:var(--danger)">Logout</button>
+    </div>
 
-  <section>
-    <h3>2. Login (password flow)</h3>
-    <input id="loginEmail" placeholder="Email" value="candidate@test.com" />
-    <input id="loginPassword" type="password" placeholder="Password" value="test1234" />
-    <button id="loginBtn">Login</button>
-    <pre id="loginOutput">-</pre>
-  </section>
+    <div class="token-box">
+      <strong>Session JWT:</strong>
+      <textarea id="token" readonly></textarea>
+    </div>
 
-  <section>
-    <h3>3. Google Sign-In</h3>
-    <p>Fill in your Firebase <b>Web app</b> config (Firebase Console → Project Settings → General → Your apps → Web app).</p>
-    <textarea id="config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
-    <button id="googleSignInBtn">Sign in with Google</button>
-    <button id="googleBackendBtn">Send idToken to /api/auth/google</button>
-    <pre id="googleOutput">-</pre>
-  </section>
+    <section id="notifSection" style="display:none; background:#e3f2fd;">
+        <h3>🔔 Notifications</h3>
+        <div id="notifList"></div>
+    </section>
 
-  <section>
-    <h3>4. Me / Logout (protected)</h3>
-    <button id="meBtn">GET /api/auth/me</button>
-    <button id="logoutBtn">POST /api/auth/logout</button>
-    <pre id="meOutput">-</pre>
-  </section>
+    <div id="hrSection" class="hidden">
+      <section>
+        <h3>Post a Job</h3>
+        <div class="input-group"><input id="jobTitle" placeholder="Job Title" value="Node.js Developer" /></div>
+        <div class="input-group"><textarea id="jobDescription" placeholder="Job Description">Looking for an expert.</textarea></div>
+        <div class="input-group"><input id="jobSkills" placeholder="Skills (comma separated)" value="node.js, express, mongodb" /></div>
+        <button id="createJobBtn" class="btn-main">Publish Job</button>
+        <pre id="createJobOutput" class="hidden"></pre>
+      </section>
 
-  <section>
-    <h3>5. Resume Upload (protected)</h3>
-    <input id="resumeFile" type="file" accept=".pdf,.docx" />
-    <button id="resumeBtn">Upload Resume</button>
-    <pre id="resumeOutput">-</pre>
-  </section>
+      <section>
+        <h3>Applicants & Status</h3>
+        <button id="loadHrJobsBtn" class="btn-small">Refresh Jobs</button>
+        <div id="hrJobsList" style="margin-top:15px;"></div>
+        <div id="applicantsContainer" style="margin-top:20px; border-top: 1px solid #eee; padding-top:20px;"></div>
+        <h4 style="margin-top:20px;">Detailed Report</h4>
+        <pre id="applicationReportOutput">Select an applicant to view report.</pre>
+      </section>
+    </div>
 
-  <section>
-    <h3>6. Practice Interview (protected)</h3>
-    <button id="startInterviewBtn">Start / Resume Interview</button>
-    <div id="interviewQuestions"></div>
-    <h4>Final report</h4>
-    <pre id="interviewOutput">-</pre>
-  </section>
+    <div id="candidateSection" class="hidden">
+      <section>
+        <h3>1. Resume Upload</h3>
+        <input id="resumeFile" type="file" accept=".pdf,.docx" />
+        <button id="resumeBtn" class="btn-main" style="width:auto; padding:10px 30px;">Upload</button>
+        <pre id="resumeOutput" class="hidden"></pre>
+      </section>
 
-  <section>
-    <h3>7. Certificate (protected)</h3>
-    <p>Uses the sessionId from the completed interview above. Only works if score is above the pass threshold.</p>
-    <button id="certificateBtn">Generate / Get Certificate</button>
-    <pre id="certificateOutput">-</pre>
-  </section>
+      <section>
+        <h3>2. AI Interview</h3>
+        <button id="startInterviewBtn" class="btn-main" style="width:auto; padding:10px 30px;">Start Interview</button>
+        <div id="interviewQuestions" style="margin-top:15px;"></div>
+        <pre id="interviewOutput" class="hidden"></pre>
+        <button id="certificateBtn" class="btn-small" style="margin-top:10px;">Get Certificate</button>
+        <pre id="certificateOutput" class="hidden"></pre>
+      </section>
 
+      <section>
+        <h3>3. Browse Jobs</h3>
+        <button id="loadOpenJobsBtn" class="btn-small">Refresh Job Board</button>
+        <div id="openJobsList"></div>
+      </section>
+
+      <section>
+        <h3>4. Application Tracker</h3>
+        <button id="loadMyApplicationsBtn" class="btn-small">Update Status</button>
+        <div id="myApplicationsList"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script type="module">
-    const tokenEl = document.getElementById("token");
-
-    const setToken = (t) => { tokenEl.value = t || ""; };
-    const authHeaders = () => ({ Authorization: `Bearer ${tokenEl.value.trim()}` });
-
-    const showJson = (elId, data) => {
-      document.getElementById(elId).textContent = JSON.stringify(data, null, 2);
+    window.toggleAuth = (s) => {
+      document.getElementById('loginCard').classList.toggle('hidden', s);
+      document.getElementById('signupCard').classList.toggle('hidden', !s);
     };
 
-    document.getElementById("signupBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: document.getElementById("signupName").value,
-            email: document.getElementById("signupEmail").value,
-            password: document.getElementById("signupPassword").value,
-            role: document.getElementById("signupRole").value,
-          }),
-        });
-        const data = await res.json();
-        showJson("signupOutput", data);
-      } catch (err) {
-        showJson("signupOutput", { error: err.message });
-      }
-    });
+    const tokenEl = document.getElementById("token");
+    const setToken = (t) => { tokenEl.value = t || ""; };
+    const authHeaders = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${tokenEl.value.trim()}` });
+
+    const showJson = (elId, data) => {
+        const el = document.getElementById(elId);
+        el.classList.remove('hidden');
+        el.textContent = JSON.stringify(data, null, 2);
+    };
+
+    const onAuthenticated = (user) => {
+      document.getElementById('authView').style.display = 'none';
+      document.getElementById('dashboardView').style.display = 'block';
+      document.getElementById('welcomeText').textContent = `Airecruitx | ${user.name} (${user.role})`;
+      document.getElementById("hrSection").classList.toggle('hidden', user.role !== "hr");
+      document.getElementById("candidateSection").classList.toggle('hidden', user.role !== "candidate");
+      initSocket(user.id);
+    };
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
       try {
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: document.getElementById("loginEmail").value,
-            password: document.getElementById("loginPassword").value,
-          }),
+          body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value }),
         });
-        const data = await res.json();
-        showJson("loginOutput", data);
-        if (data.success) setToken(data.data.token);
-      } catch (err) {
-        showJson("loginOutput", { error: err.message });
-      }
+        const d = await res.json();
+        if (d.success) { setToken(d.data.token); onAuthenticated(d.data.user); }
+        else { showJson("loginOutput", d); }
+      } catch (err) { showJson("loginOutput", { error: err.message }); }
     });
 
-    let googleIdToken = "";
-    document.getElementById("googleSignInBtn").addEventListener("click", async () => {
+    document.getElementById("signupBtn").addEventListener("click", async () => {
       try {
-        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
-        const { getAuth, GoogleAuthProvider, signInWithPopup } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
-
-        const firebaseConfig = JSON.parse(document.getElementById("config").value);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-
-        const result = await signInWithPopup(auth, provider);
-        googleIdToken = await result.user.getIdToken();
-        showJson("googleOutput", { idToken: googleIdToken });
-      } catch (err) {
-        showJson("googleOutput", { error: err.message });
-      }
-    });
-
-    document.getElementById("googleBackendBtn").addEventListener("click", async () => {
-      if (!googleIdToken) {
-        showJson("googleOutput", { error: "Sign in with Google first to get an idToken." });
-        return;
-      }
-      try {
-        const res = await fetch("/api/auth/google", {
+        const res = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken: googleIdToken, role: "candidate" }),
+          body: JSON.stringify({ name: signupName.value, email: signupEmail.value, password: signupPassword.value, role: signupRole.value }),
         });
-        const data = await res.json();
-        showJson("googleOutput", data);
-        if (data.success) setToken(data.data.token);
-      } catch (err) {
-        showJson("googleOutput", { error: err.message });
-      }
+        const d = await res.json();
+        showJson("signupOutput", d);
+        if(d.success) setTimeout(() => toggleAuth(false), 1500);
+      } catch (err) { showJson("signupOutput", { error: err.message }); }
     });
 
-    document.getElementById("meBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch("/api/auth/me", { headers: authHeaders() });
-        showJson("meOutput", await res.json());
-      } catch (err) {
-        showJson("meOutput", { error: err.message });
-      }
-    });
+    document.getElementById("googleTrigger").onclick = () => document.getElementById("googleConfigArea").classList.toggle('hidden');
 
-    document.getElementById("logoutBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch("/api/auth/logout", { method: "POST", headers: authHeaders() });
-        showJson("meOutput", await res.json());
-      } catch (err) {
-        showJson("meOutput", { error: err.message });
-      }
-    });
+    let gIdToken = "";
+    document.getElementById("googleSignInBtn").onclick = async () => {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+      const { getAuth, GoogleAuthProvider, signInWithPopup } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
+      const app = initializeApp(JSON.parse(config.value));
+      const auth = getAuth(app);
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      gIdToken = await result.user.getIdToken();
+      showJson("googleOutput", { idToken: "Ready" });
+    };
 
-    document.getElementById("resumeBtn").addEventListener("click", async () => {
-      const fileInput = document.getElementById("resumeFile");
-      if (!fileInput.files.length) {
-        showJson("resumeOutput", { error: "Choose a PDF/DOCX file first." });
-        return;
-      }
-      try {
-        const formData = new FormData();
-        formData.append("resume", fileInput.files[0]);
+    document.getElementById("googleBackendBtn").onclick = async () => {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: gIdToken, role: "candidate" }),
+      });
+      const d = await res.json();
+      if (d.success) { setToken(d.data.token); onAuthenticated(d.data.user); }
+    };
 
-        const res = await fetch("/api/resume/upload", {
-          method: "POST",
-          headers: authHeaders(), // don't set Content-Type manually — browser sets multipart boundary
-          body: formData,
-        });
-        showJson("resumeOutput", await res.json());
-      } catch (err) {
-        showJson("resumeOutput", { error: err.message });
-      }
-    });
+    document.getElementById("logoutBtn").onclick = () => location.reload();
 
-    // --- Practice Interview ---
-    const interviewQuestionsEl = document.getElementById("interviewQuestions");
+    document.getElementById("resumeBtn").onclick = async () => {
+      const fd = new FormData();
+      fd.append("resume", resumeFile.files[0]);
+      const res = await fetch("/api/resume/upload", { method: "POST", headers: { Authorization: `Bearer ${tokenEl.value}` }, body: fd });
+      showJson("resumeOutput", await res.json());
+    };
+
     let currentSessionId = null;
-
     const renderInterview = (session) => {
       currentSessionId = session.sessionId;
+      const container = document.getElementById("interviewQuestions");
+      container.innerHTML = "";
+
+      // Show already-answered questions with the model's live feedback/score.
+      (session.turns || []).forEach((t) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<p><strong>Q${t.questionNumber}:</strong> ${t.question}</p>
+                          <p><em>Your answer:</em> ${t.answer}</p>
+                          <p><strong>Feedback:</strong> ${t.feedback} (Score: ${t.score}/10)</p>`;
+        container.appendChild(div);
+      });
 
       if (session.status === "completed") {
-        interviewQuestionsEl.innerHTML = "";
         showJson("interviewOutput", session);
         return;
       }
 
-      showJson("interviewOutput", { status: session.status, round: session.round });
+      document.getElementById("interviewOutput").classList.add("hidden");
 
-      interviewQuestionsEl.innerHTML = "";
-      session.questions.forEach((q) => {
-        const wrapper = document.createElement("div");
-        wrapper.style.marginBottom = "10px";
+      const div = document.createElement("div");
+      div.className = "list-item";
+      div.innerHTML = `<p><strong>Q${session.questionNumber}:</strong> ${session.question}</p>
+                        <textarea id="currentAnswer"></textarea>
+                        <button class="btn-small" id="submitAnsBtn">Submit Answer</button>`;
+      container.appendChild(div);
+      document.getElementById("submitAnsBtn").onclick = submitAns;
+    };
 
-        const label = document.createElement("label");
-        label.textContent = `Q${q.index + 1}. ${q.question}`;
-        wrapper.appendChild(label);
-
-        const textarea = document.createElement("textarea");
-        textarea.value = q.answer || "";
-        wrapper.appendChild(textarea);
-
-        const submitBtn = document.createElement("button");
-        submitBtn.textContent = q.answer ? "Update Answer" : "Submit Answer";
-        submitBtn.addEventListener("click", async () => {
-          try {
-            const res = await fetch("/api/interview/answer", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", ...authHeaders() },
-              body: JSON.stringify({
-                sessionId: session.sessionId,
-                questionIndex: q.index,
-                answer: textarea.value,
-              }),
-            });
-            const data = await res.json();
-            if (data.success) {
-              renderInterview(data.data);
-            } else {
-              showJson("interviewOutput", data);
-            }
-          } catch (err) {
-            showJson("interviewOutput", { error: err.message });
-          }
+    const submitAns = async () => {
+      const btn = document.getElementById("submitAnsBtn");
+      const answer = document.getElementById("currentAnswer").value;
+      if (!answer.trim()) return;
+      btn.disabled = true;
+      btn.textContent = "Thinking... (the model is scoring your answer, this can take up to ~30s)";
+      try {
+        const res = await fetch("/api/interview/answer", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ sessionId: currentSessionId, answer }),
         });
-        wrapper.appendChild(submitBtn);
+        const d = await res.json();
+        if (d.success) renderInterview(d.data);
+        else showJson("interviewOutput", d);
+      } catch (err) {
+        showJson("interviewOutput", { error: err.message });
+      } finally {
+        if (document.getElementById("submitAnsBtn")) {
+          btn.disabled = false;
+          btn.textContent = "Submit Answer";
+        }
+      }
+    };
 
-        interviewQuestionsEl.appendChild(wrapper);
+    document.getElementById("startInterviewBtn").onclick = async () => {
+      const btn = document.getElementById("startInterviewBtn");
+      btn.disabled = true;
+      btn.textContent = "Starting... (waking up the model, this can take a while on first call)";
+      try {
+        const res = await fetch("/api/interview/start", { method: "POST", headers: authHeaders() });
+        const d = await res.json();
+        if (d.success) renderInterview(d.data);
+        else showJson("interviewOutput", d);
+      } catch (err) {
+        showJson("interviewOutput", { error: err.message });
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Start Interview";
+      }
+    };
+
+    document.getElementById("certificateBtn").onclick = async () => {
+      const res = await fetch("/api/certificate/generate", { method: "POST", headers: authHeaders(), body: JSON.stringify({ sessionId: currentSessionId }) });
+      showJson("certificateOutput", await res.json());
+    };
+
+    window.updateAppStatus = async (aid, status) => {
+        const res = await fetch(`/api/applications/${aid}/status`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ status }) });
+        const d = await res.json();
+        if(d.success) document.getElementById('loadHrJobsBtn').click();
+    };
+
+    window.scheduleInterview = async (aid) => {
+        const dt = document.getElementById(`dt-${aid}`).value;
+        const loc = document.getElementById(`loc-${aid}`).value;
+        const res = await fetch(`/api/applications/${aid}/org-interview`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ dateTime: dt, location: loc }) });
+        showJson("applicationReportOutput", await res.json());
+    };
+
+    window.viewReport = async (aid) => {
+        const res = await fetch(`/api/applications/${aid}/report`, { headers: authHeaders() });
+        showJson("applicationReportOutput", await res.json());
+    };
+
+    const renderApps = (container, apps) => {
+      container.innerHTML = "";
+      apps.forEach(app => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `
+          <strong>${app.candidateId?.name || "Candidate"}</strong> (${app.matchScore}% Match)
+          <div class="status-badge status-${app.status}">${app.status}</div><br>
+          <button class="btn-small" onclick="viewReport('${app._id}')">AI Report</button>
+          <button class="btn-small" onclick="updateAppStatus('${app._id}', 'selected')">Shortlist</button>
+          <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="updateAppStatus('${app._id}', 'rejected')">Reject</button>
+          ${app.status === 'selected' ? `
+            <div class="schedule-box">
+              <input type="datetime-local" id="dt-${app._id}">
+              <input type="text" id="loc-${app._id}" placeholder="Meeting Link">
+              <button class="btn-small" onclick="scheduleInterview('${app._id}')">Schedule</button>
+            </div>
+          ` : ''}
+        `;
+        container.appendChild(div);
       });
     };
 
-    document.getElementById("startInterviewBtn").addEventListener("click", async () => {
-      try {
-        const res = await fetch("/api/interview/start", {
-          method: "POST",
-          headers: authHeaders(),
-        });
-        const data = await res.json();
-        if (data.success) {
-          renderInterview(data.data);
-        } else {
-          showJson("interviewOutput", data);
-        }
-      } catch (err) {
-        showJson("interviewOutput", { error: err.message });
-      }
-    });
+    document.getElementById("loadHrJobsBtn").onclick = async () => {
+      const res = await fetch("/api/jobs", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("hrJobsList");
+      list.innerHTML = "";
+      d.data.forEach(job => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${job.title}</strong><br>
+                         <button class="btn-small" id="all-${job._id}">All</button>
+                         <button class="btn-small" id="top-${job._id}">Top Matches</button>
+                         <div id="c-${job._id}" style="margin-top:10px;"></div>`;
+        list.appendChild(div);
+        document.getElementById(`all-${job._id}`).onclick = async () => {
+            const r = await fetch(`/api/applications/job/${job._id}`, { headers: authHeaders() });
+            const j = await r.json();
+            renderApps(document.getElementById(`c-${job._id}`), j.data);
+        };
+        document.getElementById(`top-${job._id}`).onclick = async () => {
+            const r = await fetch(`/api/applications/job/${job._id}/matched`, { headers: authHeaders() });
+            const j = await r.json();
+            renderApps(document.getElementById(`c-${job._id}`), j.data);
+        };
+      });
+    };
 
-    // --- Certificate ---
-    document.getElementById("certificateBtn").addEventListener("click", async () => {
-      if (!currentSessionId) {
-        showJson("certificateOutput", { error: "Start/complete an interview above first." });
-        return;
-      }
-      try {
-        const res = await fetch("/api/certificate/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeaders() },
-          body: JSON.stringify({ sessionId: currentSessionId }),
-        });
-        const data = await res.json();
-        showJson("certificateOutput", data);
-      } catch (err) {
-        showJson("certificateOutput", { error: err.message });
-      }
-    });
+    document.getElementById("createJobBtn").onclick = async () => {
+      const res = await fetch("/api/jobs", { method: "POST", headers: authHeaders(), body: JSON.stringify({ title: jobTitle.value, description: jobDescription.value, requiredSkills: jobSkills.value.split(",") }) });
+      showJson("createJobOutput", await res.json());
+    };
+
+    document.getElementById("loadOpenJobsBtn").onclick = async () => {
+      const res = await fetch("/api/jobs", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("openJobsList");
+      list.innerHTML = "";
+      d.data.forEach(job => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${job.title}</strong><br><button class="btn-small" onclick="applyJob('${job._id}')">Apply Now</button>`;
+        list.appendChild(div);
+      });
+    };
+
+    window.applyJob = async (jid) => {
+        const res = await fetch(`/api/applications/${jid}/apply`, { method: "POST", headers: authHeaders() });
+        const d = await res.json();
+        alert(d.message || "Application Submitted");
+    };
+
+    document.getElementById("loadMyApplicationsBtn").onclick = async () => {
+      const res = await fetch("/api/applications/mine", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("myApplicationsList");
+      list.innerHTML = "";
+      d.data.forEach(app => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${app.jobId?.title}</strong> | Status: <span class="status-badge status-${app.status}">${app.status}</span>
+        ${app.orgInterview?.scheduled ? `<div style="background:#e8f5e9; padding:8px; border-radius:4px; margin-top:5px;">📅 ${new Date(app.orgInterview.dateTime).toLocaleString()} | 📍 ${app.orgInterview.location}</div>` : ''}`;
+        list.appendChild(div);
+      });
+    };
+
+    let socket = null;
+    const initSocket = (uid) => {
+      socket = io();
+      socket.emit("join", uid);
+      socket.on("application:status", (p) => addNotif("Update", `${p.jobTitle} status: ${p.status}`));
+      socket.on("application:org-interview", (p) => addNotif("Interview Invite", `Meeting set for ${new Date(p.dateTime).toLocaleString()}`));
+    };
+
+    const addNotif = (title, msg) => {
+      document.getElementById("notifSection").style.display = "block";
+      const div = document.createElement('div');
+      div.style.padding = "10px"; div.style.borderBottom = "1px solid #90caf9";
+      div.innerHTML = `<strong>${title}</strong>: ${msg}`;
+      document.getElementById('notifList').prepend(div);
+    };
   </script>
 </body>
 </html>

@@ -1,32 +1,51 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-export type InterviewStatus = "round1" | "round2" | "completed";
+export type InterviewStatus = "in_progress" | "completed";
 export type InterviewResult = "pass" | "fail";
 
-export interface IInterviewAnswer {
-  round: 1 | 2;
-  questionIndex: number;
+export interface IInterviewMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface IInterviewTurn {
+  questionNumber: number;
   question: string;
   answer: string;
+  feedback: string;
+  score: number; // out of 10, as scored live by the model
 }
 
 export interface IInterviewSession extends Document {
   userId: Types.ObjectId;
+  applicationId?: Types.ObjectId;
   status: InterviewStatus;
-  answers: IInterviewAnswer[];
-  score?: number;
+  messages: IInterviewMessage[];
+  turns: IInterviewTurn[];
+  currentQuestionNumber?: number;
+  currentQuestion?: string;
+  score?: number; // overall, 0-100
   result?: InterviewResult;
   feedback?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const answerSchema = new Schema<IInterviewAnswer>(
+const messageSchema = new Schema<IInterviewMessage>(
   {
-    round: { type: Number, enum: [1, 2], required: true },
-    questionIndex: { type: Number, required: true },
+    role: { type: String, enum: ["user", "assistant"], required: true },
+    content: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const turnSchema = new Schema<IInterviewTurn>(
+  {
+    questionNumber: { type: Number, required: true },
     question: { type: String, required: true },
     answer: { type: String, required: true },
+    feedback: { type: String, required: true },
+    score: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -39,16 +58,27 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
       required: true,
       index: true,
     },
+    applicationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Application",
+      required: false,
+    },
     status: {
       type: String,
-      enum: ["round1", "round2", "completed"],
+      enum: ["in_progress", "completed"],
       required: true,
-      default: "round1",
+      default: "in_progress",
     },
-    answers: {
-      type: [answerSchema],
+    messages: {
+      type: [messageSchema],
       default: [],
     },
+    turns: {
+      type: [turnSchema],
+      default: [],
+    },
+    currentQuestionNumber: { type: Number, required: false },
+    currentQuestion: { type: String, required: false },
     score: { type: Number, required: false },
     result: { type: String, enum: ["pass", "fail"], required: false },
     feedback: { type: String, required: false },
