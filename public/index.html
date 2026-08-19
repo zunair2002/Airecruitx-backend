@@ -49,6 +49,12 @@
     .status-rejected { background: #ffebee; color: #c62828; }
     .schedule-box { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc; }
     .schedule-box input { padding: 8px; margin-right: 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+    .kpi-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+    .kpi-tile { background: #f5f9ff; border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; min-width: 130px; }
+    .kpi-tile .num { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .kpi-tile .label { font-size: 12px; color: var(--light); }
+    .admin-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .admin-toolbar input, .admin-toolbar select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -77,6 +83,7 @@
         <select id="signupRole">
           <option value="candidate">Candidate</option>
           <option value="hr">HR / Recruiter</option>
+          <option value="admin">Admin</option>
         </select>
       </div>
       <button class="btn-main" id="signupBtn">Sign Up</button>
@@ -108,7 +115,16 @@
 
     <section id="notifSection" style="display:none; background:#e3f2fd;">
         <h3>🔔 Notifications</h3>
+        <button id="loadMyNotificationsBtn" class="btn-small">Refresh</button>
         <div id="notifList"></div>
+    </section>
+
+    <section>
+      <h3>Contact Support</h3>
+      <div class="input-group"><input id="ticketSubject" placeholder="Subject" value="Question about my account" /></div>
+      <div class="input-group"><textarea id="ticketMessage" placeholder="Message">Need help with...</textarea></div>
+      <button id="submitTicketBtn" class="btn-small">Submit Ticket</button>
+      <pre id="ticketOutput" class="hidden"></pre>
     </section>
 
     <div id="hrSection" class="hidden">
@@ -116,7 +132,11 @@
         <h3>Post a Job</h3>
         <div class="input-group"><input id="jobTitle" placeholder="Job Title" value="Node.js Developer" /></div>
         <div class="input-group"><textarea id="jobDescription" placeholder="Job Description">Looking for an expert.</textarea></div>
-        <div class="input-group"><input id="jobSkills" placeholder="Skills (comma separated)" value="node.js, express, mongodb" /></div>
+        <div class="input-group"><input id="jobSkills" placeholder="Skills (comma separated) — leave blank to auto-suggest from JD" value="node.js, express, mongodb" /></div>
+        <div class="input-group">
+          <label>JD document (optional, PDF/DOCX)</label>
+          <input id="jdFile" type="file" accept=".pdf,.docx" />
+        </div>
         <button id="createJobBtn" class="btn-main">Publish Job</button>
         <pre id="createJobOutput" class="hidden"></pre>
       </section>
@@ -140,11 +160,27 @@
       </section>
 
       <section>
-        <h3>2. AI Interview</h3>
+        <h3>2. AI Practice Interview</h3>
+        <label>Level</label>
+        <select id="interviewLevel">
+          <option value="beginner">Beginner</option>
+          <option value="intermediate" selected>Intermediate</option>
+          <option value="expert">Expert</option>
+        </select>
         <button id="startInterviewBtn" class="btn-main" style="width:auto; padding:10px 30px;">Start Interview</button>
         <div id="interviewQuestions" style="margin-top:15px;"></div>
         <pre id="interviewOutput" class="hidden"></pre>
-        <button id="certificateBtn" class="btn-small" style="margin-top:10px;">Get Certificate</button>
+
+        <div id="elearningPanel" class="hidden" style="background:#fff3e0; padding:15px; border-radius:6px; margin-top:15px;">
+          <h4 style="margin-top:0;">📚 E-Learning Tips</h4>
+          <ul id="elearningTipsList"></ul>
+          <button id="retryInterviewBtn" class="btn-small">Retry Interview</button>
+        </div>
+
+        <div id="certificatePanel" class="hidden" style="margin-top:10px;">
+          <button id="payForCertificateBtn" class="btn-small">Pay & Get Certificate</button>
+          <button id="certificateBtn" class="btn-small hidden">Get Certificate</button>
+        </div>
         <pre id="certificateOutput" class="hidden"></pre>
       </section>
 
@@ -158,6 +194,90 @@
         <h3>4. Application Tracker</h3>
         <button id="loadMyApplicationsBtn" class="btn-small">Update Status</button>
         <div id="myApplicationsList"></div>
+      </section>
+    </div>
+
+    <div id="adminSection" class="hidden">
+      <section>
+        <h3>Dashboard Overview</h3>
+        <button id="loadDashboardBtn" class="btn-small">Refresh</button>
+        <div id="dashboardKpis" class="kpi-grid" style="margin-top:12px;"></div>
+        <h4 style="margin-top:20px;">Recent Activity</h4>
+        <div id="dashboardRecentActivity"></div>
+      </section>
+
+      <section>
+        <h3>User Management</h3>
+        <div class="admin-toolbar">
+          <input id="userSearch" placeholder="Search name/email" />
+          <select id="userRoleFilter">
+            <option value="">All roles</option>
+            <option value="candidate">Candidate</option>
+            <option value="hr">HR</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button id="loadUsersBtn" class="btn-small">Search</button>
+        </div>
+        <div id="usersList"></div>
+      </section>
+
+      <section>
+        <h3>Activity / Audit Logs</h3>
+        <button id="loadActivityLogsBtn" class="btn-small">Refresh</button>
+        <div id="activityLogsList" style="margin-top:12px;"></div>
+      </section>
+
+      <section>
+        <h3>Jobs & Applications (Platform-wide)</h3>
+        <button id="loadAdminJobsBtn" class="btn-small">Load Jobs</button>
+        <button id="loadAdminApplicationsBtn" class="btn-small">Load Applications</button>
+        <div id="adminJobsList" style="margin-top:12px;"></div>
+        <div id="adminApplicationsList" style="margin-top:12px;"></div>
+      </section>
+
+      <section>
+        <h3>Reports</h3>
+        <button id="loadReportsBtn" class="btn-small">Generate Summary</button>
+        <pre id="reportsOutput" class="hidden"></pre>
+      </section>
+
+      <section>
+        <h3>Send Notification</h3>
+        <div class="input-group"><input id="notifyUserId" placeholder="Target user id (optional)" /></div>
+        <div class="input-group">
+          <select id="notifyRole">
+            <option value="">— or pick a role instead —</option>
+            <option value="candidate">All candidates</option>
+            <option value="hr">All HR</option>
+          </select>
+        </div>
+        <div class="input-group"><textarea id="notifyMessage" placeholder="Message">Platform update: ...</textarea></div>
+        <button id="sendNotificationBtn" class="btn-small">Send</button>
+        <pre id="sendNotificationOutput" class="hidden"></pre>
+      </section>
+
+      <section>
+        <h3>System Settings</h3>
+        <button id="loadSettingsBtn" class="btn-small">Load</button>
+        <div class="input-group"><label>Site name</label><input id="settingSiteName" /></div>
+        <div class="input-group"><label>Match threshold (%)</label><input id="settingMatchThreshold" type="number" /></div>
+        <div class="input-group"><label>Allow signups</label>
+          <select id="settingAllowSignups"><option value="true">true</option><option value="false">false</option></select>
+        </div>
+        <button id="saveSettingsBtn" class="btn-small">Save</button>
+        <pre id="settingsOutput" class="hidden"></pre>
+      </section>
+
+      <section>
+        <h3>Support Tickets</h3>
+        <button id="loadSupportTicketsBtn" class="btn-small">Refresh</button>
+        <div id="supportTicketsList" style="margin-top:12px;"></div>
+      </section>
+
+      <section>
+        <h3>Monitoring</h3>
+        <button id="loadMonitoringBtn" class="btn-small">Refresh</button>
+        <div id="monitoringOutput" class="kpi-grid" style="margin-top:12px;"></div>
       </section>
     </div>
   </div>
@@ -185,7 +305,9 @@
       document.getElementById('welcomeText').textContent = `Airecruitx | ${user.name} (${user.role})`;
       document.getElementById("hrSection").classList.toggle('hidden', user.role !== "hr");
       document.getElementById("candidateSection").classList.toggle('hidden', user.role !== "candidate");
+      document.getElementById("adminSection").classList.toggle('hidden', user.role !== "admin");
       initSocket(user.id);
+      confirmPendingPayment();
     };
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
@@ -246,6 +368,13 @@
       showJson("resumeOutput", await res.json());
     };
 
+    const ELEARNING_TIPS = [
+      "Practice the STAR method (Situation, Task, Action, Result) for behavioral answers.",
+      "Review core concepts for your target role before retrying.",
+      "Keep answers structured — lead with a summary, then details.",
+      "Explain your reasoning out loud, not just the final answer.",
+    ];
+
     let currentSessionId = null;
     const renderInterview = (session) => {
       currentSessionId = session.sessionId;
@@ -262,11 +391,27 @@
         container.appendChild(div);
       });
 
+      const elearningPanel = document.getElementById("elearningPanel");
+      const certificatePanel = document.getElementById("certificatePanel");
+
       if (session.status === "completed") {
         showJson("interviewOutput", session);
+
+        if (session.result === "fail") {
+          elearningPanel.classList.remove("hidden");
+          document.getElementById("elearningTipsList").innerHTML = ELEARNING_TIPS.map((t) => `<li>${t}</li>`).join("");
+          certificatePanel.classList.add("hidden");
+        } else {
+          elearningPanel.classList.add("hidden");
+          certificatePanel.classList.remove("hidden");
+          document.getElementById("payForCertificateBtn").classList.toggle("hidden", !!session.certificatePaid);
+          document.getElementById("certificateBtn").classList.toggle("hidden", !session.certificatePaid);
+        }
         return;
       }
 
+      elearningPanel.classList.add("hidden");
+      certificatePanel.classList.add("hidden");
       document.getElementById("interviewOutput").classList.add("hidden");
 
       const div = document.createElement("div");
@@ -303,12 +448,15 @@
       }
     };
 
-    document.getElementById("startInterviewBtn").onclick = async () => {
-      const btn = document.getElementById("startInterviewBtn");
+    const startPracticeInterview = async (btn) => {
       btn.disabled = true;
       btn.textContent = "Starting... (waking up the model, this can take a while on first call)";
       try {
-        const res = await fetch("/api/interview/start", { method: "POST", headers: authHeaders() });
+        const res = await fetch("/api/interview/start", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ level: document.getElementById("interviewLevel").value }),
+        });
         const d = await res.json();
         if (d.success) renderInterview(d.data);
         else showJson("interviewOutput", d);
@@ -320,9 +468,51 @@
       }
     };
 
+    document.getElementById("startInterviewBtn").onclick = () => startPracticeInterview(document.getElementById("startInterviewBtn"));
+    document.getElementById("retryInterviewBtn").onclick = () => startPracticeInterview(document.getElementById("retryInterviewBtn"));
+
+    document.getElementById("payForCertificateBtn").onclick = async () => {
+      const res = await fetch("/api/certificate/checkout", { method: "POST", headers: authHeaders(), body: JSON.stringify({ sessionId: currentSessionId }) });
+      const d = await res.json();
+      if (d.success) {
+        window.location.href = d.data.checkoutUrl;
+      } else {
+        showJson("certificateOutput", d);
+      }
+    };
+
     document.getElementById("certificateBtn").onclick = async () => {
       const res = await fetch("/api/certificate/generate", { method: "POST", headers: authHeaders(), body: JSON.stringify({ sessionId: currentSessionId }) });
       showJson("certificateOutput", await res.json());
+    };
+
+    // Handles the redirect back from Stripe Checkout (?payment=success&sessionId=...).
+    const handlePaymentReturn = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get("payment");
+      const sessionId = params.get("sessionId");
+      if (!payment || !sessionId) return;
+
+      window.history.replaceState({}, "", window.location.pathname);
+      if (payment !== "success") return;
+
+      // Needs to run after login (token available) — stash and retry once authenticated.
+      window.pendingPaymentConfirmSessionId = sessionId;
+    };
+    handlePaymentReturn();
+
+    const confirmPendingPayment = async () => {
+      const sessionId = window.pendingPaymentConfirmSessionId;
+      if (!sessionId) return;
+      window.pendingPaymentConfirmSessionId = null;
+
+      const res = await fetch("/api/certificate/confirm-payment", { method: "POST", headers: authHeaders(), body: JSON.stringify({ sessionId }) });
+      const d = await res.json();
+      if (d.success && d.data.paid) {
+        const r = await fetch(`/api/interview/report/${sessionId}`, { headers: authHeaders() });
+        const rd = await r.json();
+        if (rd.success) renderInterview(rd.data);
+      }
     };
 
     window.updateAppStatus = async (aid, status) => {
@@ -338,6 +528,15 @@
         showJson("applicationReportOutput", await res.json());
     };
 
+    window.scheduleAiInterview = async (aid) => {
+        const dt = document.getElementById(`ai-dt-${aid}`).value;
+        const msg = document.getElementById(`ai-msg-${aid}`).value;
+        const res = await fetch(`/api/applications/${aid}/ai-interview`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ dateTime: dt, message: msg }) });
+        const d = await res.json();
+        showJson("applicationReportOutput", d);
+        if (d.success) document.getElementById('loadHrJobsBtn').click();
+    };
+
     window.viewReport = async (aid) => {
         const res = await fetch(`/api/applications/${aid}/report`, { headers: authHeaders() });
         showJson("applicationReportOutput", await res.json());
@@ -349,13 +548,27 @@
         const div = document.createElement("div");
         div.className = "list-item";
         div.innerHTML = `
-          <strong>${app.candidateId?.name || "Candidate"}</strong> (${app.matchScore}% Match)
+          <strong>${app.candidateId?.name || "Candidate"}</strong> (${app.matchScore}% Match — waiting list)
           <div class="status-badge status-${app.status}">${app.status}</div><br>
+          Matched skills: ${(app.resumeSnapshotSkills || []).join(", ") || "-"}<br>
           <button class="btn-small" onclick="viewReport('${app._id}')">AI Report</button>
           <button class="btn-small" onclick="updateAppStatus('${app._id}', 'selected')">Shortlist</button>
           <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="updateAppStatus('${app._id}', 'rejected')">Reject</button>
+          ${app.matched ? (app.aiInterview?.scheduled ? `
+            <div class="schedule-box">
+              🤖 AI interview scheduled for ${new Date(app.aiInterview.dateTime).toLocaleString()}
+            </div>
+          ` : `
+            <div class="schedule-box">
+              <label>Schedule the real AI interview</label><br>
+              <input type="datetime-local" id="ai-dt-${app._id}">
+              <input type="text" id="ai-msg-${app._id}" placeholder="Message to candidate">
+              <button class="btn-small" onclick="scheduleAiInterview('${app._id}')">Schedule AI Interview</button>
+            </div>
+          `) : ''}
           ${app.status === 'selected' ? `
             <div class="schedule-box">
+              <label>Schedule real organization interview</label><br>
               <input type="datetime-local" id="dt-${app._id}">
               <input type="text" id="loc-${app._id}" placeholder="Meeting Link">
               <button class="btn-small" onclick="scheduleInterview('${app._id}')">Schedule</button>
@@ -367,7 +580,7 @@
     };
 
     document.getElementById("loadHrJobsBtn").onclick = async () => {
-      const res = await fetch("/api/jobs", { headers: authHeaders() });
+      const res = await fetch("/api/jobs/mine", { headers: authHeaders() });
       const d = await res.json();
       const list = document.getElementById("hrJobsList");
       list.innerHTML = "";
@@ -393,12 +606,18 @@
     };
 
     document.getElementById("createJobBtn").onclick = async () => {
-      const res = await fetch("/api/jobs", { method: "POST", headers: authHeaders(), body: JSON.stringify({ title: jobTitle.value, description: jobDescription.value, requiredSkills: jobSkills.value.split(",") }) });
+      const fd = new FormData();
+      fd.append("title", jobTitle.value);
+      fd.append("description", jobDescription.value);
+      fd.append("requiredSkills", jobSkills.value);
+      if (jdFile.files[0]) fd.append("jd", jdFile.files[0]);
+
+      const res = await fetch("/api/jobs", { method: "POST", headers: { Authorization: `Bearer ${tokenEl.value.trim()}` }, body: fd });
       showJson("createJobOutput", await res.json());
     };
 
     document.getElementById("loadOpenJobsBtn").onclick = async () => {
-      const res = await fetch("/api/jobs", { headers: authHeaders() });
+      const res = await fetch("/api/jobs/open", { headers: authHeaders() });
       const d = await res.json();
       const list = document.getElementById("openJobsList");
       list.innerHTML = "";
@@ -416,6 +635,17 @@
         alert(d.message || "Application Submitted");
     };
 
+    window.continueAiInterview = async (sessionId) => {
+      const res = await fetch(`/api/interview/report/${sessionId}`, { headers: authHeaders() });
+      const d = await res.json();
+      if (d.success) {
+        renderInterview(d.data);
+        document.getElementById("interviewQuestions").scrollIntoView({ behavior: "smooth" });
+      } else {
+        showJson("interviewOutput", d);
+      }
+    };
+
     document.getElementById("loadMyApplicationsBtn").onclick = async () => {
       const res = await fetch("/api/applications/mine", { headers: authHeaders() });
       const d = await res.json();
@@ -424,7 +654,12 @@
       d.data.forEach(app => {
         const div = document.createElement("div");
         div.className = "list-item";
-        div.innerHTML = `<strong>${app.jobId?.title}</strong> | Status: <span class="status-badge status-${app.status}">${app.status}</span>
+        div.innerHTML = `<strong>${app.jobId?.title}</strong> | Match: ${app.matchScore}% ${app.matched ? "(waiting list)" : ""} | Status: <span class="status-badge status-${app.status}">${app.status}</span>
+        ${app.aiInterview?.scheduled ? `<div style="background:#e3f2fd; padding:8px; border-radius:4px; margin-top:5px;">
+            🤖 AI interview: ${new Date(app.aiInterview.dateTime).toLocaleString()}${app.aiInterview.message ? ` — ${app.aiInterview.message}` : ""}<br>
+            <a href="${app.aiInterview.calendarLink}" target="_blank">Add to Google Calendar</a>
+            <button class="btn-small" style="margin-left:8px;" onclick="continueAiInterview('${app.interviewSessionId}')">Start / Continue AI Interview</button>
+          </div>` : ''}
         ${app.orgInterview?.scheduled ? `<div style="background:#e8f5e9; padding:8px; border-radius:4px; margin-top:5px;">📅 ${new Date(app.orgInterview.dateTime).toLocaleString()} | 📍 ${app.orgInterview.location}</div>` : ''}`;
         list.appendChild(div);
       });
@@ -435,7 +670,9 @@
       socket = io();
       socket.emit("join", uid);
       socket.on("application:status", (p) => addNotif("Update", `${p.jobTitle} status: ${p.status}`));
+      socket.on("application:ai-interview-scheduled", (p) => addNotif("AI Interview Scheduled", `Set for ${new Date(p.aiInterview.dateTime).toLocaleString()} — refresh "My Applications" to join.`));
       socket.on("application:org-interview", (p) => addNotif("Interview Invite", `Meeting set for ${new Date(p.dateTime).toLocaleString()}`));
+      socket.on("admin:notification", (p) => addNotif("Admin", p.message));
     };
 
     const addNotif = (title, msg) => {
@@ -444,6 +681,237 @@
       div.style.padding = "10px"; div.style.borderBottom = "1px solid #90caf9";
       div.innerHTML = `<strong>${title}</strong>: ${msg}`;
       document.getElementById('notifList').prepend(div);
+    };
+
+    // --- Notifications (any role) ---
+    document.getElementById("loadMyNotificationsBtn").onclick = async () => {
+      const res = await fetch("/api/notifications/mine", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("notifList");
+      list.innerHTML = "";
+      document.getElementById("notifSection").style.display = "block";
+      (d.data || []).forEach((n) => {
+        const div = document.createElement("div");
+        div.style.padding = "10px"; div.style.borderBottom = "1px solid #90caf9";
+        div.innerHTML = `<strong>${n.read ? "" : "🆕 "}Notification</strong>: ${n.message}
+          ${n.read ? "" : `<button class="btn-small" style="margin-left:8px;" onclick="markNotifRead('${n._id}')">Mark read</button>`}`;
+        list.appendChild(div);
+      });
+    };
+
+    window.markNotifRead = async (id) => {
+      await fetch(`/api/notifications/${id}/read`, { method: "PATCH", headers: authHeaders() });
+      document.getElementById("loadMyNotificationsBtn").click();
+    };
+
+    // --- Support tickets (any role: submit) ---
+    document.getElementById("submitTicketBtn").onclick = async () => {
+      const res = await fetch("/api/support/tickets", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ subject: ticketSubject.value, message: ticketMessage.value }),
+      });
+      showJson("ticketOutput", await res.json());
+    };
+
+    // --- Admin: dashboard ---
+    document.getElementById("loadDashboardBtn").onclick = async () => {
+      const res = await fetch("/api/admin/dashboard", { headers: authHeaders() });
+      const d = await res.json();
+      if (!d.success) return;
+      const kpis = document.getElementById("dashboardKpis");
+      const tiles = [
+        ["Total users", d.data.totalUsers], ["Candidates", d.data.totalCandidates],
+        ["HR", d.data.totalHr], ["Admins", d.data.totalAdmins], ["Active users", d.data.activeUsers],
+        ["Total jobs", d.data.totalJobs], ["Open jobs", d.data.openJobs],
+        ["Applications", d.data.totalApplications], ["Matched", d.data.matchedApplications],
+        ["Interviews", d.data.totalInterviewSessions], ["Completed", d.data.completedInterviews],
+      ];
+      kpis.innerHTML = tiles.map(([label, num]) => `<div class="kpi-tile"><div class="num">${num}</div><div class="label">${label}</div></div>`).join("");
+
+      const activity = document.getElementById("dashboardRecentActivity");
+      activity.innerHTML = "";
+      (d.data.recentActivity || []).forEach((log) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${log.actorId?.name || "?"}</strong> — ${log.action} (${log.targetType}) — ${new Date(log.createdAt).toLocaleString()}`;
+        activity.appendChild(div);
+      });
+    };
+
+    // --- Admin: user management ---
+    document.getElementById("loadUsersBtn").onclick = async () => {
+      const params = new URLSearchParams();
+      if (userSearch.value) params.set("search", userSearch.value);
+      if (userRoleFilter.value) params.set("role", userRoleFilter.value);
+      const res = await fetch(`/api/admin/users?${params}`, { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("usersList");
+      list.innerHTML = "";
+      (d.data || []).forEach((u) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `
+          <strong>${u.name}</strong> (${u.email}) — role: ${u.role} — ${u.isActive ? "active" : "deactivated"}<br/>
+          <select id="role-${u._id}">
+            <option value="candidate" ${u.role === "candidate" ? "selected" : ""}>candidate</option>
+            <option value="hr" ${u.role === "hr" ? "selected" : ""}>hr</option>
+            <option value="admin" ${u.role === "admin" ? "selected" : ""}>admin</option>
+          </select>
+          <button class="btn-small" onclick="changeUserRole('${u._id}')">Set role</button>
+          <button class="btn-small" onclick="toggleUserActive('${u._id}', ${!u.isActive})">${u.isActive ? "Deactivate" : "Activate"}</button>
+          <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="deleteUser('${u._id}')">Delete</button>
+        `;
+        list.appendChild(div);
+      });
+    };
+
+    window.changeUserRole = async (id) => {
+      const role = document.getElementById(`role-${id}`).value;
+      await fetch(`/api/admin/users/${id}/role`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ role }) });
+      document.getElementById("loadUsersBtn").click();
+    };
+    window.toggleUserActive = async (id, isActive) => {
+      await fetch(`/api/admin/users/${id}/active`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ isActive }) });
+      document.getElementById("loadUsersBtn").click();
+    };
+    window.deleteUser = async (id) => {
+      await fetch(`/api/admin/users/${id}`, { method: "DELETE", headers: authHeaders() });
+      document.getElementById("loadUsersBtn").click();
+    };
+
+    // --- Admin: activity logs ---
+    document.getElementById("loadActivityLogsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/activity-logs", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("activityLogsList");
+      list.innerHTML = "";
+      (d.data || []).forEach((log) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${log.actorId?.name || "?"}</strong> (${log.actorRole}) — ${log.action} on ${log.targetType} — ${new Date(log.createdAt).toLocaleString()}`;
+        list.appendChild(div);
+      });
+    };
+
+    // --- Admin: jobs & applications ---
+    document.getElementById("loadAdminJobsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/content/jobs", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("adminJobsList");
+      list.innerHTML = "";
+      (d.data || []).forEach((job) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${job.title}</strong> (${job.status}) — HR: ${job.hrId?.name || "?"}<br/>
+          <button class="btn-small" onclick="closeAdminJob('${job._id}')">Close</button>
+          <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="deleteAdminJob('${job._id}')">Delete</button>`;
+        list.appendChild(div);
+      });
+    };
+    window.closeAdminJob = async (id) => {
+      await fetch(`/api/admin/content/jobs/${id}/close`, { method: "PATCH", headers: authHeaders() });
+      document.getElementById("loadAdminJobsBtn").click();
+    };
+    window.deleteAdminJob = async (id) => {
+      await fetch(`/api/admin/content/jobs/${id}`, { method: "DELETE", headers: authHeaders() });
+      document.getElementById("loadAdminJobsBtn").click();
+    };
+
+    document.getElementById("loadAdminApplicationsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/content/applications", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("adminApplicationsList");
+      list.innerHTML = "";
+      (d.data || []).forEach((app) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `<strong>${app.candidateId?.name || "?"}</strong> → ${app.jobId?.title || "?"} — ${app.matchScore}% — <span class="status-badge status-${app.status}">${app.status}</span>`;
+        list.appendChild(div);
+      });
+    };
+
+    // --- Admin: reports ---
+    document.getElementById("loadReportsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/reports/summary", { headers: authHeaders() });
+      showJson("reportsOutput", await res.json());
+    };
+
+    // --- Admin: notifications ---
+    document.getElementById("sendNotificationBtn").onclick = async () => {
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          userId: notifyUserId.value || undefined,
+          role: notifyRole.value || undefined,
+          message: notifyMessage.value,
+        }),
+      });
+      showJson("sendNotificationOutput", await res.json());
+    };
+
+    // --- Admin: settings ---
+    document.getElementById("loadSettingsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/settings", { headers: authHeaders() });
+      const d = await res.json();
+      if (!d.success) return;
+      settingSiteName.value = d.data.siteName;
+      settingMatchThreshold.value = d.data.matchThreshold;
+      settingAllowSignups.value = String(d.data.allowSignups);
+    };
+    document.getElementById("saveSettingsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          siteName: settingSiteName.value,
+          matchThreshold: Number(settingMatchThreshold.value),
+          allowSignups: settingAllowSignups.value === "true",
+        }),
+      });
+      showJson("settingsOutput", await res.json());
+    };
+
+    // --- Admin: support tickets ---
+    document.getElementById("loadSupportTicketsBtn").onclick = async () => {
+      const res = await fetch("/api/admin/support", { headers: authHeaders() });
+      const d = await res.json();
+      const list = document.getElementById("supportTicketsList");
+      list.innerHTML = "";
+      (d.data || []).forEach((t) => {
+        const div = document.createElement("div");
+        div.className = "list-item";
+        div.innerHTML = `
+          <strong>${t.subject}</strong> — from ${t.userId?.name || "?"} — <span class="status-badge status-${t.status === 'open' ? 'pending' : 'selected'}">${t.status}</span><br/>
+          ${t.message}<br/>
+          ${t.status === "open" ? `
+            <textarea id="reply-${t._id}" placeholder="Reply..."></textarea>
+            <button class="btn-small" onclick="resolveTicket('${t._id}')">Resolve & reply</button>
+          ` : `<em>Reply: ${t.adminReply || ""}</em>`}
+        `;
+        list.appendChild(div);
+      });
+    };
+    window.resolveTicket = async (id) => {
+      const adminReply = document.getElementById(`reply-${id}`).value;
+      await fetch(`/api/admin/support/${id}/resolve`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ adminReply }) });
+      document.getElementById("loadSupportTicketsBtn").click();
+    };
+
+    // --- Admin: monitoring ---
+    document.getElementById("loadMonitoringBtn").onclick = async () => {
+      const res = await fetch("/api/admin/monitoring", { headers: authHeaders() });
+      const d = await res.json();
+      if (!d.success) return;
+      const el = document.getElementById("monitoringOutput");
+      const tiles = [
+        ["DB state", d.data.dbState === 1 ? "connected" : d.data.dbState],
+        ["Uptime (s)", d.data.uptimeSeconds],
+        ["Open tickets", d.data.openTicketCount],
+        ["Recent errors", d.data.recentErrors.length],
+      ];
+      el.innerHTML = tiles.map(([label, num]) => `<div class="kpi-tile"><div class="num">${num}</div><div class="label">${label}</div></div>`).join("");
     };
   </script>
 </body>
