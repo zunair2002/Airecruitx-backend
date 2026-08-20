@@ -114,11 +114,9 @@ export const meHandler = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-export const logoutHandler = asyncHandler(async (req: Request, res: Response) => {
-  // firebaseUid is only present for Google-signed-in users; logout is a no-op otherwise
-  // since our own JWT sessions are stateless and simply get discarded client-side.
-  await authService.logout(req.firebaseUid);
-
+// No auth check needed here — clearing a cookie can't fail based on who's asking,
+// so this skips the DB lookup requireAuth would otherwise do on every logout.
+export const logoutHandler = (req: Request, res: Response) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -129,4 +127,4 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
     success: true,
     message: "Logged out successfully",
   });
-});
+};

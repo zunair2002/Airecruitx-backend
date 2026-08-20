@@ -132,15 +132,3 @@ export const getProfile = async (userId: string): Promise<IUser> => {
   }
   return user;
 };
-
-// With our own JWT-based sessions, logout is primarily handled client-side (discard the token).
-// For Google-signed-in users we also revoke their Firebase refresh tokens as a defense-in-depth measure.
-export const logout = async (firebaseUid?: string): Promise<void> => {
-  if (!firebaseUid) return;
-
-  try {
-    await firebaseAuth.revokeRefreshTokens(firebaseUid);
-  } catch (error) {
-    console.log(`Could not revoke refresh tokens for ${firebaseUid}:`, error);
-  }
-};
