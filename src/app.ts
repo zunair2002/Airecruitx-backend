@@ -1,6 +1,7 @@
 import path from "path";
 import express, { Application } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 // shared (cross-role infrastructure)
 import authRoutes from "./shared/user/routes/auth.routes";
@@ -35,6 +36,7 @@ const app: Application = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.get("/health", (_req, res) => {

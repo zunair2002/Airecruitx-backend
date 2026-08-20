@@ -10,13 +10,16 @@ interface JwtPayload {
 
 export const requireAuth = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction) => {
+    // Browser clients authenticate via the httpOnly "token" cookie set on login/signup;
+    // non-browser API clients (e.g. Postman) may instead send a Bearer token.
     const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : undefined;
+    const token = req.cookies?.token || bearerToken;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new AppError("Missing or invalid Authorization header", 401);
+    if (!token) {
+      throw new AppError("Missing or invalid authentication credentials", 401);
     }
 
-    const token = authHeader.split(" ")[1];
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new AppError("JWT_SECRET is not defined in the environment", 500);

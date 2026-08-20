@@ -6,6 +6,20 @@ import { IUser, UserRole } from "../model/user.model";
 
 const VALID_ROLES: UserRole[] = ["candidate", "hr", "admin"];
 
+// httpOnly so client-side JS (and thus XSS) can never read or exfiltrate the token;
+// the browser sends it automatically on every same-site request.
+const COOKIE_NAME = "token";
+const COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // matches the JWT's 1d expiry
+
+const setAuthCookie = (res: Response, token: string) => {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: COOKIE_MAX_AGE_MS,
+  });
+};
+
 // Shared, safe shape for returning a user to the client (never includes the password).
 const toPublicUser = (user: IUser) => ({
   id: user._id,
@@ -32,11 +46,15 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(`role must be one of: ${VALID_ROLES.join(", ")}`, 400);
   }
 
-  const user = await authService.signup({ name, email, password, role });
+  const { token, user } = await authService.signup({ name, email, password, role });
 
+  setAuthCookie(res, token);
   res.status(201).json({
     success: true,
-    data: toPublicUser(user),
+    data: {
+      token,
+      user: toPublicUser(user),
+    },
   });
 });
 
@@ -52,6 +70,7 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 
   const { token, user } = await authService.login({ email, password });
 
+  setAuthCookie(res, token);
   res.status(200).json({
     success: true,
     data: {
@@ -73,6 +92,7 @@ export const googleLoginHandler = asyncHandler(async (req: Request, res: Respons
 
   const { token, user } = await authService.googleLogin(idToken, role);
 
+  setAuthCookie(res, token);
   res.status(200).json({
     success: true,
     data: {
@@ -98,6 +118,12 @@ export const logoutHandler = asyncHandler(async (req: Request, res: Response) =>
   // firebaseUid is only present for Google-signed-in users; logout is a no-op otherwise
   // since our own JWT sessions are stateless and simply get discarded client-side.
   await authService.logout(req.firebaseUid);
+
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
 
   res.status(200).json({
     success: true,
