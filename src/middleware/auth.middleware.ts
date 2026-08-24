@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { User, UserRole } from "../models/user.model";
+import { User, UserRole } from "../shared/user/model/user.model";
 import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../utils/asyncHandler";
 
@@ -32,6 +32,9 @@ export const requireAuth = asyncHandler(
     const user = await User.findById(decoded.id);
     if (!user) {
       throw new AppError("User profile not found", 404);
+    }
+    if (!user.isActive) {
+      throw new AppError("Account is deactivated", 403);
     }
 
     req.user = user;
