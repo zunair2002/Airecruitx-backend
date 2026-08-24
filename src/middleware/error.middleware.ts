@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import multer from "multer";
 import { AppError } from "../utils/AppError";
 
 export const notFoundHandler = (req: Request, res: Response): void => {
@@ -14,6 +15,11 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ): void => {
+  if (err instanceof multer.MulterError) {
+    res.status(400).json({ success: false, message: err.message });
+    return;
+  }
+
   const statusCode = err instanceof AppError ? err.statusCode : 500;
   const message =
     err instanceof AppError ? err.message : "Internal server error";
