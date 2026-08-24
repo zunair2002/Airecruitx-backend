@@ -108,11 +108,6 @@
       <button class="btn-small" id="logoutBtn" style="border-color:var(--danger); color:var(--danger)">Logout</button>
     </div>
 
-    <div class="token-box">
-      <strong>Session JWT:</strong>
-      <textarea id="token" readonly></textarea>
-    </div>
-
     <section id="notifSection" style="display:none; background:#e3f2fd;">
         <h3>🔔 Notifications</h3>
         <button id="loadMyNotificationsBtn" class="btn-small">Refresh</button>
@@ -289,9 +284,10 @@
       document.getElementById('signupCard').classList.toggle('hidden', !s);
     };
 
-    const tokenEl = document.getElementById("token");
-    const setToken = (t) => { tokenEl.value = t || ""; };
-    const authHeaders = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${tokenEl.value.trim()}` });
+    // The session token lives only in an httpOnly cookie set by the server — JS never
+    // sees or stores it, so it isn't reachable via localStorage, the console, or XSS.
+    // The browser attaches it automatically to every same-site fetch below.
+    const authHeaders = () => ({ "Content-Type": "application/json" });
 
     const showJson = (elId, data) => {
         const el = document.getElementById(elId);
@@ -318,8 +314,8 @@
           body: JSON.stringify({ email: loginEmail.value, password: loginPassword.value }),
         });
         const d = await res.json();
-        if (d.success) { setToken(d.data.token); onAuthenticated(d.data.user); }
-        else { showJson("loginOutput", d); }
+        if (d.success) onAuthenticated(d.data.user);
+        else showJson("loginOutput", d);
       } catch (err) { showJson("loginOutput", { error: err.message }); }
     });
 
@@ -331,10 +327,21 @@
           body: JSON.stringify({ name: signupName.value, email: signupEmail.value, password: signupPassword.value, role: signupRole.value }),
         });
         const d = await res.json();
-        showJson("signupOutput", d);
-        if(d.success) setTimeout(() => toggleAuth(false), 1500);
+        if (d.success) onAuthenticated(d.data.user);
+        else showJson("signupOutput", d);
       } catch (err) { showJson("signupOutput", { error: err.message }); }
     });
+
+    // Restore session on page load/refresh — the httpOnly cookie (if any) rides along
+    // automatically, so this just asks the server "who am I" rather than juggling a token.
+    const restoreSession = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { headers: authHeaders() });
+        const d = await res.json();
+        if (d.success) onAuthenticated(d.data);
+      } catch (err) { /* not logged in — stay on the login form */ }
+    };
+    restoreSession();
 
     document.getElementById("googleTrigger").onclick = () => document.getElementById("googleConfigArea").classList.toggle('hidden');
 
@@ -356,15 +363,20 @@
         body: JSON.stringify({ idToken: gIdToken, role: "candidate" }),
       });
       const d = await res.json();
-      if (d.success) { setToken(d.data.token); onAuthenticated(d.data.user); }
+      if (d.success) onAuthenticated(d.data.user);
     };
 
-    document.getElementById("logoutBtn").onclick = () => location.reload();
+    // Logout asks the server to clear the httpOnly cookie (JS can't clear it itself),
+    // then reloads — with no valid cookie left, restoreSession() lands back on the login form.
+    document.getElementById("logoutBtn").onclick = async () => {
+      await fetch("/api/auth/logout", { method: "POST" });
+      location.reload();
+    };
 
     document.getElementById("resumeBtn").onclick = async () => {
       const fd = new FormData();
       fd.append("resume", resumeFile.files[0]);
-      const res = await fetch("/api/resume/upload", { method: "POST", headers: { Authorization: `Bearer ${tokenEl.value}` }, body: fd });
+      const res = await fetch("/api/resume/upload", { method: "POST", body: fd });
       showJson("resumeOutput", await res.json());
     };
 
@@ -612,7 +624,7 @@
       fd.append("requiredSkills", jobSkills.value);
       if (jdFile.files[0]) fd.append("jd", jdFile.files[0]);
 
-      const res = await fetch("/api/jobs", { method: "POST", headers: { Authorization: `Bearer ${tokenEl.value.trim()}` }, body: fd });
+      const res = await fetch("/api/jobs", { method: "POST", body: fd });
       showJson("createJobOutput", await res.json());
     };
 

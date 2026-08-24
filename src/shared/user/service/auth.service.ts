@@ -25,7 +25,9 @@ const generateToken = (userId: string) => {
   });
 };
 
-export const signup = async (input: SignupInput): Promise<IUser> => {
+export const signup = async (
+  input: SignupInput
+): Promise<{ token: string; user: IUser }> => {
   const { name, email, password, role } = input;
 
   const existing = await User.findOne({ email: email.toLowerCase() });
@@ -42,8 +44,10 @@ export const signup = async (input: SignupInput): Promise<IUser> => {
     authProvider: "password",
   });
 
+  const token = generateToken(user._id.toString());
+
   user.password = undefined;
-  return user;
+  return { token, user };
 };
 
 export const login = async (
@@ -127,16 +131,4 @@ export const getProfile = async (userId: string): Promise<IUser> => {
     throw new AppError("User profile not found", 404);
   }
   return user;
-};
-
-// With our own JWT-based sessions, logout is primarily handled client-side (discard the token).
-// For Google-signed-in users we also revoke their Firebase refresh tokens as a defense-in-depth measure.
-export const logout = async (firebaseUid?: string): Promise<void> => {
-  if (!firebaseUid) return;
-
-  try {
-    await firebaseAuth.revokeRefreshTokens(firebaseUid);
-  } catch (error) {
-    console.log(`Could not revoke refresh tokens for ${firebaseUid}:`, error);
-  }
 };
