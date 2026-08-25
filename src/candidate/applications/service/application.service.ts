@@ -3,6 +3,8 @@ import { Job } from "../../../shared/job/model/job.model";
 import { Resume } from "../../resume/model/resume.model";
 import { AppError } from "../../../utils/AppError";
 import { getSettings } from "../../../admin/settings/service/settings.service";
+import * as interviewService from "../../interview/service/interview.service";
+import { IInterviewSession } from "../../interview/model/interviewSession.model";
 
 // Matches directly against whatever skills HR actually required for this job, searched
 // in the candidate's real resume text — not a fixed dictionary. Keeps matching honest to
@@ -35,10 +37,9 @@ export const applyToJob = async (candidateId: string, jobId: string): Promise<IA
   const { matchScore, matchedSkills } = matchAgainstRequiredSkills(resume.rawText, job.requiredSkills);
   const matched = matchScore >= settings.matchThreshold;
 
-  // Just applying — no AI interview yet. The application sits in the "waiting list"
-  // (matched === true) until HR reviews it and explicitly schedules the AI interview.
+  let application: IApplication;
   try {
-    return await Application.create({
+    application = await Application.create({
       jobId,
       candidateId,
       resumeSnapshotSkills: matchedSkills,
@@ -51,10 +52,62 @@ export const applyToJob = async (candidateId: string, jobId: string): Promise<IA
     }
     throw error;
   }
+
+  // A match immediately starts the AI interview — no HR action required. Runs after
+  // the application is saved so a slow/unreachable interview model never blocks the
+  // apply response with a failure; the interview can still be started later.
+  if (matched) {
+    try {
+      const session = await interviewService.startInterview(candidateId, application._id.toString(), {
+        jobTitle: job.title,
+      });
+      application.interviewSessionId = session._id as any;
+      application.aiInterview = { scheduled: true, dateTime: new Date() };
+      await application.save();
+    } catch (error) {
+      console.error(`[applyToJob] Failed to auto-start AI interview for application ${application._id}:`, error);
+    }
+  }
+
+  return application;
 };
 
 export const listApplicationsForCandidate = async (candidateId: string) => {
   return Application.find({ candidateId })
     .populate("jobId", "title description")
     .sort({ createdAt: -1 });
+};
+
+// Called when the candidate opens the join link (from the confirmation/reminder
+// email) for an HR-scheduled organizational interview. Creates the session at this
+// point — not when HR schedules it — so the opening question is fresh, and reuses
+// the existing one if the candidate re-opens the link (idempotent). The session is
+// "hidden" visibility: the candidate can answer questions but never sees feedback/
+// score/result, which is for HR only.
+export const startOrgInterview = async (
+  candidateId: string,
+  applicationId: string
+): Promise<IInterviewSession> => {
+  const application = await Application.findOne({ _id: applicationId, candidateId });
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+  if (!application.orgInterview.scheduled) {
+    throw new AppError("No organizational interview is scheduled for this application", 400);
+  }
+
+  if (application.orgInterviewSessionId) {
+    return interviewService.getSession(candidateId, application.orgInterviewSessionId.toString());
+  }
+
+  const job = await Job.findById(application.jobId);
+  const session = await interviewService.startInterview(candidateId, applicationId, {
+    jobTitle: job?.title,
+    visibility: "hidden",
+  });
+
+  application.orgInterviewSessionId = session._id as any;
+  await application.save();
+
+  return session;
 };

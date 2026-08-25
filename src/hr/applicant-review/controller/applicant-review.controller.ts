@@ -65,3 +65,52 @@ export const scheduleOrgInterviewHandler = asyncHandler(async (req: Request, res
 
   res.status(200).json({ success: true, data: application });
 });
+
+const requireApplicationIds = (body: any): string[] => {
+  const { applicationIds } = body ?? {};
+  if (!Array.isArray(applicationIds) || applicationIds.length === 0 || !applicationIds.every((id) => typeof id === "string")) {
+    throw new AppError("applicationIds must be a non-empty array of strings", 400);
+  }
+  return applicationIds;
+};
+
+export const bulkUpdateStatusHandler = asyncHandler(async (req: Request, res: Response) => {
+  const hrId = req.user!._id.toString();
+  const applicationIds = requireApplicationIds(req.body);
+  const { status } = req.body ?? {};
+
+  if (!status || typeof status !== "string") {
+    throw new AppError("status is required", 400);
+  }
+
+  const applications = await applicantReviewService.bulkUpdateApplicationStatus(
+    hrId,
+    applicationIds,
+    status as any
+  );
+
+  res.status(200).json({ success: true, data: applications });
+});
+
+export const bulkAiInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const hrId = req.user!._id.toString();
+  const applicationIds = requireApplicationIds(req.body);
+
+  const applications = await applicantReviewService.bulkTriggerAiInterview(hrId, applicationIds);
+
+  res.status(200).json({ success: true, data: applications });
+});
+
+export const bulkOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const hrId = req.user!._id.toString();
+  const applicationIds = requireApplicationIds(req.body);
+  const { dateTime, location, notes } = req.body ?? {};
+
+  const applications = await applicantReviewService.bulkScheduleOrgInterview(hrId, applicationIds, {
+    dateTime,
+    location,
+    notes,
+  });
+
+  res.status(200).json({ success: true, data: applications });
+});

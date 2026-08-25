@@ -22,10 +22,17 @@ export interface IInterviewTurn {
   score: number; // out of 10, as scored live by the model
 }
 
+// "candidate": practice sessions and the auto-triggered AI interview — the
+// candidate can see their own feedback/score.
+// "hidden": HR-scheduled organizational interviews — results are for HR's eyes
+// only; the candidate can answer questions but never sees feedback/score/result.
+export type InterviewVisibility = "candidate" | "hidden";
+
 export interface IInterviewSession extends Document {
   userId: Types.ObjectId;
   applicationId?: Types.ObjectId;
   level?: InterviewLevel; // practice-mode difficulty; unset for HR-scheduled real interviews
+  visibility: InterviewVisibility;
   status: InterviewStatus;
   messages: IInterviewMessage[];
   turns: IInterviewTurn[];
@@ -83,6 +90,12 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
       type: String,
       enum: ["beginner", "intermediate", "expert"],
       required: false,
+    },
+    visibility: {
+      type: String,
+      enum: ["candidate", "hidden"],
+      required: true,
+      default: "candidate",
     },
     status: {
       type: String,

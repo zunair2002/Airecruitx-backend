@@ -7,6 +7,8 @@ export interface IOrgInterview {
   dateTime?: Date;
   location?: string;
   notes?: string;
+  // Guards the 10-minutes-before reminder email so it only ever fires once per interview.
+  reminderSent?: boolean;
 }
 
 export interface IAiInterview {
@@ -24,6 +26,9 @@ export interface IApplication extends Document {
   matched: boolean;
   status: ApplicationStatus;
   interviewSessionId?: Types.ObjectId;
+  // Separate from interviewSessionId (the candidate-visible AI interview) since an
+  // organizational interview's session is HR-only visibility, per InterviewVisibility.
+  orgInterviewSessionId?: Types.ObjectId;
   aiInterview: IAiInterview;
   orgInterview: IOrgInterview;
   createdAt: Date;
@@ -36,6 +41,7 @@ const orgInterviewSchema = new Schema<IOrgInterview>(
     dateTime: { type: Date, required: false },
     location: { type: String, required: false },
     notes: { type: String, required: false },
+    reminderSent: { type: Boolean, required: false, default: false },
   },
   { _id: false }
 );
@@ -85,6 +91,11 @@ const applicationSchema = new Schema<IApplication>(
       default: "pending",
     },
     interviewSessionId: {
+      type: Schema.Types.ObjectId,
+      ref: "InterviewSession",
+      required: false,
+    },
+    orgInterviewSessionId: {
       type: Schema.Types.ObjectId,
       ref: "InterviewSession",
       required: false,

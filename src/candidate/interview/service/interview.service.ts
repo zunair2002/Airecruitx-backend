@@ -6,10 +6,32 @@ import { ChatMessage } from "./ollama.service";
 const OVERALL_VERDICTS = ["Good", "Average", "Needs Improvement"] as const;
 type OverallVerdict = (typeof OVERALL_VERDICTS)[number];
 
-// Safety net: the model is expected to say "Interview complete." on its own, but small
-// local models sometimes get stuck re-asking the same question. Force completion once
-// this many questions have been answered so a session can never loop forever.
-const MAX_QUESTIONS = 5;
+// Fixed two-round structure: Round 1 is general/basic questions, Round 2 shifts to
+// role-specific scenario questions. Also acts as a safety net — the model is expected
+// to say "Interview complete." on its own, but small local models sometimes get stuck
+// re-asking the same question, so completion is forced once ROUND_2_QUESTIONS total
+// questions have been answered.
+const ROUND_1_QUESTIONS = 4;
+const ROUND_2_QUESTIONS = 4;
+const MAX_QUESTIONS = ROUND_1_QUESTIONS + ROUND_2_QUESTIONS;
+
+export const questionRound = (questionNumber: number): 1 | 2 =>
+  questionNumber <= ROUND_1_QUESTIONS ? 1 : 2;
+
+// A candidate who fails gets a couple of generic interview tips plus one pointer per
+// weak answer (score <= 4/10), so the "retry after learning" loop has something concrete
+// to react to instead of just a bare pass/fail.
+const GENERAL_TIPS = [
+  "Use the STAR method (Situation, Task, Action, Result) to structure behavioral answers.",
+  "Lead with a short summary before diving into details.",
+];
+
+export const deriveElearningTips = (turns: { question: string; score: number }[]): string[] => {
+  const weakTopics = turns
+    .filter((t) => t.score <= 4)
+    .map((t) => `Review this topic before retrying: "${t.question}"`);
+  return [...GENERAL_TIPS, ...weakTopics];
+};
 
 interface ParsedReply {
   feedbackText: string;
@@ -89,6 +111,7 @@ const runTurn = async (
 interface StartInterviewContext {
   level?: "beginner" | "intermediate" | "expert";
   jobTitle?: string;
+  visibility?: "candidate" | "hidden";
 }
 
 export const startInterview = async (
@@ -96,11 +119,16 @@ export const startInterview = async (
   applicationId?: string,
   context: StartInterviewContext = {}
 ): Promise<IInterviewSession> => {
-  // Scoped by applicationId so a candidate's private practice session (no applicationId)
-  // and an HR-scheduled real interview (tied to a specific application) never collide.
+  const visibility = context.visibility ?? "candidate";
+
+  // Scoped by applicationId + visibility so a candidate's private practice session
+  // (no applicationId), the auto-triggered AI interview, and an HR-scheduled
+  // organizational interview — the latter two sharing the same applicationId — never
+  // collide with each other.
   const existing = await InterviewSession.findOne({
     userId,
     applicationId: applicationId ?? { $exists: false },
+    visibility,
     status: { $ne: "completed" },
   });
   if (existing) return existing;
@@ -109,6 +137,7 @@ export const startInterview = async (
     userId,
     applicationId,
     level: context.level,
+    visibility,
     status: "in_progress",
     messages: [],
     turns: [],
@@ -156,7 +185,15 @@ export const submitAnswer = async (
   const questionNumber = session.currentQuestionNumber;
   const questionText = session.currentQuestion;
 
-  const { exchanges, parsed } = await runTurn(session.messages, { role: "user", content: answer });
+  // Just answered the last Round 1 question — steer the model into Round 2
+  // (role-specific scenario questions) for the next one instead of letting it continue
+  // in whatever direction it was already going.
+  const enteringRound2 = questionNumber === ROUND_1_QUESTIONS;
+  const answerMessage = enteringRound2
+    ? `${answer}\n\n[Round 1 (general questions) is now complete. Begin Round 2 — ask a role-specific, scenario-based question tailored to this position, as Question ${ROUND_1_QUESTIONS + 1}.]`
+    : answer;
+
+  const { exchanges, parsed } = await runTurn(session.messages, { role: "user", content: answerMessage });
   session.messages.push(...exchanges);
   session.turns.push({
     questionNumber,
@@ -207,4 +244,45 @@ export const getSession = async (
     throw new AppError("Interview session not found", 404);
   }
   return session;
+};
+
+// Shapes a session into what the candidate-facing API returns: the current question
+// plus the history of answered questions while in progress, or the final report once
+// completed. For a "hidden" (organizational) interview, the candidate can still see
+// which questions were asked and what they answered — but never the AI's feedback,
+// per-turn score, overall score/result, or e-learning tips; those are for HR only.
+export const buildSessionView = (session: IInterviewSession) => {
+  const isHidden = session.visibility === "hidden";
+
+  const turnsWithRound = session.turns.map((t) => ({
+    questionNumber: t.questionNumber,
+    question: t.question,
+    answer: t.answer,
+    feedback: isHidden ? undefined : t.feedback,
+    score: isHidden ? undefined : t.score,
+    round: questionRound(t.questionNumber),
+  }));
+
+  if (session.status === "completed") {
+    return {
+      sessionId: session._id,
+      status: session.status,
+      score: isHidden ? undefined : session.score,
+      result: isHidden ? undefined : session.result,
+      feedback: isHidden ? undefined : session.feedback,
+      turns: turnsWithRound,
+      certificatePaid: session.certificatePayment?.paid ?? false,
+      elearningTips:
+        !isHidden && session.result === "fail" ? deriveElearningTips(session.turns) : undefined,
+    };
+  }
+
+  return {
+    sessionId: session._id,
+    status: session.status,
+    questionNumber: session.currentQuestionNumber,
+    question: session.currentQuestion,
+    round: session.currentQuestionNumber ? questionRound(session.currentQuestionNumber) : undefined,
+    turns: turnsWithRound,
+  };
 };

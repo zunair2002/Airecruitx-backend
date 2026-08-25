@@ -5,6 +5,7 @@ import http from "http";
 import app from "./app";
 import { connectDB } from "./config/db";
 import { initSocket } from "./config/socket";
+import { startReminderScheduler } from "./config/reminderScheduler";
 import "./config/firebase";
 import dns from "dns";
 
@@ -17,6 +18,7 @@ const start = async () => {
 
   const httpServer = http.createServer(app);
   initSocket(httpServer);
+  startReminderScheduler();
 
   httpServer.listen(PORT, () => {
     console.log(`Airecruitx backend running on port ${PORT}`);

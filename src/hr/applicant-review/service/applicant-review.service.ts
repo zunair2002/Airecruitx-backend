@@ -1,9 +1,11 @@
 import { Application, IApplication, ApplicationStatus } from "../../../shared/application/model/application.model";
 import { Job } from "../../../shared/job/model/job.model";
+import { User } from "../../../shared/user/model/user.model";
 import { InterviewSession } from "../../../candidate/interview/model/interviewSession.model";
 import * as interviewService from "../../../candidate/interview/service/interview.service";
 import { AppError } from "../../../utils/AppError";
 import { emitToUser } from "../../../config/socket";
+import { sendOrgInterviewConfirmation } from "../../../shared/email/email.service";
 
 const requireOwnedJob = async (hrId: string, jobId: string) => {
   const job = await Job.findOne({ _id: jobId, hrId });
@@ -34,11 +36,14 @@ export const getApplicationReport = async (hrId: string, applicationId: string) 
   }
   await requireOwnedJob(hrId, application.jobId.toString());
 
-  const session = application.interviewSessionId
-    ? await InterviewSession.findById(application.interviewSessionId)
-    : null;
+  const [interviewSession, orgInterviewSession] = await Promise.all([
+    application.interviewSessionId ? InterviewSession.findById(application.interviewSessionId) : null,
+    application.orgInterviewSessionId
+      ? InterviewSession.findById(application.orgInterviewSessionId)
+      : null,
+  ]);
 
-  return { application, interviewSession: session };
+  return { application, interviewSession, orgInterviewSession };
 };
 
 const assertHrOwnsApplication = async (hrId: string, applicationId: string): Promise<IApplication> => {
@@ -70,6 +75,19 @@ export const updateApplicationStatus = async (
   });
 
   return application;
+};
+
+// Lets HR shortlist/reject several applicants at once instead of one at a time.
+export const bulkUpdateApplicationStatus = async (
+  hrId: string,
+  applicationIds: string[],
+  status: ApplicationStatus
+): Promise<IApplication[]> => {
+  const results: IApplication[] = [];
+  for (const applicationId of applicationIds) {
+    results.push(await updateApplicationStatus(hrId, applicationId, status));
+  }
+  return results;
 };
 
 const INTERVIEW_DURATION_MINUTES = 30;
@@ -149,6 +167,11 @@ interface ScheduleOrgInterviewInput {
   notes?: string;
 }
 
+// The organizational interview's actual AI session is NOT created here — only when
+// the candidate opens the join link at interview time (see application.service.ts's
+// startOrgInterview), so the opening question is fresh rather than stale by the time
+// they arrive. This just books the slot and emails a confirmation; the reminder
+// scheduler (src/config/reminderScheduler.ts) sends the join-link email later.
 export const scheduleOrgInterview = async (
   hrId: string,
   applicationId: string,
@@ -163,13 +186,30 @@ export const scheduleOrgInterview = async (
     throw new AppError("dateTime is required", 400);
   }
 
+  const dateTime = new Date(input.dateTime);
+
   application.orgInterview = {
     scheduled: true,
-    dateTime: new Date(input.dateTime),
+    dateTime,
     location: input.location,
     notes: input.notes,
+    reminderSent: false,
   };
   await application.save();
+
+  // Best-effort: a failed confirmation email shouldn't block scheduling — the
+  // candidate still sees the date in-app and will still get the reminder email.
+  try {
+    const [candidate, job] = await Promise.all([
+      User.findById(application.candidateId),
+      Job.findById(application.jobId),
+    ]);
+    if (candidate && job) {
+      await sendOrgInterviewConfirmation(candidate.email, candidate.name, job.title, dateTime);
+    }
+  } catch (error) {
+    console.error(`[scheduleOrgInterview] Failed to send confirmation email for application ${applicationId}:`, error);
+  }
 
   emitToUser(application.candidateId.toString(), "application:org-interview", {
     applicationId: application._id,
@@ -178,4 +218,52 @@ export const scheduleOrgInterview = async (
   });
 
   return application;
+};
+
+// Lets HR schedule the same interview slot for several matched-and-selected
+// applicants at once instead of repeating the single-candidate flow.
+export const bulkScheduleOrgInterview = async (
+  hrId: string,
+  applicationIds: string[],
+  input: ScheduleOrgInterviewInput
+): Promise<IApplication[]> => {
+  const results: IApplication[] = [];
+  for (const applicationId of applicationIds) {
+    results.push(await scheduleOrgInterview(hrId, applicationId, input));
+  }
+  return results;
+};
+
+// Manually (re)triggers the AI interview for several matched applicants at once —
+// mainly useful when the automatic trigger at apply-time failed (e.g. the interview
+// model was briefly unreachable). Applicants that aren't matched, or already have an
+// AI interview session, are left untouched rather than erroring the whole batch.
+export const bulkTriggerAiInterview = async (
+  hrId: string,
+  applicationIds: string[]
+): Promise<IApplication[]> => {
+  const results: IApplication[] = [];
+  for (const applicationId of applicationIds) {
+    const application = await assertHrOwnsApplication(hrId, applicationId);
+    if (!application.matched || application.interviewSessionId) {
+      results.push(application);
+      continue;
+    }
+
+    const job = await requireOwnedJob(hrId, application.jobId.toString());
+    try {
+      const session = await interviewService.startInterview(
+        application.candidateId.toString(),
+        applicationId,
+        { jobTitle: job.title }
+      );
+      application.interviewSessionId = session._id as any;
+      application.aiInterview = { scheduled: true, dateTime: new Date() };
+      await application.save();
+    } catch (error) {
+      console.error(`[bulkTriggerAiInterview] Failed to start AI interview for application ${applicationId}:`, error);
+    }
+    results.push(application);
+  }
+  return results;
 };

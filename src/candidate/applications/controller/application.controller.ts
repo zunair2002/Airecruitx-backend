@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import * as applicationService from "../service/application.service";
+import * as interviewService from "../../interview/service/interview.service";
 
 export const applyToJobHandler = asyncHandler(async (req: Request, res: Response) => {
   const candidateId = req.user!._id.toString();
@@ -14,4 +15,11 @@ export const listMyApplicationsHandler = asyncHandler(async (req: Request, res: 
   const applications = await applicationService.listApplicationsForCandidate(candidateId);
 
   res.status(200).json({ success: true, data: applications });
+});
+
+export const startOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const candidateId = req.user!._id.toString();
+  const session = await applicationService.startOrgInterview(candidateId, req.params.applicationId);
+
+  res.status(200).json({ success: true, data: interviewService.buildSessionView(session) });
 });
