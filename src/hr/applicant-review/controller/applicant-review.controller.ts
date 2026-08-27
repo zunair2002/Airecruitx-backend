@@ -3,16 +3,34 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as applicantReviewService from "../service/applicant-review.service";
 
+const parseMinMatchScore = (query: Request["query"]): number | undefined => {
+  const { minMatchScore } = query;
+  if (minMatchScore === undefined) return undefined;
+  const parsed = Number(minMatchScore);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    throw new AppError("minMatchScore must be a number between 0 and 100", 400);
+  }
+  return parsed;
+};
+
 export const listApplicationsForJobHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const applications = await applicantReviewService.listApplicationsForJob(hrId, req.params.jobId);
+  const applications = await applicantReviewService.listApplicationsForJob(
+    hrId,
+    req.params.jobId,
+    parseMinMatchScore(req.query)
+  );
 
   res.status(200).json({ success: true, data: applications });
 });
 
 export const listMatchedApplicationsForJobHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const applications = await applicantReviewService.listMatchedApplicationsForJob(hrId, req.params.jobId);
+  const applications = await applicantReviewService.listMatchedApplicationsForJob(
+    hrId,
+    req.params.jobId,
+    parseMinMatchScore(req.query)
+  );
 
   res.status(200).json({ success: true, data: applications });
 });
@@ -53,15 +71,15 @@ export const scheduleAiInterviewHandler = asyncHandler(async (req: Request, res:
   res.status(200).json({ success: true, data: application });
 });
 
-export const scheduleOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+export const inviteToOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const { dateTime, location, notes } = req.body ?? {};
+  const { validityDays } = req.body ?? {};
 
-  const application = await applicantReviewService.scheduleOrgInterview(hrId, req.params.applicationId, {
-    dateTime,
-    location,
-    notes,
-  });
+  const application = await applicantReviewService.inviteToOrgInterview(
+    hrId,
+    req.params.applicationId,
+    validityDays !== undefined ? Number(validityDays) : undefined
+  );
 
   res.status(200).json({ success: true, data: application });
 });
@@ -101,16 +119,16 @@ export const bulkAiInterviewHandler = asyncHandler(async (req: Request, res: Res
   res.status(200).json({ success: true, data: applications });
 });
 
-export const bulkOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
+export const bulkOrgInterviewInviteHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
   const applicationIds = requireApplicationIds(req.body);
-  const { dateTime, location, notes } = req.body ?? {};
+  const { validityDays } = req.body ?? {};
 
-  const applications = await applicantReviewService.bulkScheduleOrgInterview(hrId, applicationIds, {
-    dateTime,
-    location,
-    notes,
-  });
+  const applications = await applicantReviewService.bulkInviteToOrgInterview(
+    hrId,
+    applicationIds,
+    validityDays !== undefined ? Number(validityDays) : undefined
+  );
 
   res.status(200).json({ success: true, data: applications });
 });

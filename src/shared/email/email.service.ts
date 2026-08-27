@@ -25,35 +25,24 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
   await getTransporter().sendMail({ from, to, subject, html });
 };
 
-export const sendOrgInterviewConfirmation = async (
+// Sent when HR invites a candidate to a self-paced AI interview: no fixed time, just
+// a personal link valid until expiresAt — the candidate can start it whenever suits them.
+export const sendOrgInterviewInvite = async (
   to: string,
   candidateName: string,
   jobTitle: string,
-  dateTime: Date
+  joinLink: string,
+  expiresAt: Date,
+  calendarLink: string
 ): Promise<void> => {
   await send(
     to,
-    `Your interview for ${jobTitle} is scheduled`,
+    `You're invited to interview for ${jobTitle}`,
     `<p>Hi ${candidateName},</p>
-     <p>Your AI interview for <strong>${jobTitle}</strong> has been scheduled for
-     <strong>${dateTime.toLocaleString()}</strong>.</p>
-     <p>You'll get a reminder email with a join link shortly before it starts.</p>`
-  );
-};
-
-export const sendOrgInterviewReminder = async (
-  to: string,
-  candidateName: string,
-  jobTitle: string,
-  dateTime: Date,
-  joinLink: string
-): Promise<void> => {
-  await send(
-    to,
-    `Starting soon: your interview for ${jobTitle}`,
-    `<p>Hi ${candidateName},</p>
-     <p>Your AI interview for <strong>${jobTitle}</strong> starts at
-     <strong>${dateTime.toLocaleString()}</strong> — almost time to begin.</p>
-     <p><a href="${joinLink}">Click here to join your interview</a></p>`
+     <p>You've been invited to complete an AI interview for <strong>${jobTitle}</strong>.</p>
+     <p>Take it whenever works for you — the link below stays open until
+     <strong>${expiresAt.toLocaleString()}</strong>. After that it will no longer be usable.</p>
+     <p><a href="${joinLink}">Click here to start your interview</a></p>
+     <p><a href="${calendarLink}">Add this window to your calendar</a></p>`
   );
 };

@@ -2,13 +2,23 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export type ApplicationStatus = "pending" | "selected" | "rejected";
 
+// No fixed date/time — HR invites the candidate with a unique link valid for a
+// configurable window; the candidate takes the (AI-conducted) interview whenever they
+// like within that window. "invited" -> "completed" (finished in time) or "expired"
+// (window passed before they finished) are the only transitions; there's no separate
+// "scheduled" state since the invite itself is immediately usable.
+export type OrgInterviewStatus = "invited" | "completed" | "expired";
+
 export interface IOrgInterview {
-  scheduled: boolean;
-  dateTime?: Date;
-  location?: string;
+  status?: OrgInterviewStatus;
+  token?: string;
+  expiresAt?: Date;
+  invitedAt?: Date;
+  completedAt?: Date;
   notes?: string;
-  // Guards the 10-minutes-before reminder email so it only ever fires once per interview.
-  reminderSent?: boolean;
+  // "Add to Calendar" link for the validity window (an all-day range, not a fixed
+  // slot, since the candidate can take the interview any time within it).
+  calendarLink?: string;
 }
 
 export interface IAiInterview {
@@ -37,11 +47,13 @@ export interface IApplication extends Document {
 
 const orgInterviewSchema = new Schema<IOrgInterview>(
   {
-    scheduled: { type: Boolean, required: true, default: false },
-    dateTime: { type: Date, required: false },
-    location: { type: String, required: false },
+    status: { type: String, enum: ["invited", "completed", "expired"], required: false },
+    token: { type: String, required: false },
+    expiresAt: { type: Date, required: false },
+    invitedAt: { type: Date, required: false },
+    completedAt: { type: Date, required: false },
     notes: { type: String, required: false },
-    reminderSent: { type: Boolean, required: false, default: false },
+    calendarLink: { type: String, required: false },
   },
   { _id: false }
 );
@@ -106,7 +118,7 @@ const applicationSchema = new Schema<IApplication>(
     },
     orgInterview: {
       type: orgInterviewSchema,
-      default: () => ({ scheduled: false }),
+      default: () => ({}),
     },
   },
   { timestamps: true }
@@ -114,5 +126,8 @@ const applicationSchema = new Schema<IApplication>(
 
 // One application per candidate per job.
 applicationSchema.index({ jobId: 1, candidateId: 1 }, { unique: true });
+// Fast, collision-safe lookup for the public token-based org-interview link.
+// Sparse so the many applications with no invite yet (token undefined) don't conflict.
+applicationSchema.index({ "orgInterview.token": 1 }, { unique: true, sparse: true });
 
 export const Application = model<IApplication>("Application", applicationSchema);

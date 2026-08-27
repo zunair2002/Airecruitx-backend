@@ -1,10 +1,12 @@
 import { Application, IApplication } from "../../../shared/application/model/application.model";
 import { Job } from "../../../shared/job/model/job.model";
+import { User } from "../../../shared/user/model/user.model";
 import { Resume } from "../../resume/model/resume.model";
 import { AppError } from "../../../utils/AppError";
 import { getSettings } from "../../../admin/settings/service/settings.service";
 import * as interviewService from "../../interview/service/interview.service";
 import { IInterviewSession } from "../../interview/model/interviewSession.model";
+import { OrgInterviewQuestionSet } from "../../../hr/job-posting/model/orgInterviewQuestionSet.model";
 
 // Matches directly against whatever skills HR actually required for this job, searched
 // in the candidate's real resume text — not a fixed dictionary. Keeps matching honest to
@@ -78,36 +80,117 @@ export const listApplicationsForCandidate = async (candidateId: string) => {
     .sort({ createdAt: -1 });
 };
 
-// Called when the candidate opens the join link (from the confirmation/reminder
-// email) for an HR-scheduled organizational interview. Creates the session at this
-// point — not when HR schedules it — so the opening question is fresh, and reuses
-// the existing one if the candidate re-opens the link (idempotent). The session is
-// "hidden" visibility: the candidate can answer questions but never sees feedback/
-// score/result, which is for HR only.
-export const startOrgInterview = async (
-  candidateId: string,
-  applicationId: string
-): Promise<IInterviewSession> => {
-  const application = await Application.findOne({ _id: applicationId, candidateId });
+// The org-interview flow below is deliberately token-authenticated rather than
+// requireAuth-gated: the candidate reaches it straight from an emailed link (possibly
+// on a different device than the one they're logged in on), with no fixed appointment
+// time to plan around — the link itself, not a login session, is the credential, the
+// same pattern most take-home/on-demand interview tools use.
+
+// Looks up the application by its org-interview token and enforces the invite is still
+// usable. Expiry is checked directly against `expiresAt` (not just the stored
+// `status`) so this is correct even in the up-to-a-minute gap before the periodic
+// expiry sweep (src/config/orgInterviewExpiryScheduler.ts) has flipped the status.
+const resolveActiveOrgInterviewInvite = async (token: string): Promise<IApplication> => {
+  const application = await Application.findOne({ "orgInterview.token": token });
   if (!application) {
-    throw new AppError("Application not found", 404);
+    throw new AppError("This interview link is invalid", 404);
   }
-  if (!application.orgInterview.scheduled) {
-    throw new AppError("No organizational interview is scheduled for this application", 400);
+
+  const { status, expiresAt } = application.orgInterview;
+
+  if (status === "completed") {
+    throw new AppError("This interview has already been completed", 409);
   }
+  if (status === "expired" || (expiresAt && expiresAt.getTime() < Date.now())) {
+    if (status !== "expired") {
+      application.orgInterview.status = "expired";
+      await application.save();
+    }
+    throw new AppError("This interview link has expired", 410);
+  }
+
+  return application;
+};
+
+// For a landing page before the candidate commits to starting — confirms the link is
+// valid and shows what it's for, without creating the interview session yet.
+export const getOrgInterviewInvite = async (token: string) => {
+  const application = await resolveActiveOrgInterviewInvite(token);
+  const [candidate, job] = await Promise.all([
+    User.findById(application.candidateId),
+    Job.findById(application.jobId),
+  ]);
+
+  return {
+    candidateName: candidate?.name,
+    jobTitle: job?.title,
+    expiresAt: application.orgInterview.expiresAt,
+    calendarLink: application.orgInterview.calendarLink,
+    started: Boolean(application.orgInterviewSessionId),
+  };
+};
+
+// Called when the candidate opens their invite link and chooses to begin. Creates the
+// session at this point — not when HR sent the invite — so the opening question is
+// fresh no matter when within the validity window they arrive; reuses the existing
+// one if they resume (idempotent). The session is "hidden" visibility: the candidate
+// can answer questions but never sees feedback/score/result, which is for HR only.
+//
+// If HR has authored a question set for this job (see orgInterviewQuestionSet), the
+// interview asks exactly those questions and grades each answer against HR's own
+// reference answer/marks — a controlled evaluator rather than the AI freely inventing
+// both questions and criteria. Falls back to the free-form Ollama flow (same as
+// practice/the auto-triggered AI interview) when no question set exists yet, so
+// inviting candidates never breaks just because HR hasn't authored questions.
+export const startOrgInterviewByToken = async (token: string): Promise<IInterviewSession> => {
+  const application = await resolveActiveOrgInterviewInvite(token);
+  const candidateId = application.candidateId.toString();
 
   if (application.orgInterviewSessionId) {
     return interviewService.getSession(candidateId, application.orgInterviewSessionId.toString());
   }
 
-  const job = await Job.findById(application.jobId);
-  const session = await interviewService.startInterview(candidateId, applicationId, {
-    jobTitle: job?.title,
-    visibility: "hidden",
-  });
+  const [job, questionSet] = await Promise.all([
+    Job.findById(application.jobId),
+    OrgInterviewQuestionSet.findOne({ jobId: application.jobId }),
+  ]);
+
+  const session = questionSet
+    ? await interviewService.startStructuredInterview(candidateId, application._id.toString(), questionSet)
+    : await interviewService.startInterview(candidateId, application._id.toString(), {
+        jobTitle: job?.title,
+        visibility: "hidden",
+      });
 
   application.orgInterviewSessionId = session._id as any;
   await application.save();
+
+  return session;
+};
+
+// Submits an answer for the token-authenticated org interview. On completion, marks
+// the invite itself "completed" so HR can tell at a glance (without opening the
+// report) which invited candidates actually finished before their link expired.
+export const submitOrgInterviewAnswerByToken = async (
+  token: string,
+  answer: string
+): Promise<IInterviewSession> => {
+  const application = await resolveActiveOrgInterviewInvite(token);
+  if (!application.orgInterviewSessionId) {
+    throw new AppError("Start the interview before submitting an answer", 400);
+  }
+
+  const session = await interviewService.submitAnswer(
+    application.candidateId.toString(),
+    application.orgInterviewSessionId.toString(),
+    answer
+  );
+
+  if (session.status === "completed" && application.orgInterview.status !== "completed") {
+    application.orgInterview.status = "completed";
+    application.orgInterview.completedAt = new Date();
+    await application.save();
+  }
 
   return session;
 };

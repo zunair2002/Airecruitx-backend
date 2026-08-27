@@ -5,10 +5,10 @@ import {
   getApplicationReportHandler,
   updateApplicationStatusHandler,
   scheduleAiInterviewHandler,
-  scheduleOrgInterviewHandler,
+  inviteToOrgInterviewHandler,
   bulkUpdateStatusHandler,
   bulkAiInterviewHandler,
-  bulkOrgInterviewHandler,
+  bulkOrgInterviewInviteHandler,
 } from "../controller/applicant-review.controller";
 import { requireAuth, requireRole } from "../../../middleware/auth.middleware";
 
@@ -21,7 +21,7 @@ router.get("/job/:jobId/matched", requireAuth, requireRole("hr"), listMatchedApp
 // PATCH /bulk/status would match "/:applicationId/status" with applicationId="bulk".
 router.patch("/bulk/status", requireAuth, requireRole("hr"), bulkUpdateStatusHandler);
 router.post("/bulk/ai-interview", requireAuth, requireRole("hr"), bulkAiInterviewHandler);
-router.post("/bulk/org-interview", requireAuth, requireRole("hr"), bulkOrgInterviewHandler);
+router.post("/bulk/org-interview-invite", requireAuth, requireRole("hr"), bulkOrgInterviewInviteHandler);
 
 router.get("/:applicationId/report", requireAuth, requireRole("hr"), getApplicationReportHandler);
 router.patch("/:applicationId/status", requireAuth, requireRole("hr"), updateApplicationStatusHandler);
@@ -32,10 +32,10 @@ router.post(
   scheduleAiInterviewHandler
 );
 router.post(
-  "/:applicationId/org-interview",
+  "/:applicationId/org-interview-invite",
   requireAuth,
   requireRole("hr"),
-  scheduleOrgInterviewHandler
+  inviteToOrgInterviewHandler
 );
 
 export default router;

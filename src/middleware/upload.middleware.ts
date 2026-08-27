@@ -30,3 +30,12 @@ export const uploadJdFile = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter,
 }).single("jd");
+
+// HR's organizational-interview question pool (Q/A/marks), authored as a PDF or DOCX
+// document rather than typed in one-by-one — see orgInterviewQuestionSet.service.ts
+// for the expected "Q: / A: / Marks:" text format.
+export const uploadQuestionPoolFile = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter,
+}).single("questionsFile");

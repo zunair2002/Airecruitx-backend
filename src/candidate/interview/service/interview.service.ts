@@ -1,4 +1,5 @@
 import { InterviewSession, IInterviewSession } from "../model/interviewSession.model";
+import { IOrgInterviewQuestionSet } from "../../../hr/job-posting/model/orgInterviewQuestionSet.model";
 import { AppError } from "../../../utils/AppError";
 import * as ollamaService from "./ollama.service";
 import { ChatMessage } from "./ollama.service";
@@ -83,15 +84,19 @@ const runTurn = async (
   history: ChatMessage[],
   userMessage: ChatMessage
 ): Promise<{ exchanges: ChatMessage[]; parsed: ParsedReply }> => {
+  // Each reply is at most feedback + a score line + one question (or a closing
+  // verdict) — capping generation length means the model stops as soon as it's said
+  // that much instead of free-running, which is a direct, real reduction in how long
+  // the candidate waits per turn.
   const exchanges: ChatMessage[] = [userMessage];
-  let reply = await ollamaService.chat([...history, ...exchanges]);
+  let reply = await ollamaService.chat([...history, ...exchanges], { maxTokens: 250 });
   exchanges.push({ role: "assistant", content: reply });
   let parsed = parseAssistantReply(reply);
 
   if (!hasNextStep(parsed)) {
     const nudge: ChatMessage = { role: "user", content: "Continue: give the next question now." };
     exchanges.push(nudge);
-    const reply2 = await ollamaService.chat([...history, ...exchanges]);
+    const reply2 = await ollamaService.chat([...history, ...exchanges], { maxTokens: 250 });
     exchanges.push({ role: "assistant", content: reply2 });
     const parsed2 = parseAssistantReply(reply2);
 
@@ -166,6 +171,153 @@ export const startInterview = async (
   return session;
 };
 
+// Fisher-Yates — unbiased shuffle, done in place on a copy of the array.
+const shuffle = <T,>(items: T[]): T[] => {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
+// The controlled-evaluator counterpart to startInterview: instead of asking the model
+// to invent an opening question, the questions come straight from HR's own pool — no
+// LLM call needed until the candidate actually answers something.
+//
+// Each call draws its own random subset (questionsPerInterview, or the whole pool if
+// unset) and shuffles the order, snapshotting it onto the session as selectedQuestions
+// — so two candidates interviewing for the same job at the same moment get an
+// independent random draw each, and neither a later pool edit nor another candidate's
+// draw can affect an interview already in progress.
+export const startStructuredInterview = async (
+  userId: string,
+  applicationId: string,
+  questionSet: IOrgInterviewQuestionSet
+): Promise<IInterviewSession> => {
+  const existing = await InterviewSession.findOne({
+    userId,
+    applicationId,
+    visibility: "hidden",
+    status: { $ne: "completed" },
+  });
+  if (existing) return existing;
+
+  const poolSize = questionSet.questions.length;
+  const count =
+    questionSet.questionsPerInterview && questionSet.questionsPerInterview > 0
+      ? Math.min(questionSet.questionsPerInterview, poolSize)
+      : poolSize;
+  const selectedQuestions = shuffle(questionSet.questions).slice(0, count);
+
+  return InterviewSession.create({
+    userId,
+    applicationId,
+    questionSetId: questionSet._id,
+    selectedQuestions,
+    visibility: "hidden",
+    status: "in_progress",
+    messages: [],
+    turns: [],
+    currentQuestionNumber: 1,
+    currentQuestion: selectedQuestions[0].question,
+  });
+};
+
+interface EvaluationResult {
+  score: number; // normalized 0-10, to match the shared turn.score scale
+  marksEarned: number;
+  marksPossible: number;
+  feedback: string;
+}
+
+// Grades a candidate's answer against HR's own reference answer and marks — a single
+// scoring call, not a back-and-forth conversation, so this doesn't need runTurn's
+// question-generation/nudge machinery at all.
+const evaluateAgainstReference = async (
+  question: string,
+  referenceAnswer: string,
+  marks: number,
+  candidateAnswer: string
+): Promise<EvaluationResult> => {
+  const prompt = `You are grading a candidate's interview answer against a reference answer and a fixed mark scheme. Be fair and concise.
+
+Question: ${question}
+Reference answer: ${referenceAnswer}
+Maximum marks: ${marks}
+Candidate's answer: ${candidateAnswer}
+
+Respond in EXACTLY this format and nothing else:
+Score: X/${marks}
+Feedback: <one or two sentences>`;
+
+  // The whole reply is just "Score: X/Y" plus 1-2 sentences — a tight cap here is
+  // where the biggest per-answer latency win is, since this call happens once per
+  // question with no question-generation work bundled in.
+  const reply = await ollamaService.chat([{ role: "user", content: prompt }], { maxTokens: 100 });
+
+  const scoreMatch = reply.match(/Score:\s*(\d+(?:\.\d+)?)\s*\/\s*\d+(?:\.\d+)?/i);
+  const feedbackMatch = reply.match(/Feedback:\s*([^\n]+)/i);
+
+  const marksEarned = scoreMatch ? Math.min(marks, Math.max(0, parseFloat(scoreMatch[1]))) : 0;
+
+  return {
+    score: marks > 0 ? Math.round((marksEarned / marks) * 10) : 0,
+    marksEarned,
+    marksPossible: marks,
+    feedback: feedbackMatch ? feedbackMatch[1].trim() : reply.trim(),
+  };
+};
+
+const submitStructuredAnswer = async (
+  session: IInterviewSession,
+  answer: string
+): Promise<IInterviewSession> => {
+  const selected = session.selectedQuestions;
+  if (!selected || selected.length === 0) {
+    throw new AppError("Interview session is in an invalid state", 500);
+  }
+
+  const index = session.currentQuestionNumber! - 1;
+  const current = selected[index];
+  if (!current) {
+    throw new AppError("Interview session is in an invalid state", 500);
+  }
+
+  const evaluation = await evaluateAgainstReference(current.question, current.referenceAnswer, current.marks, answer);
+
+  session.turns.push({
+    questionNumber: session.currentQuestionNumber!,
+    question: current.question,
+    answer,
+    feedback: evaluation.feedback,
+    score: evaluation.score,
+    marksEarned: evaluation.marksEarned,
+    marksPossible: evaluation.marksPossible,
+  });
+
+  const nextIndex = index + 1;
+  if (nextIndex >= selected.length) {
+    const totalEarned = session.turns.reduce((sum, t) => sum + (t.marksEarned ?? 0), 0);
+    const totalPossible = session.turns.reduce((sum, t) => sum + (t.marksPossible ?? 0), 0);
+    const overallPercent = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+    const passScoreOutOf100 = Number(process.env.CERTIFICATE_PASS_SCORE ?? 80);
+
+    session.status = "completed";
+    session.score = overallPercent;
+    session.result = overallPercent >= passScoreOutOf100 ? "pass" : "fail";
+    session.feedback = `Completed all ${selected.length} question(s) — ${totalEarned}/${totalPossible} marks.`;
+    session.currentQuestionNumber = undefined;
+    session.currentQuestion = undefined;
+  } else {
+    session.currentQuestionNumber = nextIndex + 1;
+    session.currentQuestion = selected[nextIndex].question;
+  }
+
+  await session.save();
+  return session;
+};
+
 export const submitAnswer = async (
   userId: string,
   sessionId: string,
@@ -180,6 +332,10 @@ export const submitAnswer = async (
   }
   if (!session.currentQuestionNumber || !session.currentQuestion) {
     throw new AppError("Interview session is in an invalid state", 500);
+  }
+
+  if (session.questionSetId) {
+    return submitStructuredAnswer(session, answer);
   }
 
   const questionNumber = session.currentQuestionNumber;
@@ -248,18 +404,27 @@ export const getSession = async (
 
 // Shapes a session into what the candidate-facing API returns: the current question
 // plus the history of answered questions while in progress, or the final report once
-// completed. For a "hidden" (organizational) interview, the candidate can still see
-// which questions were asked and what they answered — but never the AI's feedback,
-// per-turn score, overall score/result, or e-learning tips; those are for HR only.
+// completed.
+//
+// Per-turn feedback/score is withheld from the candidate while the interview is still
+// "in_progress" — even for a normal practice/AI interview — so the flow is "answer all
+// questions, then see the overall report" instead of a running commentary after every
+// answer; it's revealed once the session completes.
+//
+// For a "hidden" (organizational) interview, the candidate can still see which
+// questions were asked and what they answered — but never the AI's feedback, per-turn
+// score, overall score/result, or e-learning tips, even after completion; those are
+// for HR only.
 export const buildSessionView = (session: IInterviewSession) => {
   const isHidden = session.visibility === "hidden";
+  const showTurnJudgement = !isHidden && session.status === "completed";
 
   const turnsWithRound = session.turns.map((t) => ({
     questionNumber: t.questionNumber,
     question: t.question,
     answer: t.answer,
-    feedback: isHidden ? undefined : t.feedback,
-    score: isHidden ? undefined : t.score,
+    feedback: showTurnJudgement ? t.feedback : undefined,
+    score: showTurnJudgement ? t.score : undefined,
     round: questionRound(t.questionNumber),
   }));
 
