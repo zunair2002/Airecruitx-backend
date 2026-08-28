@@ -25,6 +25,19 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
   await getTransporter().sendMail({ from, to, subject, html });
 };
 
+// Sent right after a password-based signup (and again on resend) — the candidate/HR
+// enters this code to prove they own the email before they can log in.
+export const sendOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
+  await send(
+    to,
+    "Verify your email — Airecruitx",
+    `<p>Hi ${name},</p>
+     <p>Your verification code is:</p>
+     <p style="font-size:28px; font-weight:bold; letter-spacing:4px;">${otp}</p>
+     <p>This code expires in 10 minutes. If you didn't create an Airecruitx account, you can ignore this email.</p>`
+  );
+};
+
 // Sent when HR invites a candidate to a self-paced AI interview: no fixed time, just
 // a personal link valid until expiresAt — the candidate can start it whenever suits them.
 export const sendOrgInterviewInvite = async (

@@ -93,6 +93,17 @@
       <pre id="signupOutput" class="hidden"></pre>
     </div>
 
+    <div class="auth-card hidden" id="verifyOtpCard">
+      <h2>Verify Email</h2>
+      <p style="font-size:13px; color:var(--light);">
+        We emailed a 6-digit code to <strong id="verifyOtpEmailLabel"></strong>. Enter it below to finish signing up.
+      </p>
+      <div class="input-group"><input id="verifyOtpCode" placeholder="6-digit code" maxlength="6" /></div>
+      <button class="btn-main" id="verifyOtpBtn">Verify & Log In</button>
+      <div class="toggle-auth"><span onclick="resendOtp()">Resend code</span></div>
+      <pre id="verifyOtpOutput" class="hidden"></pre>
+    </div>
+
     <div id="googleConfigArea" class="auth-card hidden" style="margin-top:20px;">
         <h3>Google Config</h3>
         <textarea id="config" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
@@ -297,6 +308,7 @@
     window.toggleAuth = (s) => {
       document.getElementById('loginCard').classList.toggle('hidden', s);
       document.getElementById('signupCard').classList.toggle('hidden', !s);
+      document.getElementById('verifyOtpCard').classList.add('hidden');
     };
 
     // The session token lives only in an httpOnly cookie set by the server — JS never
@@ -342,10 +354,40 @@
           body: JSON.stringify({ name: signupName.value, email: signupEmail.value, password: signupPassword.value, role: signupRole.value }),
         });
         const d = await res.json();
-        if (d.success) onAuthenticated(d.data.user);
-        else showJson("signupOutput", d);
+        if (d.success) {
+          document.getElementById('signupCard').classList.add('hidden');
+          document.getElementById('verifyOtpCard').classList.remove('hidden');
+          document.getElementById('verifyOtpEmailLabel').textContent = d.data.email;
+          document.getElementById('verifyOtpCode').focus();
+        } else showJson("signupOutput", d);
       } catch (err) { showJson("signupOutput", { error: err.message }); }
     });
+
+    document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById('verifyOtpEmailLabel').textContent,
+            otp: document.getElementById('verifyOtpCode').value.trim(),
+          }),
+        });
+        const d = await res.json();
+        if (d.success) onAuthenticated(d.data.user);
+        else showJson("verifyOtpOutput", d);
+      } catch (err) { showJson("verifyOtpOutput", { error: err.message }); }
+    });
+
+    window.resendOtp = async () => {
+      const email = document.getElementById('verifyOtpEmailLabel').textContent;
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      showJson("verifyOtpOutput", await res.json());
+    };
 
     // Restore session on page load/refresh — the httpOnly cookie (if any) rides along
     // automatically, so this just asks the server "who am I" rather than juggling a token.

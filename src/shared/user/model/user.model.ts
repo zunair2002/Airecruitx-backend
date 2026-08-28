@@ -14,6 +14,12 @@ export interface IUser extends Document {
   authProvider: AuthProvider;
   avatarUrl?: string;
   isActive: boolean;
+  // Google accounts are verified by Google itself (true from creation). Password
+  // accounts start false and must confirm ownership of the email via OTP before they
+  // can log in — see auth.service.ts's verifyEmail/resendOtp.
+  emailVerified: boolean;
+  emailOtp?: string;
+  emailOtpExpiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
@@ -68,6 +74,21 @@ const userSchema = new Schema<IUser>(
       type: Boolean,
       required: true,
       default: true,
+    },
+    emailVerified: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    emailOtp: {
+      type: String,
+      required: false,
+      select: false,
+    },
+    emailOtpExpiresAt: {
+      type: Date,
+      required: false,
+      select: false,
     },
   },
   { timestamps: true }
