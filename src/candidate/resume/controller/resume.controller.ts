@@ -22,3 +22,13 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     },
   });
 });
+
+export const getMyResumeHandler = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id.toString();
+  const resume = await resumeService.getMyResume(userId);
+
+  res.status(200).json({
+    success: true,
+    data: resume ? { fileUrl: resume.fileUrl, status: resume.status, updatedAt: resume.updatedAt } : null,
+  });
+});

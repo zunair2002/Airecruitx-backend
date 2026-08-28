@@ -45,3 +45,10 @@ export const uploadAndParseResume = async (
     { upsert: true, new: true }
   );
 };
+
+// Lets the candidate know whether they already have a resume on file (and its link)
+// before deciding to upload — without this, the frontend has no way to tell "no
+// resume yet" apart from "one exists but hasn't been re-checked this session".
+export const getMyResume = async (userId: string): Promise<IResume | null> => {
+  return Resume.findOne({ userId });
+};
