@@ -45,7 +45,12 @@ const sendOtpBestEffort = async (user: IUser, otp: string) => {
 // verify ownership of the email (via the OTP just sent) before they get a session; see
 // verifyEmail below, which is where the token is actually issued. Google accounts skip
 // all of this (see googleLogin) since Google has already verified the email.
-export const signup = async (input: SignupInput): Promise<{ user: IUser }> => {
+//
+// The OTP is returned here (not just emailed) so the controller can echo it back in
+// non-production environments — purely a local-dev convenience for when the SMTP
+// account is unreachable/rate-limited (e.g. Gmail's daily send cap), so testing the
+// signup flow never has to block on that. Never exposed when NODE_ENV=production.
+export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: string }> => {
   const { name, email, password, role } = input;
 
   const existing = await User.findOne({ email: email.toLowerCase() });
@@ -71,7 +76,7 @@ export const signup = async (input: SignupInput): Promise<{ user: IUser }> => {
 
   user.password = undefined;
   user.emailOtp = undefined;
-  return { user };
+  return { user, otp };
 };
 
 export const verifyEmail = async (
@@ -101,7 +106,7 @@ export const verifyEmail = async (
   return { token, user };
 };
 
-export const resendOtp = async (email: string): Promise<void> => {
+export const resendOtp = async (email: string): Promise<{ otp: string }> => {
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
     throw new AppError("Invalid email or code", 400);
@@ -116,6 +121,7 @@ export const resendOtp = async (email: string): Promise<void> => {
   await user.save();
 
   await sendOtpBestEffort(user, otp);
+  return { otp };
 };
 
 export const login = async (

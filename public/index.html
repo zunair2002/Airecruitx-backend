@@ -55,8 +55,9 @@
     .kpi-tile .label { font-size: 12px; color: var(--light); }
     .admin-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
     .admin-toolbar input, .admin-toolbar select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-    #hrJobsList table th, #hrJobsList table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    #hrJobsList table tbody tr:hover { background: #fafafa; }
+    #hrJobsList table th, #hrJobsList table td,
+    #historyRows th, #historyRows td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    #hrJobsList table tbody tr:hover, #historyRows tr:hover { background: #fafafa; }
   </style>
 </head>
 <body>
@@ -216,6 +217,29 @@
         <pre id="orgInfoOutput" class="hidden"></pre>
         <div id="orgQuestion" style="margin-top:15px;"></div>
       </section>
+
+      <section>
+        <h3>6. My Interview History</h3>
+        <div class="admin-toolbar">
+          <select id="historyTypeFilter">
+            <option value="">All types</option>
+            <option value="practice">Practice</option>
+            <option value="ai_interview">AI Interview (job match)</option>
+            <option value="organizational">Organizational</option>
+          </select>
+          <button class="btn-small" id="loadHistoryBtn">Refresh</button>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="text-align:left; border-bottom:2px solid var(--border);">
+                <th>Type</th><th>Job</th><th>Level</th><th>Status</th><th>Score</th><th>Result</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="historyRows"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div id="adminSection" class="hidden">
@@ -358,6 +382,9 @@
           document.getElementById('signupCard').classList.add('hidden');
           document.getElementById('verifyOtpCard').classList.remove('hidden');
           document.getElementById('verifyOtpEmailLabel').textContent = d.data.email;
+          // Dev-only: backend echoes the OTP when NODE_ENV isn't "production" (e.g.
+          // SMTP is unreachable/rate-limited) so testing doesn't have to wait on email.
+          if (d.data.devOtp) document.getElementById('verifyOtpCode').value = d.data.devOtp;
           document.getElementById('verifyOtpCode').focus();
         } else showJson("signupOutput", d);
       } catch (err) { showJson("signupOutput", { error: err.message }); }
@@ -386,7 +413,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      showJson("verifyOtpOutput", await res.json());
+      const d = await res.json();
+      if (d.devOtp) document.getElementById('verifyOtpCode').value = d.devOtp;
+      showJson("verifyOtpOutput", d);
     };
 
     // Restore session on page load/refresh — the httpOnly cookie (if any) rides along
@@ -872,6 +901,31 @@
         list.appendChild(div);
       });
     };
+
+    const historyTypeLabels = { practice: "Practice", ai_interview: "AI Interview", organizational: "Organizational" };
+
+    document.getElementById("loadHistoryBtn").addEventListener("click", async () => {
+      const type = document.getElementById("historyTypeFilter").value;
+      const url = type ? `/api/interview/mine?type=${type}` : "/api/interview/mine";
+      const res = await fetch(url, { headers: authHeaders() });
+      const d = await res.json();
+      const rows = document.getElementById("historyRows");
+      rows.innerHTML = "";
+      if (!d.success) { rows.innerHTML = `<tr><td colspan="7">${d.message}</td></tr>`; return; }
+      if (d.data.length === 0) { rows.innerHTML = `<tr><td colspan="7">No interviews yet.</td></tr>`; return; }
+      d.data.forEach(s => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${historyTypeLabels[s.type] || s.type}</td>
+          <td>${s.jobTitle || "—"}</td>
+          <td>${s.level || "—"}</td>
+          <td><span class="status-badge status-${s.status === 'completed' ? 'selected' : 'pending'}">${s.status}</span></td>
+          <td>${s.score !== undefined ? s.score + "%" : "—"}</td>
+          <td>${s.result || "—"}</td>
+          <td>${new Date(s.createdAt).toLocaleDateString()}</td>`;
+        rows.appendChild(tr);
+      });
+    });
 
     // --- Org interview via invite token (public — no Authorization header needed) ---
     document.getElementById("orgInfoBtn").onclick = async () => {

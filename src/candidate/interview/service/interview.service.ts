@@ -1,5 +1,6 @@
 import { InterviewSession, IInterviewSession } from "../model/interviewSession.model";
 import { IOrgInterviewQuestionSet } from "../../../hr/job-posting/model/orgInterviewQuestionSet.model";
+import { Application } from "../../../shared/application/model/application.model";
 import { AppError } from "../../../utils/AppError";
 import * as ollamaService from "./ollama.service";
 import { ChatMessage } from "./ollama.service";
@@ -136,17 +137,17 @@ export const startInterview = async (
     visibility,
     status: { $ne: "completed" },
   });
-  if (existing) return existing;
-
-  const session = await InterviewSession.create({
-    userId,
-    applicationId,
-    level: context.level,
-    visibility,
-    status: "in_progress",
-    messages: [],
-    turns: [],
-  });
+  if (existing) {
+    // A usable in-progress session always has a current question. One without is a
+    // leftover from a previous attempt where the opening-question call failed after
+    // this document was already created (see below) — it can never be answered, so
+    // discard it and generate a fresh one instead of handing the candidate a
+    // permanently stuck "Q undefined" session.
+    if (existing.currentQuestionNumber && existing.currentQuestion) {
+      return existing;
+    }
+    await existing.deleteOne();
+  }
 
   // Fold difficulty level (practice) or the role being hired for (real interview) into
   // the opening message so the model's questions are tailored, without needing a
@@ -163,12 +164,19 @@ export const startInterview = async (
     throw new AppError("The interview model did not return a valid opening question", 502);
   }
 
-  session.messages.push(...exchanges);
-  session.currentQuestionNumber = parsed.nextQuestionNumber;
-  session.currentQuestion = parsed.nextQuestionText;
-
-  await session.save();
-  return session;
+  // Only persisted once a complete, valid opening question is in hand — a failed
+  // Ollama call above never leaves a broken half-session in the database.
+  return InterviewSession.create({
+    userId,
+    applicationId,
+    level: context.level,
+    visibility,
+    status: "in_progress",
+    messages: exchanges,
+    turns: [],
+    currentQuestionNumber: parsed.nextQuestionNumber,
+    currentQuestion: parsed.nextQuestionText,
+  });
 };
 
 // Fisher-Yates — unbiased shuffle, done in place on a copy of the array.
@@ -378,6 +386,13 @@ export const submitAnswer = async (
     session.feedback = parsed.isComplete
       ? exchanges[exchanges.length - 1].content
       : `Interview ended after ${session.turns.length} questions. ${parsed.feedbackText}`;
+    // The full raw chat log was only ever needed to give the model conversation
+    // context for the next turn — once completed there is no next turn, and
+    // everything worth keeping (question/answer/feedback/score per turn) already
+    // lives in `turns`, in a far more compact form. Clearing this here is a real,
+    // meaningful storage saving: `messages` duplicates `turns` in prose form and can
+    // run to several KB per session.
+    session.messages = [];
     session.currentQuestionNumber = undefined;
     session.currentQuestion = undefined;
   } else if (parsed.nextQuestionNumber && parsed.nextQuestionText) {
@@ -450,4 +465,57 @@ export const buildSessionView = (session: IInterviewSession) => {
     round: session.currentQuestionNumber ? questionRound(session.currentQuestionNumber) : undefined,
     turns: turnsWithRound,
   };
+};
+
+export type InterviewHistoryType = "practice" | "ai_interview" | "organizational";
+
+// A candidate's own interview history — every session they've ever had, regardless of
+// kind, in one list (for a profile "past interviews" table). Score/result stay hidden
+// for organizational interviews here too, same as everywhere else the candidate can
+// see their own sessions — only the fact that one happened, for which job, and its
+// status is shown; the grading is for HR only.
+const classifySession = (session: IInterviewSession): InterviewHistoryType => {
+  if (!session.applicationId) return "practice";
+  return session.visibility === "hidden" ? "organizational" : "ai_interview";
+};
+
+const buildSessionSummary = (session: IInterviewSession, jobTitle?: string) => {
+  const isHidden = session.visibility === "hidden";
+
+  return {
+    sessionId: session._id,
+    type: classifySession(session),
+    jobTitle,
+    level: session.level,
+    status: session.status,
+    score: isHidden ? undefined : session.score,
+    result: isHidden ? undefined : session.result,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+  };
+};
+
+export const listSessionsForCandidate = async (userId: string, type?: InterviewHistoryType) => {
+  const sessions = await InterviewSession.find({ userId }).sort({ createdAt: -1 });
+
+  // Batch-resolve job titles for every application-linked session (AI interview and
+  // organizational both carry one) in a single query, rather than one lookup per row.
+  const applicationIds = sessions
+    .map((s) => s.applicationId)
+    .filter((id): id is NonNullable<typeof id> => Boolean(id));
+  const applications = applicationIds.length
+    ? await Application.find({ _id: { $in: applicationIds } }).populate("jobId", "title")
+    : [];
+  const jobTitleByApplicationId = new Map(
+    applications.map((a) => [a._id.toString(), (a.jobId as any)?.title as string | undefined])
+  );
+
+  const summaries = sessions.map((session) =>
+    buildSessionSummary(
+      session,
+      session.applicationId ? jobTitleByApplicationId.get(session.applicationId.toString()) : undefined
+    )
+  );
+
+  return type ? summaries.filter((s) => s.type === type) : summaries;
 };

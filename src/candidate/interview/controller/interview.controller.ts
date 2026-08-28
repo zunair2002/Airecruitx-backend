@@ -40,3 +40,18 @@ export const getReportHandler = asyncHandler(async (req: Request, res: Response)
 
   res.status(200).json({ success: true, data: interviewService.buildSessionView(session) });
 });
+
+const VALID_HISTORY_TYPES = ["practice", "ai_interview", "organizational"];
+
+export const listMySessionsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id.toString();
+  const { type } = req.query;
+
+  if (type !== undefined && (typeof type !== "string" || !VALID_HISTORY_TYPES.includes(type))) {
+    throw new AppError(`type must be one of: ${VALID_HISTORY_TYPES.join(", ")}`, 400);
+  }
+
+  const sessions = await interviewService.listSessionsForCandidate(userId, type as any);
+
+  res.status(200).json({ success: true, data: sessions });
+});

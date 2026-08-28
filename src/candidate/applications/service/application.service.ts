@@ -1,3 +1,4 @@
+import axios from "axios";
 import { Application, IApplication } from "../../../shared/application/model/application.model";
 import { Job } from "../../../shared/job/model/job.model";
 import { User } from "../../../shared/user/model/user.model";
@@ -7,6 +8,7 @@ import { getSettings } from "../../../admin/settings/service/settings.service";
 import * as interviewService from "../../interview/service/interview.service";
 import { IInterviewSession } from "../../interview/model/interviewSession.model";
 import { OrgInterviewQuestionSet } from "../../../hr/job-posting/model/orgInterviewQuestionSet.model";
+import { extractTextFromFile } from "../../../shared/util/extractTextFromFile";
 
 // Matches directly against whatever skills HR actually required for this job, searched
 // in the candidate's real resume text — not a fixed dictionary. Keeps matching honest to
@@ -24,6 +26,13 @@ const matchAgainstRequiredSkills = (
   return { matchScore, matchedSkills };
 };
 
+// The resume's extracted text is never stored (see resume.model.ts) — it's re-fetched
+// from Cloudinary and re-parsed here, on demand, each time a match score is needed.
+const getResumeText = async (fileUrl: string, mimeType: string): Promise<string> => {
+  const response = await axios.get<ArrayBuffer>(fileUrl, { responseType: "arraybuffer" });
+  return extractTextFromFile(Buffer.from(response.data), mimeType);
+};
+
 export const applyToJob = async (candidateId: string, jobId: string): Promise<IApplication> => {
   const job = await Job.findById(jobId);
   if (!job || job.status !== "open") {
@@ -35,8 +44,11 @@ export const applyToJob = async (candidateId: string, jobId: string): Promise<IA
     throw new AppError("Upload a resume before applying", 400);
   }
 
-  const settings = await getSettings();
-  const { matchScore, matchedSkills } = matchAgainstRequiredSkills(resume.rawText, job.requiredSkills);
+  const [settings, resumeText] = await Promise.all([
+    getSettings(),
+    getResumeText(resume.fileUrl, resume.mimeType),
+  ]);
+  const { matchScore, matchedSkills } = matchAgainstRequiredSkills(resumeText, job.requiredSkills);
   const matched = matchScore >= settings.matchThreshold;
 
   let application: IApplication;
