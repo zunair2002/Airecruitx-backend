@@ -55,6 +55,9 @@
     .kpi-tile .label { font-size: 12px; color: var(--light); }
     .admin-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
     .admin-toolbar input, .admin-toolbar select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+    #hrJobsList table th, #hrJobsList table td,
+    #historyRows th, #historyRows td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    #hrJobsList table tbody tr:hover, #historyRows tr:hover { background: #fafafa; }
   </style>
 </head>
 <body>
@@ -89,6 +92,17 @@
       <button class="btn-main" id="signupBtn">Sign Up</button>
       <div class="toggle-auth">Already have an account? <span onclick="toggleAuth(false)">Login</span></div>
       <pre id="signupOutput" class="hidden"></pre>
+    </div>
+
+    <div class="auth-card hidden" id="verifyOtpCard">
+      <h2>Verify Email</h2>
+      <p style="font-size:13px; color:var(--light);">
+        We emailed a 6-digit code to <strong id="verifyOtpEmailLabel"></strong>. Enter it below to finish signing up.
+      </p>
+      <div class="input-group"><input id="verifyOtpCode" placeholder="6-digit code" maxlength="6" /></div>
+      <button class="btn-main" id="verifyOtpBtn">Verify & Log In</button>
+      <div class="toggle-auth"><span onclick="resendOtp()">Resend code</span></div>
+      <pre id="verifyOtpOutput" class="hidden"></pre>
     </div>
 
     <div id="googleConfigArea" class="auth-card hidden" style="margin-top:20px;">
@@ -190,6 +204,42 @@
         <button id="loadMyApplicationsBtn" class="btn-small">Update Status</button>
         <div id="myApplicationsList"></div>
       </section>
+
+      <section style="background:#fff3e0;">
+        <h3>5. Organizational Interview (via invite link)</h3>
+        <p style="font-size:12px; color:var(--light);">
+          Paste the token from an HR invite link (?token=...) — this whole flow is public/token-based,
+          not tied to being logged in as this candidate.
+        </p>
+        <div class="input-group"><input id="orgToken" placeholder="Invite token" /></div>
+        <button class="btn-small" id="orgInfoBtn">Get Invite Info</button>
+        <button class="btn-small" id="orgStartBtn">Start / Resume</button>
+        <pre id="orgInfoOutput" class="hidden"></pre>
+        <div id="orgQuestion" style="margin-top:15px;"></div>
+      </section>
+
+      <section>
+        <h3>6. My Interview History</h3>
+        <div class="admin-toolbar">
+          <select id="historyTypeFilter">
+            <option value="">All types</option>
+            <option value="practice">Practice</option>
+            <option value="ai_interview">AI Interview (job match)</option>
+            <option value="organizational">Organizational</option>
+          </select>
+          <button class="btn-small" id="loadHistoryBtn">Refresh</button>
+        </div>
+        <div style="overflow-x:auto; margin-top:12px;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="text-align:left; border-bottom:2px solid var(--border);">
+                <th>Type</th><th>Job</th><th>Level</th><th>Status</th><th>Score</th><th>Result</th><th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="historyRows"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
 
     <div id="adminSection" class="hidden">
@@ -282,6 +332,7 @@
     window.toggleAuth = (s) => {
       document.getElementById('loginCard').classList.toggle('hidden', s);
       document.getElementById('signupCard').classList.toggle('hidden', !s);
+      document.getElementById('verifyOtpCard').classList.add('hidden');
     };
 
     // The session token lives only in an httpOnly cookie set by the server — JS never
@@ -327,10 +378,45 @@
           body: JSON.stringify({ name: signupName.value, email: signupEmail.value, password: signupPassword.value, role: signupRole.value }),
         });
         const d = await res.json();
-        if (d.success) onAuthenticated(d.data.user);
-        else showJson("signupOutput", d);
+        if (d.success) {
+          document.getElementById('signupCard').classList.add('hidden');
+          document.getElementById('verifyOtpCard').classList.remove('hidden');
+          document.getElementById('verifyOtpEmailLabel').textContent = d.data.email;
+          // Dev-only: backend echoes the OTP when NODE_ENV isn't "production" (e.g.
+          // SMTP is unreachable/rate-limited) so testing doesn't have to wait on email.
+          if (d.data.devOtp) document.getElementById('verifyOtpCode').value = d.data.devOtp;
+          document.getElementById('verifyOtpCode').focus();
+        } else showJson("signupOutput", d);
       } catch (err) { showJson("signupOutput", { error: err.message }); }
     });
+
+    document.getElementById("verifyOtpBtn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/auth/verify-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: document.getElementById('verifyOtpEmailLabel').textContent,
+            otp: document.getElementById('verifyOtpCode').value.trim(),
+          }),
+        });
+        const d = await res.json();
+        if (d.success) onAuthenticated(d.data.user);
+        else showJson("verifyOtpOutput", d);
+      } catch (err) { showJson("verifyOtpOutput", { error: err.message }); }
+    });
+
+    window.resendOtp = async () => {
+      const email = document.getElementById('verifyOtpEmailLabel').textContent;
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const d = await res.json();
+      if (d.devOtp) document.getElementById('verifyOtpCode').value = d.devOtp;
+      showJson("verifyOtpOutput", d);
+    };
 
     // Restore session on page load/refresh — the httpOnly cookie (if any) rides along
     // automatically, so this just asks the server "who am I" rather than juggling a token.
@@ -393,13 +479,18 @@
       const container = document.getElementById("interviewQuestions");
       container.innerHTML = "";
 
-      // Show already-answered questions with the model's live feedback/score.
+      // Feedback/score are withheld by the backend until the whole interview is
+      // complete (answer all questions first, then see the report) — so while
+      // in_progress, only the question + the candidate's own answer are shown here.
       (session.turns || []).forEach((t) => {
         const div = document.createElement("div");
         div.className = "list-item";
+        const feedbackLine = t.feedback !== undefined && t.score !== undefined
+          ? `<p><strong>Feedback:</strong> ${t.feedback} (Score: ${t.score}/10)</p>`
+          : "";
         div.innerHTML = `<p><strong>Q${t.questionNumber}:</strong> ${t.question}</p>
                           <p><em>Your answer:</em> ${t.answer}</p>
-                          <p><strong>Feedback:</strong> ${t.feedback} (Score: ${t.score}/10)</p>`;
+                          ${feedbackLine}`;
         container.appendChild(div);
       });
 
@@ -533,12 +624,45 @@
         if(d.success) document.getElementById('loadHrJobsBtn').click();
     };
 
-    window.scheduleInterview = async (aid) => {
-        const dt = document.getElementById(`dt-${aid}`).value;
-        const loc = document.getElementById(`loc-${aid}`).value;
-        const res = await fetch(`/api/applications/${aid}/org-interview`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ dateTime: dt, location: loc }) });
-        showJson("applicationReportOutput", await res.json());
+    window.inviteOrgInterview = async (aid) => {
+        const days = Number(document.getElementById(`org-days-${aid}`).value) || 2;
+        const res = await fetch(`/api/applications/${aid}/org-interview-invite`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ validityDays: days }) });
+        const d = await res.json();
+        showJson("applicationReportOutput", d);
+        if (d.success) document.getElementById('loadHrJobsBtn').click();
     };
+
+    window.bulkInviteOrgInterview = async (jobId) => {
+        const ids = getSelectedApplicantIds(jobId);
+        if (ids.length === 0) { alert("Select at least one applicant first."); return; }
+        const days = Number(document.getElementById(`bulk-org-days-${jobId}`).value) || 2;
+        const res = await fetch(`/api/applications/bulk/org-interview-invite`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ applicationIds: ids, validityDays: days }) });
+        const d = await res.json();
+        showJson("applicationReportOutput", d);
+        if (d.success) document.getElementById('loadHrJobsBtn').click();
+    };
+
+    window.bulkTriggerAiInterview = async (jobId, explicitIds) => {
+        const ids = explicitIds || getSelectedApplicantIds(jobId);
+        if (ids.length === 0) { alert("Select at least one applicant first."); return; }
+        const res = await fetch(`/api/applications/bulk/ai-interview`, { method: "POST", headers: authHeaders(), body: JSON.stringify({ applicationIds: ids }) });
+        const d = await res.json();
+        showJson("applicationReportOutput", d);
+        if (d.success) document.getElementById('loadHrJobsBtn').click();
+    };
+
+    window.bulkUpdateStatus = async (jobId, status) => {
+        const ids = getSelectedApplicantIds(jobId);
+        if (ids.length === 0) { alert("Select at least one applicant first."); return; }
+        const res = await fetch(`/api/applications/bulk/status`, { method: "PATCH", headers: authHeaders(), body: JSON.stringify({ applicationIds: ids, status }) });
+        const d = await res.json();
+        showJson("applicationReportOutput", d);
+        if (d.success) document.getElementById('loadHrJobsBtn').click();
+    };
+
+    function getSelectedApplicantIds(jobId) {
+        return Array.from(document.querySelectorAll(`.app-select-${jobId}:checked`)).map(el => el.value);
+    }
 
     window.scheduleAiInterview = async (aid) => {
         const dt = document.getElementById(`ai-dt-${aid}`).value;
@@ -554,41 +678,59 @@
         showJson("applicationReportOutput", await res.json());
     };
 
-    const renderApps = (container, apps) => {
-      container.innerHTML = "";
-      apps.forEach(app => {
-        const div = document.createElement("div");
-        div.className = "list-item";
-        div.innerHTML = `
-          <strong>${app.candidateId?.name || "Candidate"}</strong> (${app.matchScore}% Match — waiting list)
-          <div class="status-badge status-${app.status}">${app.status}</div><br>
-          Matched skills: ${(app.resumeSnapshotSkills || []).join(", ") || "-"}<br>
-          <button class="btn-small" onclick="viewReport('${app._id}')">AI Report</button>
-          <button class="btn-small" onclick="updateAppStatus('${app._id}', 'selected')">Shortlist</button>
-          <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="updateAppStatus('${app._id}', 'rejected')">Reject</button>
-          ${app.matched ? (app.aiInterview?.scheduled ? `
-            <div class="schedule-box">
-              🤖 AI interview scheduled for ${new Date(app.aiInterview.dateTime).toLocaleString()}
-            </div>
-          ` : `
-            <div class="schedule-box">
-              <label>Schedule the real AI interview</label><br>
-              <input type="datetime-local" id="ai-dt-${app._id}">
-              <input type="text" id="ai-msg-${app._id}" placeholder="Message to candidate">
-              <button class="btn-small" onclick="scheduleAiInterview('${app._id}')">Schedule AI Interview</button>
-            </div>
-          `) : ''}
-          ${app.status === 'selected' ? `
-            <div class="schedule-box">
-              <label>Schedule real organization interview</label><br>
-              <input type="datetime-local" id="dt-${app._id}">
-              <input type="text" id="loc-${app._id}" placeholder="Meeting Link">
-              <button class="btn-small" onclick="scheduleInterview('${app._id}')">Schedule</button>
-            </div>
-          ` : ''}
-        `;
-        container.appendChild(div);
-      });
+    const scoreCell = (score, result) => {
+      if (score === undefined || score === null) return '<span style="color:var(--light);">—</span>';
+      const cls = result === 'fail' ? 'status-rejected' : 'status-selected';
+      return `<span class="status-badge ${cls}">${score}%${result ? ` (${result})` : ''}</span>`;
+    };
+
+    const renderApps = (container, apps, jobId) => {
+      const rows = apps.map(app => {
+        const org = app.orgInterview || {};
+        const orgStatusText = app.status !== 'selected' ? '—'
+          : org.status === 'invited' ? `🔗 Invited (until ${new Date(org.expiresAt).toLocaleDateString()})`
+          : org.status === 'completed' ? '✅ Completed'
+          : org.status === 'expired' ? '⌛ Expired'
+          : `<input type="number" id="org-days-${app._id}" value="2" min="1" style="width:45px;"><button class="btn-small" onclick="inviteOrgInterview('${app._id}')">Invite</button>`;
+
+        return `
+          <tr>
+            <td><input type="checkbox" class="app-select-${jobId}" value="${app._id}"></td>
+            <td><strong>${app.candidateId?.name || "Candidate"}</strong><br><span style="font-size:11px; color:var(--light);">${app.candidateId?.email || ""}</span></td>
+            <td>${scoreCell(app.matchScore)}</td>
+            <td>${scoreCell(app.aiInterviewScore, app.aiInterviewResult)}</td>
+            <td>${scoreCell(app.orgInterviewScore, app.orgInterviewResult)}</td>
+            <td><span class="status-badge status-${app.status}">${app.status}</span></td>
+            <td>${orgStatusText}</td>
+            <td>
+              <button class="btn-small" onclick="viewReport('${app._id}')">Report</button>
+              <button class="btn-small" onclick="updateAppStatus('${app._id}', 'selected')">Shortlist</button>
+              <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="updateAppStatus('${app._id}', 'rejected')">Reject</button>
+              ${app.matched && !app.aiInterview?.scheduled ? `<button class="btn-small" onclick="bulkTriggerAiInterview('${jobId}', ['${app._id}'])">Retry AI</button>` : ''}
+            </td>
+          </tr>`;
+      }).join("");
+
+      container.innerHTML = `
+        <div class="admin-toolbar" style="margin-bottom:12px;">
+          <span style="font-size:12px; color:var(--light);">Bulk (select rows below):</span>
+          <button class="btn-small" onclick="bulkUpdateStatus('${jobId}','selected')">Shortlist Selected</button>
+          <button class="btn-small" style="color:var(--danger); border-color:var(--danger)" onclick="bulkUpdateStatus('${jobId}','rejected')">Reject Selected</button>
+          <button class="btn-small" onclick="bulkTriggerAiInterview('${jobId}')">Retry AI Interview</button>
+          <input type="number" id="bulk-org-days-${jobId}" value="2" min="1" style="width:60px;" title="Validity (days)">
+          <button class="btn-small" onclick="bulkInviteOrgInterview('${jobId}')">Invite to AI Interview (link)</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead>
+              <tr style="text-align:left; border-bottom:2px solid var(--border);">
+                <th></th><th>Candidate</th><th>ATS Match</th><th>AI Interview</th><th>Org Interview</th><th>Status</th><th>Org Invite</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      `;
     };
 
     document.getElementById("loadHrJobsBtn").onclick = async () => {
@@ -602,19 +744,97 @@
         div.innerHTML = `<strong>${job.title}</strong><br>
                          <button class="btn-small" id="all-${job._id}">All</button>
                          <button class="btn-small" id="top-${job._id}">Top Matches</button>
+                         Min match %: <input type="number" id="min-score-${job._id}" value="80" min="0" max="100" style="width:55px;">
+                         <button class="btn-small" id="filter-${job._id}">Filter</button>
+                         <button class="btn-small" id="qset-toggle-${job._id}">Interview Questions</button>
+                         <div id="qset-panel-${job._id}" class="hidden" style="margin-top:10px; padding:12px; background:#fff8e1; border-radius:6px;">
+                           <p style="font-size:12px; color:var(--light); margin:0 0 8px;">
+                             Upload a PDF/DOCX question pool for this job's organizational interview — the AI grades
+                             candidates against these reference answers instead of inventing its own questions.
+                             Each question needs a question line and an answer line — either style works:<br>
+                             <code>Q: &lt;question&gt;<br>A: &lt;reference answer&gt;</code>
+                             &nbsp;or&nbsp;
+                             <code>1. &lt;question&gt;<br>Answer: &lt;reference answer&gt;</code><br>
+                             An optional "Marks: 10" line sets that question's weight — questions without one default to 10.<br>
+                             Leave no pool uploaded and the org interview falls back to the free-form AI flow.
+                           </p>
+                           <div id="qset-current-${job._id}" style="font-size:12px; margin-bottom:8px;"></div>
+                           <input type="file" id="qset-file-${job._id}" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                           <br><br>
+                           Ask this many questions per candidate (random draw from the pool, blank = whole pool):
+                           <input type="number" id="qset-count-${job._id}" min="1" style="width:60px;">
+                           <br><br>
+                           <button class="btn-small" id="qset-save-${job._id}">Upload Question Pool</button>
+                           <pre id="qset-output-${job._id}" class="hidden"></pre>
+                         </div>
                          <div id="c-${job._id}" style="margin-top:10px;"></div>`;
         list.appendChild(div);
         document.getElementById(`all-${job._id}`).onclick = async () => {
             const r = await fetch(`/api/applications/job/${job._id}`, { headers: authHeaders() });
             const j = await r.json();
-            renderApps(document.getElementById(`c-${job._id}`), j.data);
+            renderApps(document.getElementById(`c-${job._id}`), j.data, job._id);
         };
         document.getElementById(`top-${job._id}`).onclick = async () => {
             const r = await fetch(`/api/applications/job/${job._id}/matched`, { headers: authHeaders() });
             const j = await r.json();
-            renderApps(document.getElementById(`c-${job._id}`), j.data);
+            renderApps(document.getElementById(`c-${job._id}`), j.data, job._id);
         };
+        document.getElementById(`filter-${job._id}`).onclick = async () => {
+            const min = document.getElementById(`min-score-${job._id}`).value;
+            const r = await fetch(`/api/applications/job/${job._id}?minMatchScore=${min}`, { headers: authHeaders() });
+            const j = await r.json();
+            renderApps(document.getElementById(`c-${job._id}`), j.data, job._id);
+        };
+        document.getElementById(`qset-toggle-${job._id}`).onclick = () => toggleQuestionSetPanel(job._id);
+        document.getElementById(`qset-save-${job._id}`).onclick = () => uploadQuestionSet(job._id);
       });
+    };
+
+    // --- HR: organizational-interview question pool (uploaded as PDF/DOCX, not typed in) ---
+    const renderQuestionSetSummary = (jobId, questionSet) => {
+      const el = document.getElementById(`qset-current-${jobId}`);
+      if (!questionSet) {
+        el.textContent = "No question pool uploaded yet — org interview will use the free-form AI flow.";
+        return;
+      }
+      const perInterview = questionSet.questionsPerInterview || questionSet.questions.length;
+      el.textContent = `Current pool: ${questionSet.questions.length} question(s) — ${perInterview} asked per candidate (randomly drawn + shuffled).`;
+      document.getElementById(`qset-count-${jobId}`).value = questionSet.questionsPerInterview || "";
+    };
+
+    const toggleQuestionSetPanel = async (jobId) => {
+      const panel = document.getElementById(`qset-panel-${jobId}`);
+      const wasHidden = panel.classList.contains("hidden");
+      panel.classList.toggle("hidden");
+      if (!wasHidden) return;
+
+      const res = await fetch(`/api/jobs/${jobId}/interview-questions`, { headers: authHeaders() });
+      const d = await res.json();
+      renderQuestionSetSummary(jobId, d.success ? d.data : null);
+    };
+
+    window.uploadQuestionSet = async (jobId) => {
+      const fileInput = document.getElementById(`qset-file-${jobId}`);
+      const file = fileInput.files[0];
+      if (!file) { alert("Choose a PDF or DOCX file first."); return; }
+
+      const count = document.getElementById(`qset-count-${jobId}`).value;
+      const fd = new FormData();
+      fd.append("questionsFile", file);
+      if (count) fd.append("questionsPerInterview", count);
+
+      // No headers set: auth is via the same-origin cookie automatically, and the
+      // browser needs to set its own multipart Content-Type (with boundary) for fd.
+      const res = await fetch(`/api/jobs/${jobId}/interview-questions`, {
+        method: "PUT",
+        body: fd,
+      });
+      const d = await res.json();
+      showJson(`qset-output-${jobId}`, d);
+      if (d.success) {
+        renderQuestionSetSummary(jobId, d.data);
+        fileInput.value = "";
+      }
     };
 
     document.getElementById("createJobBtn").onclick = async () => {
@@ -672,9 +892,86 @@
             <a href="${app.aiInterview.calendarLink}" target="_blank">Add to Google Calendar</a>
             <button class="btn-small" style="margin-left:8px;" onclick="continueAiInterview('${app.interviewSessionId}')">Start / Continue AI Interview</button>
           </div>` : ''}
-        ${app.orgInterview?.scheduled ? `<div style="background:#e8f5e9; padding:8px; border-radius:4px; margin-top:5px;">📅 ${new Date(app.orgInterview.dateTime).toLocaleString()} | 📍 ${app.orgInterview.location}</div>` : ''}`;
+        ${app.orgInterview?.status === 'invited' ? `<div style="background:#e8f5e9; padding:8px; border-radius:4px; margin-top:5px;">
+            🔗 You've been invited to an AI interview — open it anytime before ${new Date(app.orgInterview.expiresAt).toLocaleString()}.<br>
+            <button class="btn-small" style="margin-left:0; margin-top:5px;" onclick="orgToken.value='${app.orgInterview.token}'; orgToken.scrollIntoView({behavior:'smooth'});">Use this token below ↓</button>
+            ${app.orgInterview.calendarLink ? `<a href="${app.orgInterview.calendarLink}" target="_blank" style="margin-left:8px;">Add window to calendar</a>` : ''}
+          </div>` : app.orgInterview?.status === 'completed' ? `<div style="background:#e8f5e9; padding:8px; border-radius:4px; margin-top:5px;">✅ Organizational interview completed</div>`
+          : app.orgInterview?.status === 'expired' ? `<div style="background:#ffebee; padding:8px; border-radius:4px; margin-top:5px;">⌛ Interview invite expired</div>` : ''}`;
         list.appendChild(div);
       });
+    };
+
+    const historyTypeLabels = { practice: "Practice", ai_interview: "AI Interview", organizational: "Organizational" };
+
+    document.getElementById("loadHistoryBtn").addEventListener("click", async () => {
+      const type = document.getElementById("historyTypeFilter").value;
+      const url = type ? `/api/interview/mine?type=${type}` : "/api/interview/mine";
+      const res = await fetch(url, { headers: authHeaders() });
+      const d = await res.json();
+      const rows = document.getElementById("historyRows");
+      rows.innerHTML = "";
+      if (!d.success) { rows.innerHTML = `<tr><td colspan="7">${d.message}</td></tr>`; return; }
+      if (d.data.length === 0) { rows.innerHTML = `<tr><td colspan="7">No interviews yet.</td></tr>`; return; }
+      d.data.forEach(s => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${historyTypeLabels[s.type] || s.type}</td>
+          <td>${s.jobTitle || "—"}</td>
+          <td>${s.level || "—"}</td>
+          <td><span class="status-badge status-${s.status === 'completed' ? 'selected' : 'pending'}">${s.status}</span></td>
+          <td>${s.score !== undefined ? s.score + "%" : "—"}</td>
+          <td>${s.result || "—"}</td>
+          <td>${new Date(s.createdAt).toLocaleDateString()}</td>`;
+        rows.appendChild(tr);
+      });
+    });
+
+    // --- Org interview via invite token (public — no Authorization header needed) ---
+    document.getElementById("orgInfoBtn").onclick = async () => {
+      const token = document.getElementById("orgToken").value.trim();
+      const res = await fetch(`/api/applications/org-interview/${token}`);
+      const d = await res.json();
+      if (!d.success) { showJson("orgInfoOutput", d); return; }
+      const el = document.getElementById("orgInfoOutput");
+      el.classList.remove("hidden");
+      el.innerHTML = `Job: ${d.data.jobTitle}\nCandidate: ${d.data.candidateName}\nValid until: ${new Date(d.data.expiresAt).toLocaleString()}\nAlready started: ${d.data.started}\n` +
+        (d.data.calendarLink ? `<a href="${d.data.calendarLink}" target="_blank" style="color:#90caf9;">Add window to calendar</a>` : "");
+    };
+
+    const renderOrgQuestion = (session) => {
+      const container = document.getElementById("orgQuestion");
+      if (session.status === "completed") {
+        container.innerHTML = `<div class="list-item">✅ Interview complete. Results go to the hiring team — thanks!</div>`;
+        return;
+      }
+      container.innerHTML = `
+        <div class="list-item">
+          <p><strong>Q${session.questionNumber}:</strong> ${session.question}</p>
+          <textarea id="orgAnswerInput"></textarea>
+          <button class="btn-small" id="orgAnswerBtn">Submit Answer</button>
+        </div>`;
+      document.getElementById("orgAnswerBtn").onclick = async () => {
+        const token = document.getElementById("orgToken").value.trim();
+        const answer = document.getElementById("orgAnswerInput").value;
+        if (!answer.trim()) return;
+        const res = await fetch(`/api/applications/org-interview/${token}/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answer }),
+        });
+        const d = await res.json();
+        if (d.success) renderOrgQuestion(d.data);
+        else showJson("orgInfoOutput", d);
+      };
+    };
+
+    document.getElementById("orgStartBtn").onclick = async () => {
+      const token = document.getElementById("orgToken").value.trim();
+      const res = await fetch(`/api/applications/org-interview/${token}/start`, { method: "POST" });
+      const d = await res.json();
+      if (d.success) renderOrgQuestion(d.data);
+      else showJson("orgInfoOutput", d);
     };
 
     let socket = null;
@@ -683,7 +980,7 @@
       socket.emit("join", uid);
       socket.on("application:status", (p) => addNotif("Update", `${p.jobTitle} status: ${p.status}`));
       socket.on("application:ai-interview-scheduled", (p) => addNotif("AI Interview Scheduled", `Set for ${new Date(p.aiInterview.dateTime).toLocaleString()} — refresh "My Applications" to join.`));
-      socket.on("application:org-interview", (p) => addNotif("Interview Invite", `Meeting set for ${new Date(p.dateTime).toLocaleString()}`));
+      socket.on("application:org-interview", (p) => addNotif("Interview Invite", `You've been invited — link valid until ${new Date(p.orgInterview.expiresAt).toLocaleString()}. Check "My Applications" for the link.`));
       socket.on("admin:notification", (p) => addNotif("Admin", p.message));
     };
 

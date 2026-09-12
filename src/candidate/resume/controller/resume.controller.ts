@@ -11,12 +11,24 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
   const userId = req.user!._id.toString();
   const resume = await resumeService.uploadAndParseResume(userId, req.file);
 
+  // Deliberately just a confirmation + the file link — parsed text/skills are an
+  // internal matching detail the candidate doesn't need to see. To update their
+  // resume, they simply upload again; this same endpoint overwrites the old one.
   res.status(200).json({
     success: true,
     data: {
       fileUrl: resume.fileUrl,
-      skills: resume.skills,
       status: resume.status,
     },
+  });
+});
+
+export const getMyResumeHandler = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user!._id.toString();
+  const resume = await resumeService.getMyResume(userId);
+
+  res.status(200).json({
+    success: true,
+    data: resume ? { fileUrl: resume.fileUrl, status: resume.status, updatedAt: resume.updatedAt } : null,
   });
 });

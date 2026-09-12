@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { AppError } from "../utils/AppError";
-import { ErrorLog } from "../admin/monitoring/model/errorLog.model";
 
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
@@ -27,14 +26,6 @@ export const errorHandler = (
 
   if (statusCode === 500) {
     console.error(err);
-  }
-  if (statusCode >= 500) {
-    ErrorLog.create({
-      message,
-      statusCode,
-      path: req.originalUrl,
-      method: req.method,
-    }).catch(() => {});
   }
 
   res.status(statusCode).json({

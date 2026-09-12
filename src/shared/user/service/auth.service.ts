@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { firebaseAuth } from "../../../config/firebase";
 import { User, IUser, UserRole } from "../model/user.model";
 import { AppError } from "../../../utils/AppError";
+import { sendOtpEmail } from "../../email/email.service";
 
 interface SignupInput {
   name: string;
@@ -25,15 +26,39 @@ const generateToken = (userId: string) => {
   });
 };
 
-export const signup = async (
-  input: SignupInput
-): Promise<{ token: string; user: IUser }> => {
+const OTP_VALIDITY_MS = 10 * 60 * 1000; // 10 minutes
+
+const generateOtp = (): string => String(Math.floor(100000 + Math.random() * 900000));
+
+// Best-effort: a bounced/slow OTP email shouldn't turn into a 500 for the candidate —
+// the OTP is already saved, so resendOtp covers the case where the first email never
+// arrives.
+const sendOtpBestEffort = async (user: IUser, otp: string) => {
+  try {
+    await sendOtpEmail(user.email, user.name, otp);
+  } catch (error) {
+    console.error(`[auth] Failed to send OTP email to ${user.email}:`, error);
+  }
+};
+
+// Creates the account but does NOT log the candidate in — password-based signups must
+// verify ownership of the email (via the OTP just sent) before they get a session; see
+// verifyEmail below, which is where the token is actually issued. Google accounts skip
+// all of this (see googleLogin) since Google has already verified the email.
+//
+// The OTP is returned here (not just emailed) so the controller can echo it back in
+// non-production environments — purely a local-dev convenience for when the SMTP
+// account is unreachable/rate-limited (e.g. Gmail's daily send cap), so testing the
+// signup flow never has to block on that. Never exposed when NODE_ENV=production.
+export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: string }> => {
   const { name, email, password, role } = input;
 
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     throw new AppError("Email already registered", 409);
   }
+
+  const otp = generateOtp();
 
   // Password is hashed automatically by the pre-save hook on the User model.
   const user = await User.create({
@@ -42,12 +67,61 @@ export const signup = async (
     password,
     role,
     authProvider: "password",
+    emailVerified: false,
+    emailOtp: otp,
+    emailOtpExpiresAt: new Date(Date.now() + OTP_VALIDITY_MS),
   });
 
-  const token = generateToken(user._id.toString());
+  await sendOtpBestEffort(user, otp);
 
   user.password = undefined;
+  user.emailOtp = undefined;
+  return { user, otp };
+};
+
+export const verifyEmail = async (
+  email: string,
+  otp: string
+): Promise<{ token: string; user: IUser }> => {
+  const user = await User.findOne({ email: email.toLowerCase() }).select("+emailOtp +emailOtpExpiresAt");
+  if (!user) {
+    throw new AppError("Invalid email or code", 400);
+  }
+  if (user.emailVerified) {
+    throw new AppError("Email is already verified", 409);
+  }
+  if (!user.emailOtp || !user.emailOtpExpiresAt || user.emailOtpExpiresAt.getTime() < Date.now()) {
+    throw new AppError("Code has expired. Request a new one.", 410);
+  }
+  if (user.emailOtp !== otp) {
+    throw new AppError("Invalid email or code", 400);
+  }
+
+  user.emailVerified = true;
+  user.emailOtp = undefined;
+  user.emailOtpExpiresAt = undefined;
+  await user.save();
+
+  const token = generateToken(user._id.toString());
   return { token, user };
+};
+
+export const resendOtp = async (email: string): Promise<{ otp: string }> => {
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    throw new AppError("Invalid email or code", 400);
+  }
+  if (user.emailVerified) {
+    throw new AppError("Email is already verified", 409);
+  }
+
+  const otp = generateOtp();
+  user.emailOtp = otp;
+  user.emailOtpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS);
+  await user.save();
+
+  await sendOtpBestEffort(user, otp);
+  return { otp };
 };
 
 export const login = async (
@@ -71,6 +145,9 @@ export const login = async (
   const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw new AppError("Invalid email or password", 401);
+  }
+  if (!user.emailVerified) {
+    throw new AppError("Please verify your email before logging in", 403);
   }
 
   const token = generateToken(user._id.toString());
@@ -111,7 +188,8 @@ export const googleLogin = async (
     return { token, user: existing };
   }
 
-  // New Google user: no password field is ever set, matching the schema's optional password.
+  // New Google user: no password field is ever set, matching the schema's optional
+  // password. Google has already verified this email, so no OTP step is needed.
   const newUser = await User.create({
     firebaseUid: decoded.uid,
     name: decoded.name || decoded.email.split("@")[0],
@@ -119,6 +197,7 @@ export const googleLogin = async (
     role,
     authProvider: "google",
     avatarUrl: decoded.picture,
+    emailVerified: true,
   });
 
   const token = generateToken(newUser._id.toString());

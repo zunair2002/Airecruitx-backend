@@ -2,11 +2,16 @@ import { Schema, model, Document, Types } from "mongoose";
 
 export type ResumeStatus = "parsed" | "failed";
 
+// The extracted text and detected skills are deliberately NOT stored here — they'd
+// duplicate the source of truth (the file itself, on Cloudinary via fileUrl) and can
+// run to several KB of near-duplicate text per resume for no lasting benefit. Any
+// code that needs the resume's text (e.g. job-match scoring) re-extracts it from
+// Cloudinary on demand — see application.service.ts's applyToJob. mimeType is kept so
+// that re-extraction knows which parser (PDF vs DOCX) to use without re-sniffing.
 export interface IResume extends Document {
   userId: Types.ObjectId;
   fileUrl: string;
-  rawText: string;
-  skills: string[];
+  mimeType: string;
   status: ResumeStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -25,14 +30,9 @@ const resumeSchema = new Schema<IResume>(
       type: String,
       required: true,
     },
-    rawText: {
+    mimeType: {
       type: String,
-      required: false,
-      default: "",
-    },
-    skills: {
-      type: [String],
-      default: [],
+      required: true,
     },
     status: {
       type: String,
