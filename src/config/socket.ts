@@ -1,5 +1,6 @@
 import { Server as HttpServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import { logger } from "./logger";
 
 let io: SocketIOServer | undefined;
 
@@ -21,7 +22,7 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
 
 export const emitToUser = (userId: string, event: string, payload: unknown): void => {
   if (!io) {
-    console.warn("[Socket] emitToUser called before socket.io was initialized");
+    logger.warn("emitToUser called before socket.io was initialized");
     return;
   }
   io.to(`user_${userId}`).emit(event, payload);

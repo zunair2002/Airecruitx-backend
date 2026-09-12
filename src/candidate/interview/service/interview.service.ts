@@ -2,6 +2,7 @@ import { InterviewSession, IInterviewSession } from "../model/interviewSession.m
 import { AppError } from "../../../utils/AppError";
 import * as ollamaService from "./ollama.service";
 import { ChatMessage } from "./ollama.service";
+import { getEnv } from "../../../config/env";
 
 const OVERALL_VERDICTS = ["Good", "Average", "Needs Improvement"] as const;
 type OverallVerdict = (typeof OVERALL_VERDICTS)[number];
@@ -171,7 +172,7 @@ export const submitAnswer = async (
   if (parsed.isComplete || reachedQuestionCap) {
     const totalScore = session.turns.reduce((sum, t) => sum + t.score, 0);
     const averageOutOf10 = session.turns.length ? totalScore / session.turns.length : 0;
-    const passScoreOutOf10 = Number(process.env.CERTIFICATE_PASS_SCORE ?? 80) / 10;
+    const passScoreOutOf10 = getEnv().certificatePassScore / 10;
 
     session.status = "completed";
     session.score = Math.round(averageOutOf10 * 10); // normalize /10 average to a /100 score

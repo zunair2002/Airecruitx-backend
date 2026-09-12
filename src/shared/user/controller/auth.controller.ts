@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
-import { AppError } from "../../../utils/AppError";
 import * as authService from "../service/auth.service";
-import { IUser, UserRole } from "../model/user.model";
-
-const VALID_ROLES: UserRole[] = ["candidate", "hr", "admin"];
+import { IUser } from "../model/user.model";
+import { getEnv } from "../../../config/env";
 
 // httpOnly so client-side JS (and thus XSS) can never read or exfiltrate the token;
 // the browser sends it automatically on every same-site request.
@@ -14,7 +12,7 @@ const COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // matches the JWT's 1d expiry
 const setAuthCookie = (res: Response, token: string) => {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: getEnv().nodeEnv === "production",
     sameSite: "lax",
     maxAge: COOKIE_MAX_AGE_MS,
   });
@@ -31,20 +29,7 @@ const toPublicUser = (user: IUser) => ({
 });
 
 export const signupHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password, role } = req.body ?? {};
-
-  if (!name || typeof name !== "string") {
-    throw new AppError("name is required", 400);
-  }
-  if (!email || typeof email !== "string") {
-    throw new AppError("email is required", 400);
-  }
-  if (!password || typeof password !== "string" || password.length < 6) {
-    throw new AppError("password must be at least 6 characters", 400);
-  }
-  if (!role || !VALID_ROLES.includes(role)) {
-    throw new AppError(`role must be one of: ${VALID_ROLES.join(", ")}`, 400);
-  }
+  const { name, email, password, role } = req.body;
 
   const { token, user } = await authService.signup({ name, email, password, role });
 
@@ -59,14 +44,7 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const loginHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body ?? {};
-
-  if (!email || typeof email !== "string") {
-    throw new AppError("email is required", 400);
-  }
-  if (!password || typeof password !== "string") {
-    throw new AppError("password is required", 400);
-  }
+  const { email, password } = req.body;
 
   const { token, user } = await authService.login({ email, password });
 
@@ -81,14 +59,7 @@ export const loginHandler = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const googleLoginHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { idToken, role } = req.body ?? {};
-
-  if (!idToken || typeof idToken !== "string") {
-    throw new AppError("idToken is required", 400);
-  }
-  if (role && !VALID_ROLES.includes(role)) {
-    throw new AppError(`role must be one of: ${VALID_ROLES.join(", ")}`, 400);
-  }
+  const { idToken, role } = req.body;
 
   const { token, user } = await authService.googleLogin(idToken, role);
 
@@ -119,7 +90,7 @@ export const meHandler = asyncHandler(async (req: Request, res: Response) => {
 export const logoutHandler = (req: Request, res: Response) => {
   res.clearCookie(COOKIE_NAME, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: getEnv().nodeEnv === "production",
     sameSite: "lax",
   });
 

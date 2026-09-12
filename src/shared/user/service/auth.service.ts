@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { firebaseAuth } from "../../../config/firebase";
 import { User, IUser, UserRole } from "../model/user.model";
 import { AppError } from "../../../utils/AppError";
+import { getEnv } from "../../../config/env";
 
 interface SignupInput {
   name: string;
@@ -16,11 +17,7 @@ interface LoginInput {
 }
 
 const generateToken = (userId: string) => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new AppError("JWT_SECRET is not defined in the environment", 500);
-  }
-  return jwt.sign({ id: userId }, secret, {
+  return jwt.sign({ id: userId }, getEnv().jwtSecret, {
     expiresIn: "1d", // Token expires in 1 day
   });
 };

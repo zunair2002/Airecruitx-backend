@@ -1,17 +1,12 @@
 import { v2 as cloudinary } from "cloudinary";
+import { getEnv } from "./env";
 
-const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-const apiKey = process.env.CLOUDINARY_API_KEY;
-const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-if (!cloudName || !apiKey || !apiSecret) {
-  throw new Error("Missing Cloudinary credentials in .env");
-}
+const { cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret } = getEnv();
 
 cloudinary.config({
-  cloud_name: cloudName,
-  api_key: apiKey,
-  api_secret: apiSecret,
+  cloud_name: cloudinaryCloudName,
+  api_key: cloudinaryApiKey,
+  api_secret: cloudinaryApiSecret,
 });
 
 export default cloudinary;

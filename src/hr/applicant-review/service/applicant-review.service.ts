@@ -109,9 +109,6 @@ export const scheduleAiInterview = async (
   if (!application.matched) {
     throw new AppError("Only matched applicants can have an AI interview scheduled", 400);
   }
-  if (!input.dateTime) {
-    throw new AppError("dateTime is required", 400);
-  }
 
   const dateTime = new Date(input.dateTime);
   const calendarLink = buildGoogleCalendarLink(job.title, dateTime, input.message);
@@ -158,9 +155,6 @@ export const scheduleOrgInterview = async (
 
   if (application.status !== "selected") {
     throw new AppError("Only selected candidates can have an org interview scheduled", 400);
-  }
-  if (!input.dateTime) {
-    throw new AppError("dateTime is required", 400);
   }
 
   application.orgInterview = {

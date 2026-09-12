@@ -1,26 +1,20 @@
 import admin from "firebase-admin";
+import { getEnv } from "./env";
+import { logger } from "./logger";
 
-const projectId = process.env.FIREBASE_PROJECT_ID;
-const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-console.log('Firebase Admin Config done')
-
-if (!projectId || !clientEmail || !privateKey) {
-  throw new Error(
-    "Missing Firebase Admin credentials."
-  );
-}
+const { firebaseProjectId, firebaseClientEmail, firebasePrivateKey } = getEnv();
 
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
+      projectId: firebaseProjectId,
+      clientEmail: firebaseClientEmail,
+      privateKey: firebasePrivateKey,
     }),
   });
 }
+
+logger.info("Firebase Admin initialized");
 
 export const firebaseAuth = admin.auth();
 export default admin;

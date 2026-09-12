@@ -25,9 +25,12 @@ export const sendNotification = async (
     ? [input.userId]
     : (await User.find({ role: input.role }).select("_id")).map((u) => u._id.toString());
 
-  for (const recipientId of recipients) {
-    const notification = await Notification.create({ userId: recipientId, message: input.message });
-    emitToUser(recipientId, "admin:notification", {
+  const notifications = await Notification.insertMany(
+    recipients.map((recipientId) => ({ userId: recipientId, message: input.message }))
+  );
+
+  for (const notification of notifications) {
+    emitToUser(notification.userId.toString(), "admin:notification", {
       notificationId: notification._id,
       message: notification.message,
     });

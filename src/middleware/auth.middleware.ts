@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { User, UserRole } from "../shared/user/model/user.model";
 import { AppError } from "../utils/AppError";
 import { asyncHandler } from "../utils/asyncHandler";
+import { getEnv } from "../config/env";
 
 interface JwtPayload {
   id: string;
@@ -20,14 +21,9 @@ export const requireAuth = asyncHandler(
       throw new AppError("Missing or invalid authentication credentials", 401);
     }
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-      throw new AppError("JWT_SECRET is not defined in the environment", 500);
-    }
-
     let decoded: JwtPayload;
     try {
-      decoded = jwt.verify(token, secret) as JwtPayload;
+      decoded = jwt.verify(token, getEnv().jwtSecret) as JwtPayload;
     } catch (error) {
       throw new AppError("Invalid or expired token", 401);
     }

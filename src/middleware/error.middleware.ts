@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { AppError } from "../utils/AppError";
 import { ErrorLog } from "../admin/monitoring/model/errorLog.model";
+import { logger } from "../config/logger";
 
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
@@ -26,7 +27,7 @@ export const errorHandler = (
     err instanceof AppError ? err.message : "Internal server error";
 
   if (statusCode === 500) {
-    console.error(err);
+    logger.error({ err, path: req.originalUrl, method: req.method }, message);
   }
   if (statusCode >= 500) {
     ErrorLog.create({

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { OLLAMA_BASE_URL, OLLAMA_MODEL } from "../../../config/ollama";
 import { AppError } from "../../../utils/AppError";
+import { logger } from "../../../config/logger";
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -24,7 +25,7 @@ export const chat = async (messages: ChatMessage[]): Promise<string> => {
     return content.trim();
   } catch (error: any) {
     if (error instanceof AppError) throw error;
-    console.error("[OllamaService] Failed to reach the interview model:", error?.message ?? error);
+    logger.error({ err: error?.message ?? error }, "Failed to reach the interview model");
     throw new AppError("Could not reach the interview model. Is Ollama running?", 502);
   }
 };

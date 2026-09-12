@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
-import { AppError } from "../../../utils/AppError";
 import * as applicantReviewService from "../service/applicant-review.service";
 
 export const listApplicationsForJobHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -26,16 +25,12 @@ export const getApplicationReportHandler = asyncHandler(async (req: Request, res
 
 export const updateApplicationStatusHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const { status } = req.body ?? {};
-
-  if (!status || typeof status !== "string") {
-    throw new AppError("status is required", 400);
-  }
+  const { status } = req.body;
 
   const application = await applicantReviewService.updateApplicationStatus(
     hrId,
     req.params.applicationId,
-    status as any
+    status
   );
 
   res.status(200).json({ success: true, data: application });
@@ -43,7 +38,7 @@ export const updateApplicationStatusHandler = asyncHandler(async (req: Request, 
 
 export const scheduleAiInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const { dateTime, message } = req.body ?? {};
+  const { dateTime, message } = req.body;
 
   const application = await applicantReviewService.scheduleAiInterview(hrId, req.params.applicationId, {
     dateTime,
@@ -55,7 +50,7 @@ export const scheduleAiInterviewHandler = asyncHandler(async (req: Request, res:
 
 export const scheduleOrgInterviewHandler = asyncHandler(async (req: Request, res: Response) => {
   const hrId = req.user!._id.toString();
-  const { dateTime, location, notes } = req.body ?? {};
+  const { dateTime, location, notes } = req.body;
 
   const application = await applicantReviewService.scheduleOrgInterview(hrId, req.params.applicationId, {
     dateTime,

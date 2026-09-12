@@ -9,6 +9,6 @@ export const getSettingsHandler = asyncHandler(async (_req: Request, res: Respon
 
 export const updateSettingsHandler = asyncHandler(async (req: Request, res: Response) => {
   const adminId = req.user!._id.toString();
-  const settings = await settingsService.updateSettings(adminId, req.body ?? {});
+  const settings = await settingsService.updateSettings(adminId, req.body);
   res.status(200).json({ success: true, data: settings });
 });

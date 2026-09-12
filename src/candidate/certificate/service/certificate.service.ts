@@ -5,15 +5,7 @@ import { Certificate, ICertificate } from "../model/certificate.model";
 import { InterviewSession } from "../../interview/model/interviewSession.model";
 import { User } from "../../../shared/user/model/user.model";
 import { AppError } from "../../../utils/AppError";
-
-const getPassScore = (): number => {
-  const raw = process.env.CERTIFICATE_PASS_SCORE;
-  const value = Number(raw);
-  if (!raw || Number.isNaN(value)) {
-    throw new AppError("CERTIFICATE_PASS_SCORE is not defined in the environment", 500);
-  }
-  return value;
-};
+import { getEnv } from "../../../config/env";
 
 const buildCertificatePdf = (name: string, score: number, certId: string): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
@@ -112,7 +104,7 @@ export const generateCertificate = async (
     throw new AppError("Interview is not completed yet", 400);
   }
 
-  const passScore = getPassScore();
+  const passScore = getEnv().certificatePassScore;
   if (session.score <= passScore) {
     throw new AppError(`Score must be above ${passScore} to earn a certificate`, 403);
   }

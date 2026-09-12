@@ -1,25 +1,7 @@
 import { InterviewSession } from "../../interview/model/interviewSession.model";
 import { AppError } from "../../../utils/AppError";
 import { getStripeClient } from "../../../config/stripe";
-
-const getPassScore = (): number => {
-  const raw = process.env.CERTIFICATE_PASS_SCORE;
-  const value = Number(raw);
-  if (!raw || Number.isNaN(value)) {
-    throw new AppError("CERTIFICATE_PASS_SCORE is not defined in the environment", 500);
-  }
-  return value;
-};
-
-const getPriceCents = (): number => {
-  const raw = process.env.CERTIFICATE_PRICE_CENTS;
-  const value = Number(raw ?? 500);
-  return Number.isNaN(value) ? 500 : value;
-};
-
-const getCurrency = (): string => process.env.CERTIFICATE_CURRENCY || "usd";
-
-const getAppBaseUrl = (): string => process.env.APP_BASE_URL || "http://localhost:5000";
+import { getEnv } from "../../../config/env";
 
 const assertPassedSession = async (userId: string, sessionId: string) => {
   const session = await InterviewSession.findOne({ _id: sessionId, userId });
@@ -29,7 +11,7 @@ const assertPassedSession = async (userId: string, sessionId: string) => {
   if (session.status !== "completed" || typeof session.score !== "number") {
     throw new AppError("Interview is not completed yet", 400);
   }
-  const passScore = getPassScore();
+  const passScore = getEnv().certificatePassScore;
   if (session.score <= passScore) {
     throw new AppError(`Score must be above ${passScore} to earn a certificate`, 403);
   }
@@ -47,7 +29,7 @@ export const createCertificateCheckout = async (
   }
 
   const stripe = getStripeClient();
-  const baseUrl = getAppBaseUrl();
+  const { appBaseUrl, certificateCurrency, certificatePriceCents } = getEnv();
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -55,15 +37,15 @@ export const createCertificateCheckout = async (
     line_items: [
       {
         price_data: {
-          currency: getCurrency(),
+          currency: certificateCurrency,
           product_data: { name: "Airecruitx Practice Interview Certificate" },
-          unit_amount: getPriceCents(),
+          unit_amount: certificatePriceCents,
         },
         quantity: 1,
       },
     ],
-    success_url: `${baseUrl}/?payment=success&sessionId=${sessionId}&stripeSessionId={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/?payment=cancelled&sessionId=${sessionId}`,
+    success_url: `${appBaseUrl}/?payment=success&sessionId=${sessionId}&stripeSessionId={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appBaseUrl}/?payment=cancelled&sessionId=${sessionId}`,
   });
 
   if (!checkoutSession.url) {
