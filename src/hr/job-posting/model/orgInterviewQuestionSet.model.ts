@@ -2,7 +2,7 @@ import { Schema, model, Document, Types } from "mongoose";
 
 // HR-authored question bank for a job's organizational interview: fixed questions
 // asked in order, each graded against its own reference answer — as opposed to the
-// practice/AI-interview flow, where the fine-tuned Ollama model freely invents both
+// practice/AI-interview flow, where the fine-tuned model generates both
 // the questions and the grading criteria. referenceAnswer is never sent to the
 // candidate at any point (see interview.service.ts's buildSessionView).
 export interface IOrgInterviewQuestion {
