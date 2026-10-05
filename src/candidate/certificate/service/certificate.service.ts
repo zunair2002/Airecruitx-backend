@@ -113,8 +113,8 @@ export const generateCertificate = async (
   }
 
   const passScore = getPassScore();
-  if (session.score <= passScore) {
-    throw new AppError(`Score must be above ${passScore} to earn a certificate`, 403);
+  if (session.score < passScore) {
+    throw new AppError(`Score must be at least ${passScore} to earn a certificate`, 403);
   }
   if (!session.certificatePayment?.paid) {
     throw new AppError("Payment is required before the certificate can be issued", 402);

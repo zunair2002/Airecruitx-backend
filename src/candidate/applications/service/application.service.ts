@@ -74,6 +74,7 @@ export const applyToJob = async (candidateId: string, jobId: string): Promise<IA
     try {
       const session = await interviewService.startInterview(candidateId, application._id.toString(), {
         jobTitle: job.title,
+        requiredSkills: job.requiredSkills,
       });
       application.interviewSessionId = session._id as any;
       application.aiInterview = { scheduled: true, dateTime: new Date() };
@@ -151,7 +152,7 @@ export const getOrgInterviewInvite = async (token: string) => {
 // If HR has authored a question set for this job (see orgInterviewQuestionSet), the
 // interview asks exactly those questions and grades each answer against HR's own
 // reference answer/marks — a controlled evaluator rather than the AI freely inventing
-// both questions and criteria. Falls back to the free-form Ollama flow (same as
+// both questions and criteria. Falls back to the AI-generated question flow (same as
 // practice/the auto-triggered AI interview) when no question set exists yet, so
 // inviting candidates never breaks just because HR hasn't authored questions.
 export const startOrgInterviewByToken = async (token: string): Promise<IInterviewSession> => {
@@ -171,6 +172,7 @@ export const startOrgInterviewByToken = async (token: string): Promise<IIntervie
     ? await interviewService.startStructuredInterview(candidateId, application._id.toString(), questionSet)
     : await interviewService.startInterview(candidateId, application._id.toString(), {
         jobTitle: job?.title,
+        requiredSkills: job?.requiredSkills,
         visibility: "hidden",
       });
 
