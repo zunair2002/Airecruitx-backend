@@ -261,13 +261,17 @@ export async function generateQuestions(p: {
 
 const clampInt = (v: unknown) => Math.max(0, Math.min(10, Math.round(Number(v))));
 
+// The served model has a 2048-token context, so only the start of a long answer is sent for
+// evaluation (the full answer is still stored on the session).
+const MAX_EVAL_ANSWER_CHARS = 4000;
+
 /** Evaluate one answer (goes through the shared queue). */
 export function evaluateAnswer(p: {
   stage: Stage; level?: string; topic: string; question: string; keyPoints: string[]; answer: string;
 }): Promise<AnswerEvaluation> {
   return aiQueue.add(() => callModel({
     system: EVAL_SYSTEM,
-    user: evalUserMessage(p),
+    user: evalUserMessage({ ...p, answer: p.answer.slice(0, MAX_EVAL_ANSWER_CHARS) }),
     maxTokens: 320, schema: evalSchema(p.stage), schemaName: "evaluation",
     validate: (o): AnswerEvaluation => {
       if (!o || typeof o !== "object" || !o.scores) throw new Error("evaluation: missing scores");

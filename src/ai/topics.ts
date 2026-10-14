@@ -27,6 +27,18 @@ const SKILL_TOPICS: Array<[RegExp, string[]]> = [
 
 const CORE_DEFAULT = ["dsa", "oop", "dbms", "programming", "software_engineering", "web"];
 
+// Practice-mode tracks (replace the old easy/medium/hard levels): each track decides the
+// technical topics, so different tracks really get different questions.
+export const TRACKS = {
+  frontend: { label: "Frontend Developer", role: "Frontend Developer", topics: ["web", "programming", "software_engineering", "security"] },
+  backend: { label: "Backend Developer", role: "Backend Developer", topics: ["web", "dbms", "architecture", "security"] },
+  fullstack: { label: "Full Stack Developer", role: "Full Stack Developer", topics: ["web", "dbms", "programming", "cloud_devops"] },
+  data_ai: { label: "Data / AI Engineer", role: "ML Engineer", topics: ["ai_ml", "big_data", "programming", "dbms"] },
+  software_engineer: { label: "Software Engineer (CS fundamentals)", role: "Software Engineer", topics: ["dsa", "oop", "dbms", "os"] },
+} as const;
+export type TrackId = keyof typeof TRACKS;
+export const isTrack = (t: unknown): t is TrackId => typeof t === "string" && t in TRACKS;
+
 /** Topics for the technical round, from the job's title + required skills (or a CS-core default). */
 export function technicalTopicsFor(jobTitle?: string, requiredSkills: string[] = []): string[] {
   const text = [jobTitle ?? "", ...requiredSkills].join(" | ");

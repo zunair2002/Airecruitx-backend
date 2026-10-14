@@ -170,20 +170,23 @@
 
       <section>
         <h3>2. AI Practice Interview</h3>
-        <label>Level</label>
-        <select id="interviewLevel">
-          <option value="beginner">Beginner</option>
-          <option value="intermediate" selected>Intermediate</option>
-          <option value="expert">Expert</option>
-        </select>
-        <button id="startInterviewBtn" class="btn-main" style="width:auto; padding:10px 30px;">Start Interview</button>
+        <label>Track</label>
+        <select id="interviewTrack"></select>
+        <button id="startRound1Btn" class="btn-main" style="width:auto; padding:10px 30px;">Start Round 1 (Basic)</button>
+        <button id="startRound2Btn" class="btn-main" style="width:auto; padding:10px 30px;">Start Round 2 (Technical)</button>
+        <div id="interviewError" class="hidden" style="background:#ffebee; color:#c62828; padding:10px 15px; border-radius:6px; margin-top:15px;"></div>
         <div id="interviewQuestions" style="margin-top:15px;"></div>
+        <div id="interviewReport" class="hidden" style="margin-top:15px;"></div>
         <pre id="interviewOutput" class="hidden"></pre>
+
+        <div id="round2UnlockedNote" class="hidden" style="background:#e8f5e9; color:#2e7d32; padding:10px 15px; border-radius:6px; margin-top:15px; font-weight:500;">
+          ✅ Round 2 unlocked — start the technical round when you're ready.
+        </div>
 
         <div id="elearningPanel" class="hidden" style="background:#fff3e0; padding:15px; border-radius:6px; margin-top:15px;">
           <h4 style="margin-top:0;">📚 E-Learning Tips</h4>
           <ul id="elearningTipsList"></ul>
-          <button id="retryInterviewBtn" class="btn-small">Retry Interview</button>
+          <button id="retryInterviewBtn" class="btn-small">Retry Round 1</button>
         </div>
 
         <div id="certificatePanel" class="hidden" style="margin-top:10px;">
@@ -233,7 +236,7 @@
           <table style="width:100%; border-collapse:collapse; font-size:13px;">
             <thead>
               <tr style="text-align:left; border-bottom:2px solid var(--border);">
-                <th>Type</th><th>Job</th><th>Level</th><th>Status</th><th>Score</th><th>Result</th><th>Date</th>
+                <th>Type</th><th>Job</th><th>Round / Track</th><th>Status</th><th>Score</th><th>Result</th><th>Date</th>
               </tr>
             </thead>
             <tbody id="historyRows"></tbody>
@@ -466,18 +469,174 @@
       showJson("resumeOutput", await res.json());
     };
 
-    const ELEARNING_TIPS = [
-      "Practice the STAR method (Situation, Task, Action, Result) for behavioral answers.",
-      "Review core concepts for your target role before retrying.",
-      "Keep answers structured — lead with a summary, then details.",
-      "Explain your reasoning out loud, not just the final answer.",
-    ];
+    // --- Practice interview: Round 1 (basic) -> Round 2 (technical, unlocked by the Round 1 score) ---
+    const FALLBACK_TRACKS = ["frontend", "backend", "fullstack", "data_ai", "software_engineer"].map((id) => ({ id, label: id }));
+    const DEFAULT_TRACK = "fullstack";
+
+    // Model/report text goes into innerHTML, so escape it.
+    const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    const loadTracks = async () => {
+      let tracks = FALLBACK_TRACKS;
+      try {
+        const res = await fetch("/api/interview/tracks", { headers: authHeaders() });
+        const d = await res.json();
+        if (d.success && Array.isArray(d.data) && d.data.length) tracks = d.data;
+      } catch (err) { /* keep the fallback list */ }
+      const select = document.getElementById("interviewTrack");
+      select.innerHTML = tracks.map((t) => `<option value="${esc(t.id)}">${esc(t.label || t.id)}</option>`).join("");
+      if (tracks.some((t) => t.id === DEFAULT_TRACK)) select.value = DEFAULT_TRACK;
+    };
+    loadTracks();
+
+    // --- Voice answering (browser Web Speech API) — plain-JS port of docs/frontend/useVoiceInterview.ts ---
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const ttsSupported = "speechSynthesis" in window;
+    const voice = { rec: null, wantListening: false, finalText: "" };
+
+    const setMicButton = (listening) => {
+      const btn = document.getElementById("micBtn");
+      if (btn) btn.textContent = listening ? "⏹ Stop" : "🎤 Speak answer";
+    };
+
+    if (SpeechRec) {
+      const rec = new SpeechRec();
+      rec.lang = "en-US";
+      rec.continuous = true; // keep listening through short pauses
+      rec.interimResults = true; // show words while the candidate is still speaking
+      rec.onresult = (e) => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const text = e.results[i][0].transcript;
+          if (e.results[i].isFinal) voice.finalText += text.trim() + " ";
+          else interim += text;
+        }
+        const box = document.getElementById("currentAnswer");
+        if (box) box.value = (voice.finalText + interim).trim();
+      };
+      rec.onerror = (e) => {
+        if (e.error === "no-speech") return; // silence: onend restarts it
+        voice.wantListening = false;
+        showInterviewError(e.error === "not-allowed" ? "Microphone permission was denied." : `Speech error: ${e.error}`);
+      };
+      rec.onend = () => {
+        // Chrome stops after a long pause; restart while the candidate is still answering
+        if (voice.wantListening) {
+          try { rec.start(); } catch (err) { /* already started */ }
+        } else {
+          setMicButton(false);
+        }
+      };
+      voice.rec = rec;
+    }
+
+    const speak = (text) => {
+      if (!ttsSupported || !text) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "en-US";
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    };
+
+    const startListening = () => {
+      if (!voice.rec) return;
+      if (ttsSupported) window.speechSynthesis.cancel(); // don't let the mic hear the question
+      const box = document.getElementById("currentAnswer");
+      voice.finalText = box && box.value.trim() ? box.value.trim() + " " : ""; // keep anything already typed
+      voice.wantListening = true;
+      try { voice.rec.start(); } catch (err) { /* already started */ }
+      setMicButton(true);
+    };
+
+    const stopListening = () => {
+      voice.wantListening = false;
+      try { voice.rec?.stop(); } catch (err) { /* ignore */ }
+      setMicButton(false);
+    };
+
+    const showInterviewError = (message) => {
+      const el = document.getElementById("interviewError");
+      el.textContent = message;
+      el.classList.remove("hidden");
+    };
+    const clearInterviewError = () => document.getElementById("interviewError").classList.add("hidden");
+
+    const renderReport = (session) => {
+      const r = session.report || {};
+      const list = (title, items) => items && items.length
+        ? `<p style="margin-bottom:4px;"><strong>${title}</strong></p><ul style="margin-top:0;">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>`
+        : "";
+      const turns = (session.turns || []).map((t) => `
+        <div class="list-item">
+          <p><strong>Q${t.questionNumber}:</strong> ${esc(t.question)}</p>
+          <p><em>Your answer:</em> ${esc(t.answer)}</p>
+          <p><strong>Score:</strong> ${t.score !== undefined ? `${t.score}/10` : "—"}
+             &nbsp;·&nbsp; <strong>Verdict:</strong> ${esc(t.verdict) || "—"}</p>
+          ${t.feedback ? `<p><strong>Feedback:</strong> ${esc(t.feedback)}</p>` : ""}
+        </div>`).join("");
+      const passed = session.result === "pass";
+      const el = document.getElementById("interviewReport");
+      el.innerHTML = `
+        <div style="background:${passed ? "#e8f5e9" : "#fff3e0"}; padding:15px; border-radius:6px; margin-bottom:15px;">
+          <h4 style="margin-top:0;">📊 ${session.round ? `Round ${session.round} ` : ""}Report${session.track ? ` · Track: ${esc(session.track)}` : ""}</h4>
+          <p><strong>Score:</strong> ${session.score !== undefined ? `${session.score}%` : "—"}
+             &nbsp;·&nbsp; <strong>Decision:</strong> ${esc(r.decision || session.result) || "—"}</p>
+          ${r.summary || session.feedback ? `<p>${esc(r.summary || session.feedback)}</p>` : ""}
+          ${list("Strengths", r.strengths)}
+          ${list("Areas to improve", r.areasToImprove)}
+          ${list("Learning plan", r.learningPlan)}
+        </div>
+        ${turns}`;
+      el.classList.remove("hidden");
+    };
 
     let currentSessionId = null;
     const renderInterview = (session) => {
       currentSessionId = session.sessionId;
+      stopListening(); // the answer box is about to be replaced
+      clearInterviewError();
       const container = document.getElementById("interviewQuestions");
       container.innerHTML = "";
+
+      const elearningPanel = document.getElementById("elearningPanel");
+      const certificatePanel = document.getElementById("certificatePanel");
+      const unlockedNote = document.getElementById("round2UnlockedNote");
+      const round2Btn = document.getElementById("startRound2Btn");
+
+      if (session.status === "completed") {
+        if (ttsSupported) window.speechSynthesis.cancel();
+        document.getElementById("interviewOutput").classList.add("hidden");
+        renderReport(session);
+
+        if (session.stage === "basic") {
+          certificatePanel.classList.add("hidden");
+          unlockedNote.classList.toggle("hidden", !session.round2Unlocked);
+          round2Btn.classList.toggle("hidden", !session.round2Unlocked);
+          round2Btn.disabled = !session.round2Unlocked;
+          elearningPanel.classList.toggle("hidden", !!session.round2Unlocked);
+          document.getElementById("retryInterviewBtn").classList.remove("hidden");
+        } else {
+          // Round 2 (technical) or a job AI interview: certificate only when the backend says so.
+          unlockedNote.classList.add("hidden");
+          certificatePanel.classList.toggle("hidden", !session.certificateEligible);
+          if (session.certificateEligible) {
+            document.getElementById("payForCertificateBtn").classList.toggle("hidden", !!session.certificatePaid);
+            document.getElementById("certificateBtn").classList.toggle("hidden", !session.certificatePaid);
+          }
+          const tips = session.elearningTips || [];
+          elearningPanel.classList.toggle("hidden", !tips.length);
+          document.getElementById("retryInterviewBtn").classList.add("hidden");
+        }
+        document.getElementById("elearningTipsList").innerHTML = (session.elearningTips || []).map((t) => `<li>${esc(t)}</li>`).join("");
+        return;
+      }
+
+      elearningPanel.classList.add("hidden");
+      certificatePanel.classList.add("hidden");
+      unlockedNote.classList.add("hidden");
+      document.getElementById("interviewReport").classList.add("hidden");
+      document.getElementById("interviewOutput").classList.add("hidden");
 
       // Feedback/score are withheld by the backend until the whole interview is
       // complete (answer all questions first, then see the report) — so while
@@ -485,48 +644,30 @@
       (session.turns || []).forEach((t) => {
         const div = document.createElement("div");
         div.className = "list-item";
-        const feedbackLine = t.feedback !== undefined && t.score !== undefined
-          ? `<p><strong>Feedback:</strong> ${t.feedback} (Score: ${t.score}/10)</p>`
-          : "";
-        div.innerHTML = `<p><strong>Q${t.questionNumber}:</strong> ${t.question}</p>
-                          <p><em>Your answer:</em> ${t.answer}</p>
-                          ${feedbackLine}`;
+        div.innerHTML = `<p><strong>Q${t.questionNumber}:</strong> ${esc(t.question)}</p>
+                          <p><em>Your answer:</em> ${esc(t.answer)}</p>`;
         container.appendChild(div);
       });
 
-      const elearningPanel = document.getElementById("elearningPanel");
-      const certificatePanel = document.getElementById("certificatePanel");
-
-      if (session.status === "completed") {
-        showJson("interviewOutput", session);
-
-        if (session.result === "fail") {
-          elearningPanel.classList.remove("hidden");
-          document.getElementById("elearningTipsList").innerHTML = ELEARNING_TIPS.map((t) => `<li>${t}</li>`).join("");
-          certificatePanel.classList.add("hidden");
-        } else {
-          elearningPanel.classList.add("hidden");
-          certificatePanel.classList.remove("hidden");
-          document.getElementById("payForCertificateBtn").classList.toggle("hidden", !!session.certificatePaid);
-          document.getElementById("certificateBtn").classList.toggle("hidden", !session.certificatePaid);
-        }
-        return;
-      }
-
-      elearningPanel.classList.add("hidden");
-      certificatePanel.classList.add("hidden");
-      document.getElementById("interviewOutput").classList.add("hidden");
-
       const div = document.createElement("div");
       div.className = "list-item";
-      div.innerHTML = `<p><strong>Q${session.questionNumber}:</strong> ${session.question}</p>
+      div.innerHTML = `<p style="font-size:12px; color:var(--light); margin-top:0;">
+                          Round ${session.round ?? "—"} of 2 · Track: ${esc(session.track) || "—"} · Question ${session.questionNumber}/${session.totalQuestions ?? "—"}
+                        </p>
+                        <p><strong>Q${session.questionNumber}:</strong> ${esc(session.question)}</p>
                         <textarea id="currentAnswer"></textarea>
-                        <button class="btn-small" id="submitAnsBtn">Submit Answer</button>`;
+                        <button class="btn-small" id="submitAnsBtn">Submit Answer</button>
+                        <button class="btn-small ${ttsSupported ? "" : "hidden"}" id="readQuestionBtn">🔊 Read question</button>
+                        <button class="btn-small ${SpeechRec ? "" : "hidden"}" id="micBtn">🎤 Speak answer</button>`;
       container.appendChild(div);
       document.getElementById("submitAnsBtn").onclick = submitAns;
+      document.getElementById("readQuestionBtn").onclick = () => speak(session.question);
+      document.getElementById("micBtn").onclick = () => (voice.wantListening ? stopListening() : startListening());
+      speak(session.question); // auto-read each new question
     };
 
     const submitAns = async () => {
+      stopListening();
       const btn = document.getElementById("submitAnsBtn");
       const answer = document.getElementById("currentAnswer").value;
       if (!answer.trim()) return;
@@ -540,9 +681,9 @@
         });
         const d = await res.json();
         if (d.success) renderInterview(d.data);
-        else showJson("interviewOutput", d);
+        else showInterviewError(d.message || "Could not submit the answer");
       } catch (err) {
-        showJson("interviewOutput", { error: err.message });
+        showInterviewError(err.message);
       } finally {
         if (document.getElementById("submitAnsBtn")) {
           btn.disabled = false;
@@ -551,28 +692,36 @@
       }
     };
 
-    const startPracticeInterview = async (btn) => {
+    const startPracticeRound = async (btn, stage) => {
+      const label = btn.textContent;
       btn.disabled = true;
       btn.textContent = "Starting... (waking up the model, this can take a while on first call)";
+      clearInterviewError();
+      if (stage === "basic") {
+        // A new Round 1 re-locks Round 2 until this attempt is scored.
+        document.getElementById("startRound2Btn").classList.add("hidden");
+        document.getElementById("round2UnlockedNote").classList.add("hidden");
+      }
       try {
         const res = await fetch("/api/interview/start", {
           method: "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ level: document.getElementById("interviewLevel").value }),
+          body: JSON.stringify({ stage, track: document.getElementById("interviewTrack").value }),
         });
         const d = await res.json();
         if (d.success) renderInterview(d.data);
-        else showJson("interviewOutput", d);
+        else showInterviewError(d.message || `Request failed (${res.status})`); // e.g. "Complete Round 1…", "Round 2 unlocks at 50%"
       } catch (err) {
-        showJson("interviewOutput", { error: err.message });
+        showInterviewError(err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = "Start Interview";
+        btn.textContent = label;
       }
     };
 
-    document.getElementById("startInterviewBtn").onclick = () => startPracticeInterview(document.getElementById("startInterviewBtn"));
-    document.getElementById("retryInterviewBtn").onclick = () => startPracticeInterview(document.getElementById("retryInterviewBtn"));
+    document.getElementById("startRound1Btn").onclick = () => startPracticeRound(document.getElementById("startRound1Btn"), "basic");
+    document.getElementById("startRound2Btn").onclick = () => startPracticeRound(document.getElementById("startRound2Btn"), "technical");
+    document.getElementById("retryInterviewBtn").onclick = () => startPracticeRound(document.getElementById("retryInterviewBtn"), "basic");
 
     document.getElementById("payForCertificateBtn").onclick = async () => {
       const res = await fetch("/api/certificate/checkout", { method: "POST", headers: authHeaders(), body: JSON.stringify({ sessionId: currentSessionId }) });
@@ -903,6 +1052,11 @@
     };
 
     const historyTypeLabels = { practice: "Practice", ai_interview: "AI Interview", organizational: "Organizational" };
+    // History summaries carry stage (not round), so derive the round number from it.
+    const historyRoundTrack = (s) => {
+      const round = s.stage === "basic" ? 1 : s.stage === "technical" ? 2 : null;
+      return round && s.track ? `Round ${round} · ${s.track}` : "—";
+    };
 
     document.getElementById("loadHistoryBtn").addEventListener("click", async () => {
       const type = document.getElementById("historyTypeFilter").value;
@@ -918,7 +1072,7 @@
         tr.innerHTML = `
           <td>${historyTypeLabels[s.type] || s.type}</td>
           <td>${s.jobTitle || "—"}</td>
-          <td>${s.level || "—"}</td>
+          <td>${historyRoundTrack(s)}</td>
           <td><span class="status-badge status-${s.status === 'completed' ? 'selected' : 'pending'}">${s.status}</span></td>
           <td>${s.score !== undefined ? s.score + "%" : "—"}</td>
           <td>${s.result || "—"}</td>

@@ -10,9 +10,9 @@ import { Application } from "../../../shared/application/model/application.model
 import { AppError } from "../../../utils/AppError";
 import * as ai from "../../../ai/ai.service";
 import { hrDecision, overallScore, round1, stageScore } from "../../../ai/scoring";
-import { basicTopicsFor, keyPointsFromReference, shuffle, technicalTopicsFor, topicFromText } from "../../../ai/topics";
+import { basicTopicsFor, isTrack, keyPointsFromReference, shuffle, technicalTopicsFor, topicFromText, TRACKS, TrackId } from "../../../ai/topics";
 import { adviceFor, fallbackReport } from "../../../ai/report";
-import { AI_FINAL_WAIT_MS, BASIC_QUESTIONS, passScore100, questionSplit } from "../../../config/ai";
+import { AI_FINAL_WAIT_MS, BASIC_QUESTIONS, ROUND2_UNLOCK_SCORE, TECHNICAL_QUESTIONS, passScore100 } from "../../../config/ai";
 
 // ---------------------------------------------------------------------------------
 // Interview flow (fine-tuned AIRecruitX model):
@@ -94,20 +94,15 @@ export const startInterview = async (
   // Wake the GPU server now so it is warm by the time the first answer is evaluated.
   ai.warmUp().catch(() => undefined);
 
-  const split = questionSplit(level);
   const [basic, technical] = await Promise.all([
-    split.basic
-      ? ai.generateQuestions({ stage: "basic", role, topics: basicTopicsFor(), count: split.basic })
-      : Promise.resolve([]),
-    split.technical
-      ? ai.generateQuestions({
-          stage: "technical",
-          level,
-          role,
-          topics: technicalTopicsFor(context.jobTitle, context.requiredSkills),
-          count: split.technical,
-        })
-      : Promise.resolve([]),
+    ai.generateQuestions({ stage: "basic", role, topics: basicTopicsFor(), count: BASIC_QUESTIONS }),
+    ai.generateQuestions({
+      stage: "technical",
+      level,
+      role,
+      topics: technicalTopicsFor(context.jobTitle, context.requiredSkills),
+      count: TECHNICAL_QUESTIONS,
+    }),
   ]);
 
   const selectedQuestions = [...toSelected(basic, "basic"), ...toSelected(technical, "technical")];
@@ -120,7 +115,83 @@ export const startInterview = async (
     applicationId,
     level: context.level,
     role,
+    stage: "combined",
     visibility,
+    status: "in_progress",
+    messages: [],
+    turns: [],
+    selectedQuestions,
+    currentQuestionNumber: 1,
+    currentQuestion: selectedQuestions[0].question,
+  });
+};
+
+// ---------------------------------------------------------------- practice: two separate rounds
+// Round 1 = basic interview (5 questions). Round 2 = technical interview (8 questions on the
+// chosen track), only unlocked when Round 1 scored at least ROUND2_UNLOCK_SCORE. The final
+// report and the certificate come from Round 2 and combine both rounds.
+export interface StartPracticeContext {
+  stage?: "basic" | "technical";
+  track?: string;
+  level?: "beginner" | "intermediate" | "expert"; // optional, only fine-tunes technical question difficulty
+  basicSessionId?: string;
+}
+
+export const startPracticeRound = async (userId: string, context: StartPracticeContext = {}): Promise<IInterviewSession> => {
+  const stage = context.stage ?? "basic";
+
+  // Round 2 needs a completed Round 1 that reached the unlock score
+  let basicSession: IInterviewSession | null = null;
+  if (stage === "technical") {
+    basicSession = context.basicSessionId
+      ? await InterviewSession.findOne({ _id: context.basicSessionId, userId, stage: "basic", status: "completed" })
+      : await InterviewSession.findOne({ userId, stage: "basic", status: "completed", applicationId: { $exists: false } })
+          .sort({ createdAt: -1 });
+    if (!basicSession) {
+      throw new AppError("Complete Round 1 (basic interview) before starting Round 2", 400);
+    }
+    if ((basicSession.score ?? 0) < ROUND2_UNLOCK_SCORE) {
+      throw new AppError(
+        `Round 2 unlocks at ${ROUND2_UNLOCK_SCORE}% in Round 1 (you scored ${basicSession.score ?? 0}%). Review the tips and retake Round 1.`,
+        403
+      );
+    }
+  }
+  const track: TrackId = isTrack(context.track) ? context.track : isTrack(basicSession?.track) ? (basicSession!.track as TrackId) : "software_engineer";
+
+  // Reuse an in-progress session of the same round only if it still matches the request (same
+  // track, and for Round 2 the same Round 1 it was unlocked by); otherwise replace it.
+  // Also drop leftovers from the old combined flow.
+  const inProgress = await InterviewSession.findOne({
+    userId, applicationId: { $exists: false }, visibility: "candidate", stage, status: { $ne: "completed" },
+  });
+  const sameTrack = !context.track || context.track === inProgress?.track;
+  const sameBasicSession = stage !== "technical" || String(inProgress?.basicSessionId ?? "") === String(basicSession?._id ?? "");
+  if (inProgress?.currentQuestion && inProgress.selectedQuestions?.length && sameTrack && sameBasicSession) return inProgress;
+  if (inProgress) await inProgress.deleteOne();
+  const legacy = await InterviewSession.findOne({
+    userId, applicationId: { $exists: false }, visibility: "candidate", stage: { $exists: false }, status: { $ne: "completed" },
+  });
+  if (legacy) await legacy.deleteOne();
+
+  const role = TRACKS[track].role;
+  ai.warmUp().catch(() => undefined);
+  const questions = stage === "basic"
+    ? await ai.generateQuestions({ stage: "basic", role, topics: basicTopicsFor(), count: BASIC_QUESTIONS })
+    : await ai.generateQuestions({
+        stage: "technical", level: context.level ?? "intermediate", role, topics: [...TRACKS[track].topics], count: TECHNICAL_QUESTIONS,
+      });
+  const selectedQuestions = toSelected(questions, stage);
+  if (!selectedQuestions.length) throw new AppError("Could not prepare interview questions", 502);
+
+  return InterviewSession.create({
+    userId,
+    level: context.level,
+    role,
+    stage,
+    track,
+    basicSessionId: basicSession?._id,
+    visibility: "candidate",
     status: "in_progress",
     messages: [],
     turns: [],
@@ -268,11 +339,7 @@ export const submitAnswer = async (
   if (!current) {
     throw new AppError("Interview session is in an invalid state", 500);
   }
-  if (session.turns.some((t) => t.questionNumber === questionNumber)) {
-    throw new AppError("This question has already been answered", 409); // double submit
-  }
-
-  session.turns.push({
+  const newTurn = {
     questionNumber,
     question: current.question,
     answer,
@@ -280,23 +347,40 @@ export const submitAnswer = async (
     score: 0,
     stage: current.stage,
     topic: current.topic,
-    evalStatus: "pending",
+    evalStatus: "pending" as const,
     marksPossible: current.marks,
-  });
+  };
 
   const isLast = questionNumber >= selected.length;
-  if (!isLast) {
-    session.currentQuestionNumber = questionNumber + 1;
-    session.currentQuestion = selected[questionNumber].question;
+  // Atomic push: the filter only matches while this question is still current and unanswered,
+  // so two concurrent submits can't both add a turn (the loser gets null -> 409).
+  // The turn must exist before the background job updates it.
+  const updated = await InterviewSession.findOneAndUpdate(
+    {
+      _id: sessionId,
+      userId,
+      status: { $ne: "completed" },
+      currentQuestionNumber: questionNumber,
+      "turns.questionNumber": { $ne: questionNumber },
+    },
+    {
+      $push: { turns: newTurn },
+      $set: isLast
+        ? { currentQuestionNumber: questionNumber, currentQuestion: current.question }
+        : { currentQuestionNumber: questionNumber + 1, currentQuestion: selected[questionNumber].question },
+    },
+    { new: true }
+  );
+  if (!updated) {
+    throw new AppError("This question has already been answered", 409); // double submit
   }
-  await session.save(); // the turn must exist before the background job updates it
 
-  const evaluation = evaluateTurn(session._id.toString(), questionNumber, current, answer, session.level);
+  const evaluation = evaluateTurn(updated._id.toString(), questionNumber, current, answer, updated.level);
   if (!isLast) {
     evaluation.catch(() => undefined);
-    return session;
+    return updated;
   }
-  return finalizeSession(session._id.toString());
+  return finalizeSession(updated._id.toString());
 };
 
 // ---------------------------------------------------------------- finish + report
@@ -325,9 +409,22 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
 
   // 2) deterministic scores (failed evaluations are excluded rather than counted as zero)
   const scored = session.turns.filter((t) => t.evalStatus === "done" || t.evalStatus === undefined);
-  const basicTurns = scored.filter((t) => t.stage === "basic");
+  const roundStage = session.stage ?? "combined";
+  if (roundStage === "basic") return finalizeBasicRound(session, scored);
+
+  // Round 2 (technical) of practice: bring in the Round 1 answers so the final report covers both
+  let previousBasic: typeof scored = [];
+  let linkedBasicScore: number | null = null;
+  if (roundStage === "technical" && session.basicSessionId) {
+    const basicSession = await InterviewSession.findById(session.basicSessionId);
+    if (basicSession) {
+      previousBasic = basicSession.turns.filter((t) => t.evalStatus === "done" || t.evalStatus === undefined);
+      linkedBasicScore = basicSession.report?.basicScore ?? (typeof basicSession.score === "number" ? round1(basicSession.score / 10) : null);
+    }
+  }
+  const basicTurns = roundStage === "technical" ? previousBasic : scored.filter((t) => t.stage === "basic");
   const techTurns = scored.filter((t) => t.stage !== "basic");
-  const basicScore = basicTurns.length ? stageScore(basicTurns.map((t) => t.score)) : null;
+  const basicScore = roundStage === "technical" ? linkedBasicScore : basicTurns.length ? stageScore(basicTurns.map((t) => t.score)) : null;
   const technicalScore = techTurns.length ? stageScore(techTurns.map((t) => t.score)) : null;
 
   let overall = overallScore(basicScore, technicalScore);
@@ -341,10 +438,12 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   const isHidden = session.visibility === "hidden";
   const reportType: "candidate" | "hr" = isHidden ? "hr" : "candidate";
   const passMark = passScore100();
-  const passed = scored.length > 0 && overall * 10 >= passMark;
+  // Round 2 must have evaluated technical answers of its own to pass
+  const hasEvidence = roundStage === "technical" ? techTurns.length > 0 : techTurns.length + basicTurns.length > 0;
+  const passed = hasEvidence && overall * 10 >= passMark;
   const decision = reportType === "candidate" ? (passed ? "pass" : "needs_improvement") : hrDecision(overall);
   const role = session.role || DEFAULT_ROLE;
-  const weakTopics: string[] = [...new Set<string>(scored.flatMap((t) => t.weakTopics ?? []))];
+  const weakTopics: string[] = [...new Set<string>([...basicTurns, ...techTurns].flatMap((t) => t.weakTopics ?? []))];
   const results: ai.ReportResultLine[] = [...basicTurns, ...techTurns].map((t) => ({
     stage: (t.stage ?? "technical") as InterviewStage,
     topic: t.topic || "general_cs",
@@ -405,6 +504,42 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   return session;
 };
 
+// Practice Round 1: score the basic answers; >= ROUND2_UNLOCK_SCORE unlocks Round 2.
+// The model's report format needs both rounds, so Round 1 gets the deterministic summary.
+const finalizeBasicRound = async (session: IInterviewSession, scored: IInterviewSession["turns"]): Promise<IInterviewSession> => {
+  const basicScore = scored.length ? stageScore(scored.map((t) => t.score)) : 0;
+  const score = Math.round(basicScore * 10);
+  const unlocked = scored.length > 0 && score >= ROUND2_UNLOCK_SCORE;
+  const weakTopics: string[] = [...new Set<string>(scored.flatMap((t) => t.weakTopics ?? []))];
+  const results: ai.ReportResultLine[] = scored.map((t) => ({
+    stage: "basic" as const, topic: t.topic || "self_introduction", score: t.score, verdict: t.verdict || "", feedback: t.feedback,
+  }));
+  const text = fallbackReport({
+    reportType: "candidate", role: session.role || DEFAULT_ROLE, overall: basicScore, basicScore: null, technicalScore: null,
+    passed: unlocked, decision: unlocked ? "round2_unlocked" : "retry_round1", passMark10: ROUND2_UNLOCK_SCORE / 10, results, weakTopics,
+  });
+  text.summary = !scored.length
+    ? "The answers could not be evaluated automatically. Please try Round 1 again later."
+    : unlocked
+      ? `You scored ${basicScore.toFixed(1)}/10 in Round 1 (basic interview). Round 2 (technical interview) is now unlocked.`
+      : `You scored ${basicScore.toFixed(1)}/10 in Round 1 (basic interview). You need ${(ROUND2_UNLOCK_SCORE / 10).toFixed(1)}/10 to unlock Round 2; use the tips below and try again.`;
+
+  session.status = "completed";
+  session.score = score;
+  session.result = unlocked ? "pass" : "fail";
+  session.feedback = text.summary;
+  session.report = {
+    reportType: "candidate", basicScore, overallScore: basicScore, decision: unlocked ? "round2_unlocked" : "retry_round1",
+    summary: text.summary, strengths: text.strengths, areasToImprove: text.areasToImprove, learningPlan: text.learningPlan,
+    weakTopics, generatedBy: "fallback",
+  };
+  session.messages = [];
+  session.currentQuestionNumber = undefined;
+  session.currentQuestion = undefined;
+  await session.save();
+  return session;
+};
+
 export const getSession = async (userId: string, sessionId: string): Promise<IInterviewSession> => {
   const session = await InterviewSession.findOne({ _id: sessionId, userId });
   if (!session) {
@@ -434,10 +569,19 @@ export const buildSessionView = (session: IInterviewSession) => {
     round: questionRound(t.questionNumber, selected),
   }));
 
+  const roundInfo = {
+    stage: session.stage,
+    track: session.track,
+    round: session.stage === "basic" ? 1 : session.stage === "technical" ? 2 : undefined,
+  };
+
   if (session.status === "completed") {
     return {
       sessionId: session._id,
       status: session.status,
+      ...roundInfo,
+      round2Unlocked: session.stage === "basic" ? session.result === "pass" : undefined,
+      certificateEligible: session.stage !== "basic" && !isHidden && session.result === "pass",
       score: isHidden ? undefined : session.score,
       result: isHidden ? undefined : session.result,
       feedback: isHidden ? undefined : session.feedback,
@@ -451,6 +595,8 @@ export const buildSessionView = (session: IInterviewSession) => {
   return {
     sessionId: session._id,
     status: session.status,
+    stage: session.stage,
+    track: session.track,
     questionNumber: session.currentQuestionNumber,
     question: session.currentQuestion,
     totalQuestions: selected?.length,
@@ -473,6 +619,8 @@ const buildSessionSummary = (session: IInterviewSession, jobTitle?: string) => {
     type: classifySession(session),
     jobTitle,
     level: session.level,
+    stage: session.stage,
+    track: session.track,
     status: session.status,
     score: isHidden ? undefined : session.score,
     result: isHidden ? undefined : session.result,

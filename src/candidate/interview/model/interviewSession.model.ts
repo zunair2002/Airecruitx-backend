@@ -81,6 +81,11 @@ export interface IInterviewSession extends Document {
   applicationId?: Types.ObjectId;
   level?: InterviewLevel; // practice-mode difficulty; unset for HR-scheduled real interviews
   role?: string; // job title (or "Software Engineer" for practice) — used in prompts
+  // Practice mode is split into two separate sessions: Round 1 "basic" and Round 2
+  // "technical" (unlocked by the basic score). Job/HR interviews stay "combined".
+  stage?: "basic" | "technical" | "combined";
+  track?: string; // practice track (frontend, backend, fullstack, data_ai, software_engineer)
+  basicSessionId?: Types.ObjectId; // Round 2 -> its Round 1 session
   // Set only for an org interview graded against an HR-authored question set
   // (see OrgInterviewQuestionSet) — its presence is what routes submitAnswer to the
   // HR question set instead of AI-generated questions. Traceability only —
@@ -193,6 +198,9 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
       required: false,
     },
     role: { type: String, required: false },
+    stage: { type: String, enum: ["basic", "technical", "combined"], required: false },
+    track: { type: String, required: false },
+    basicSessionId: { type: Schema.Types.ObjectId, ref: "InterviewSession", required: false },
     questionSetId: {
       type: Schema.Types.ObjectId,
       ref: "OrgInterviewQuestionSet",

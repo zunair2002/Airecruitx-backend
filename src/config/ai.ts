@@ -11,16 +11,11 @@ export const AI_CONCURRENCY = Number(process.env.AI_CONCURRENCY ?? 8);
 export const AI_FINAL_WAIT_MS = Number(process.env.AI_FINAL_WAIT_MS ?? 240_000);
 
 // Interview structure
-export const TOTAL_QUESTIONS = Number(process.env.INTERVIEW_TOTAL_QUESTIONS ?? 10);
-// Kept as the legacy basic-round size for sessions created before stages were stored.
 export const BASIC_QUESTIONS = Number(process.env.INTERVIEW_BASIC_QUESTIONS ?? 5);
+export const TECHNICAL_QUESTIONS = Number(process.env.INTERVIEW_TECHNICAL_QUESTIONS ?? 8);
 
-// beginner = basic only; intermediate (advanced) = 4 basic then technical; expert = 3 basic then technical.
-const BASIC_BY_LEVEL: Record<string, number> = { beginner: TOTAL_QUESTIONS, intermediate: 4, expert: 3 };
-export const questionSplit = (level: string = "intermediate"): { basic: number; technical: number } => {
-  const basic = Math.min(BASIC_BY_LEVEL[level] ?? 4, TOTAL_QUESTIONS);
-  return { basic, technical: TOTAL_QUESTIONS - basic };
-};
+// Practice mode: score (0-100) needed in Round 1 (basic) to unlock Round 2 (technical).
+export const ROUND2_UNLOCK_SCORE = Number(process.env.ROUND2_UNLOCK_SCORE ?? 50);
 
 // Practice pass mark on the 0-100 session score (same variable the certificate flow uses).
 export const passScore100 = (): number => {

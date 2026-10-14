@@ -2,6 +2,21 @@
 
 The interview module now uses the fine-tuned AIRecruitX model, served by vLLM with an OpenAI-compatible API, in place of the old Ollama chat loop.
 
+## Interview modes
+
+| Mode | Structure |
+|---|---|
+| **Practice** (candidate) | Two separate sessions. **Round 1: Basic** (5 questions). **Round 2: Technical** (8 questions on the chosen **track**), which unlocks only if Round 1 scores ≥ `ROUND2_UNLOCK_SCORE` (default **50**). The final report and the certificate come from Round 2 and combine both rounds. |
+| **Job AI interview / HR interview** | A single combined interview (5 basic + 8 technical). Technical topics come from the job's required skills. |
+| **HR question set** | HR's own questions, graded against the reference answers. |
+
+- **Tracks** replace the old easy/medium/hard levels: `frontend`, `backend`, `fullstack`, `data_ai`, `software_engineer`. `GET /api/interview/tracks` lists them.
+- **Start a round:** `POST /api/interview/start` with body `{ "stage": "basic" | "technical", "track": "fullstack" }`.
+  - Round 2 reuses the Round 1 track if none is given.
+  - It returns 400 if Round 1 is missing and 403 if Round 1 is below the unlock score.
+- **Session views** now include `stage`, `track` and `round`. A completed Round 1 includes `round2Unlocked`; a completed Round 2 includes `certificateEligible`.
+- **Certificates** are refused for Round 1 sessions.
+
 ## How an interview runs
 
 1. **Start** (`POST /api/.../interview/start`, the application flows and HR scheduling).
@@ -58,6 +73,7 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
 | `AI_CONCURRENCY` | `8` | Model requests in flight at once |
 | `AI_JSON_SCHEMA` | `true` | Schema-constrained JSON from vLLM |
 | `INTERVIEW_BASIC_QUESTIONS` / `INTERVIEW_TECHNICAL_QUESTIONS` | `5` / `8` | |
+| `ROUND2_UNLOCK_SCORE` | `50` | Practice Round 1 score (0–100) needed for Round 2 |
 | `CERTIFICATE_PASS_SCORE` | `70` | 0–100 |
 
 `OLLAMA_*` variables are no longer used.

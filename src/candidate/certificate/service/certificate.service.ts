@@ -113,6 +113,9 @@ export const generateCertificate = async (
   }
 
   const passScore = getPassScore();
+  if (session.stage === "basic") {
+    throw new AppError("Certificates are issued after Round 2 (technical interview)", 400);
+  }
   if (session.score < passScore) {
     throw new AppError(`Score must be at least ${passScore} to earn a certificate`, 403);
   }
