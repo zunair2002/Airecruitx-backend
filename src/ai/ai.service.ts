@@ -266,10 +266,11 @@ const clampInt = (v: unknown) => Math.max(0, Math.min(10, Math.round(Number(v)))
 const MAX_EVAL_ANSWER_CHARS = 4000;
 
 /** Evaluate one answer (goes through the shared queue). */
-export function evaluateAnswer(p: {
+export async function evaluateAnswer(p: {
   stage: Stage; level?: string; topic: string; question: string; keyPoints: string[]; answer: string;
 }): Promise<AnswerEvaluation> {
-  return aiQueue.add(() => callModel({
+  const started = Date.now();
+  const ev = await aiQueue.add(() => callModel({
     system: EVAL_SYSTEM,
     user: evalUserMessage({ ...p, answer: p.answer.slice(0, MAX_EVAL_ANSWER_CHARS) }),
     maxTokens: 320, schema: evalSchema(p.stage), schemaName: "evaluation",
@@ -294,6 +295,9 @@ export function evaluateAnswer(p: {
       };
     },
   }));
+  const crit = Object.entries(ev.scores).map(([c, v]) => `${c}=${v}`).join(" ");
+  console.log(`[ai] evaluate ${p.stage}/${p.topic}: ${ev.verdict} ${ev.questionScore}/10 (${crit}) ${Date.now() - started}ms`);
+  return ev;
 }
 
 /** Model-written narrative for the report. Numbers/decision must already be computed by the caller. */
