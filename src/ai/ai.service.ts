@@ -273,6 +273,9 @@ export function evaluateAnswer(p: {
     system: EVAL_SYSTEM,
     user: evalUserMessage({ ...p, answer: p.answer.slice(0, MAX_EVAL_ANSWER_CHARS) }),
     maxTokens: 320, schema: evalSchema(p.stage), schemaName: "evaluation",
+    // A serverless GPU may return 503 while its worker is starting. Give the deployed
+    // evaluator time to become available; no local score is substituted if it does not.
+    retries: 5,
     validate: (o): AnswerEvaluation => {
       if (!o || typeof o !== "object" || !o.scores) throw new Error("evaluation: missing scores");
       const scores: Record<string, number> = {};

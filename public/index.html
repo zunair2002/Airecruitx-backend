@@ -492,10 +492,12 @@
     // --- Voice answering (browser Web Speech API) — plain-JS port of docs/frontend/useVoiceInterview.ts ---
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     const ttsSupported = "speechSynthesis" in window;
-    const voice = { rec: null, wantListening: false, finalText: "" };
+    // One speech-recognition instance is shared by practice and organizational interviews.
+    // The active input/button are switched as each interview is rendered.
+    const voice = { rec: null, wantListening: false, finalText: "", inputId: "currentAnswer", micButtonId: "micBtn" };
 
     const setMicButton = (listening) => {
-      const btn = document.getElementById("micBtn");
+      const btn = document.getElementById(voice.micButtonId);
       if (btn) btn.textContent = listening ? "⏹ Stop" : "🎤 Speak answer";
     };
 
@@ -511,7 +513,7 @@
           if (e.results[i].isFinal) voice.finalText += text.trim() + " ";
           else interim += text;
         }
-        const box = document.getElementById("currentAnswer");
+        const box = document.getElementById(voice.inputId);
         if (box) box.value = (voice.finalText + interim).trim();
       };
       rec.onerror = (e) => {
@@ -542,7 +544,7 @@
     const startListening = () => {
       if (!voice.rec) return;
       if (ttsSupported) window.speechSynthesis.cancel(); // don't let the mic hear the question
-      const box = document.getElementById("currentAnswer");
+      const box = document.getElementById(voice.inputId);
       voice.finalText = box && box.value.trim() ? box.value.trim() + " " : ""; // keep anything already typed
       voice.wantListening = true;
       try { voice.rec.start(); } catch (err) { /* already started */ }
@@ -594,6 +596,8 @@
     let currentSessionId = null;
     const renderInterview = (session) => {
       currentSessionId = session.sessionId;
+      voice.inputId = "currentAnswer";
+      voice.micButtonId = "micBtn";
       stopListening(); // the answer box is about to be replaced
       clearInterviewError();
       const container = document.getElementById("interviewQuestions");
@@ -605,6 +609,7 @@
       const round2Btn = document.getElementById("startRound2Btn");
 
       if (session.status === "completed") {
+        stopListening();
         if (ttsSupported) window.speechSynthesis.cancel();
         document.getElementById("interviewOutput").classList.add("hidden");
         renderReport(session);
@@ -1096,6 +1101,7 @@
     const renderOrgQuestion = (session) => {
       const container = document.getElementById("orgQuestion");
       if (session.status === "completed") {
+        stopListening();
         container.innerHTML = `<div class="list-item">✅ Interview complete. Results go to the hiring team — thanks!</div>`;
         return;
       }
@@ -1104,8 +1110,16 @@
           <p><strong>Q${session.questionNumber}:</strong> ${session.question}</p>
           <textarea id="orgAnswerInput"></textarea>
           <button class="btn-small" id="orgAnswerBtn">Submit Answer</button>
+          <button class="btn-small ${ttsSupported ? "" : "hidden"}" id="orgReadQuestionBtn">Read question</button>
+          <button class="btn-small ${SpeechRec ? "" : "hidden"}" id="orgMicBtn">Speak answer</button>
         </div>`;
+      stopListening();
+      voice.inputId = "orgAnswerInput";
+      voice.micButtonId = "orgMicBtn";
+      document.getElementById("orgReadQuestionBtn").onclick = () => speak(session.question);
+      document.getElementById("orgMicBtn").onclick = () => (voice.wantListening ? stopListening() : startListening());
       document.getElementById("orgAnswerBtn").onclick = async () => {
+        stopListening();
         const token = document.getElementById("orgToken").value.trim();
         const answer = document.getElementById("orgAnswerInput").value;
         if (!answer.trim()) return;
@@ -1118,6 +1132,7 @@
         if (d.success) renderOrgQuestion(d.data);
         else showJson("orgInfoOutput", d);
       };
+      speak(session.question);
     };
 
     document.getElementById("orgStartBtn").onclick = async () => {

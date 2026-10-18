@@ -296,7 +296,7 @@ const evaluateTurn = (
         {
           $set: {
             "turns.$[t].evalStatus": "failed",
-            "turns.$[t].feedback": "Automatic evaluation was not available for this answer.",
+            "turns.$[t].feedback": "AI evaluation was unavailable for this answer. It is not included in the final score.",
           },
         },
         opts
@@ -403,7 +403,7 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   for (const t of session.turns) {
     if (t.evalStatus === "pending") {
       t.evalStatus = "failed";
-      t.feedback = "Automatic evaluation timed out for this answer.";
+      t.feedback = "AI evaluation timed out for this answer. It is not included in the final score.";
     }
   }
 
@@ -561,10 +561,10 @@ export const buildSessionView = (session: IInterviewSession) => {
     question: t.question,
     answer: t.answer,
     feedback: showTurnJudgement ? t.feedback : undefined,
-    score: showTurnJudgement ? t.score : undefined,
-    verdict: showTurnJudgement ? t.verdict : undefined,
-    criteria: showTurnJudgement ? t.criteria : undefined,
-    improvementTip: showTurnJudgement ? t.improvementTip : undefined,
+    score: showTurnJudgement && t.evalStatus !== "failed" ? t.score : undefined,
+    verdict: showTurnJudgement && t.evalStatus !== "failed" ? t.verdict : undefined,
+    criteria: showTurnJudgement && t.evalStatus !== "failed" ? t.criteria : undefined,
+    improvementTip: showTurnJudgement && t.evalStatus !== "failed" ? t.improvementTip : undefined,
     stage: t.stage,
     round: questionRound(t.questionNumber, selected),
   }));
