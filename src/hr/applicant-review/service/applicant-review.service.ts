@@ -181,7 +181,7 @@ export const scheduleAiInterview = async (
   const session = await interviewService.startInterview(
     application.candidateId.toString(),
     applicationId,
-    { jobTitle: job.title }
+    { jobTitle: job.title, requiredSkills: job.requiredSkills }
   );
   application.interviewSessionId = session._id as any;
 
@@ -338,7 +338,7 @@ export const bulkTriggerAiInterview = async (
       const session = await interviewService.startInterview(
         application.candidateId.toString(),
         applicationId,
-        { jobTitle: job.title }
+        { jobTitle: job.title, requiredSkills: job.requiredSkills }
       );
       application.interviewSessionId = session._id as any;
       application.aiInterview = { scheduled: true, dateTime: new Date() };

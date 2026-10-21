@@ -31,9 +31,16 @@ import adminSupportDeskRoutes from "./admin/support-desk/routes/support-desk.rou
 import adminMonitoringRoutes from "./admin/monitoring/routes/monitoring.routes";
 
 import { notFoundHandler, errorHandler } from "./middleware/error.middleware";
+import { requireAuth } from "./middleware/auth.middleware";
+import { requestLogger } from "./middleware/requestLogger.middleware";
+import { asyncHandler } from "./utils/asyncHandler";
+import { AppError } from "./utils/AppError";
+import { evaluateAnswer } from "./ai/ai.service";
+import { keyPointsFromReference, topicFromText } from "./ai/topics";
 
 const app: Application = express();
 
+app.use(requestLogger);
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
@@ -42,6 +49,53 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.get("/health", (_req, res) => {
   res.status(200).json({ success: true, message: "Airecruitx API is running" });
 });
+
+// Standalone AI evaluator: the same model, prompt and weights the interview flow uses,
+// for one answer without a session.
+// Body: { stage: "basic" | "technical", question, answer, keyPoints? | referenceAnswer?, topic?, level? }
+app.post(
+  "/api/ai/evaluate",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { stage, level, topic, question, answer, keyPoints, referenceAnswer } = req.body ?? {};
+
+    if (stage !== "basic" && stage !== "technical") {
+      throw new AppError("stage must be one of: basic, technical", 400);
+    }
+    if (level !== undefined && !["beginner", "intermediate", "expert"].includes(level)) {
+      throw new AppError("level must be one of: beginner, intermediate, expert", 400);
+    }
+    if (!question || typeof question !== "string") {
+      throw new AppError("question is required", 400);
+    }
+    if (typeof answer !== "string") {
+      throw new AppError("answer is required", 400);
+    }
+    if (answer.length > 5000) {
+      throw new AppError("answer must be at most 5000 characters", 400);
+    }
+
+    const points = Array.isArray(keyPoints) ? keyPoints.map(String).filter((k) => k.trim()) : [];
+    if (!points.length && (!referenceAnswer || typeof referenceAnswer !== "string")) {
+      throw new AppError("keyPoints or referenceAnswer is required", 400);
+    }
+
+    try {
+      const evaluation = await evaluateAnswer({
+        stage,
+        level,
+        topic: typeof topic === "string" && topic ? topic : topicFromText(question),
+        question,
+        keyPoints: points.length ? points : keyPointsFromReference(referenceAnswer),
+        answer,
+      });
+      res.status(200).json({ success: true, data: evaluation });
+    } catch (err: any) {
+      console.error("[ai] standalone evaluation failed:", err?.message ?? err);
+      throw new AppError("The AI evaluator is not available right now. Please try again.", 503);
+    }
+  })
+);
 
 // shared
 app.use("/api/auth", authRoutes);
