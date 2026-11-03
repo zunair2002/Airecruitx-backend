@@ -16,6 +16,7 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
   - It returns 400 if Round 1 is missing and 403 if Round 1 is below the unlock score.
 - **Session views** now include `stage`, `track` and `round`. A completed Round 1 includes `round2Unlocked`; a completed Round 2 includes `certificateEligible`.
 - **Certificates** are refused for Round 1 sessions.
+- **E-learning:** candidates can browse all active courses in the candidate dashboard at any time, and are taken to that section after failing either practice round. Course selection is not filtered by weak topics. HR manages course links through `POST /api/learning/courses`, `GET /api/learning/courses/hr`, and `PUT/DELETE /api/learning/courses/:courseId`; only HR accounts can manage the catalog. Candidates fetch active courses with `GET /api/learning/courses`. Each course has a title, description, HTTPS video URL, and one or more topic IDs from the AI topic lists. YouTube videos play inline; other providers open their course page in a new tab.
 
 ## How an interview runs
 
