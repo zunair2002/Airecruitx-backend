@@ -158,6 +158,21 @@
         <h4 style="margin-top:20px;">Detailed Report</h4>
         <pre id="applicationReportOutput">Select an applicant to view report.</pre>
       </section>
+
+      <section>
+        <h3>E-learning Course Library</h3>
+        <p>Add HTTPS YouTube, Coursera, or other course links. Use topic IDs such as <code>dbms</code>, <code>web</code>, <code>programming</code>, or <code>self_introduction</code>.</p>
+        <input id="learningCourseId" type="hidden" />
+        <div class="input-group"><input id="learningCourseTitle" placeholder="Course title" maxlength="120" /></div>
+        <div class="input-group"><textarea id="learningCourseDescription" placeholder="Short course description" maxlength="1000"></textarea></div>
+        <div class="input-group"><input id="learningCourseVideoUrl" type="url" placeholder="https://..." /></div>
+        <div class="input-group"><input id="learningCourseTopics" placeholder="Topics (comma separated IDs)" /></div>
+        <button id="saveLearningCourseBtn" class="btn-small">Add Course</button>
+        <button id="cancelLearningCourseEditBtn" class="btn-small hidden">Cancel Edit</button>
+        <button id="loadLearningCoursesBtn" class="btn-small">Refresh Courses</button>
+        <div id="hrLearningCourses" style="margin-top:15px;"></div>
+        <pre id="learningCourseOutput" class="hidden"></pre>
+      </section>
     </div>
 
     <div id="candidateSection" class="hidden">
@@ -184,7 +199,8 @@
         </div>
 
         <div id="elearningPanel" class="hidden" style="background:#fff3e0; padding:15px; border-radius:6px; margin-top:15px;">
-          <h4 style="margin-top:0;">📚 E-Learning Tips</h4>
+          <h4 style="margin-top:0;">📚 E-Learning</h4>
+          <h4 id="elearningTipsHeading">Personalized tips</h4>
           <ul id="elearningTipsList"></ul>
           <button id="retryInterviewBtn" class="btn-small">Retry Round 1</button>
         </div>
@@ -196,20 +212,27 @@
         <pre id="certificateOutput" class="hidden"></pre>
       </section>
 
+      <section id="candidateLearningSection">
+        <h3>3. E-learning Courses</h3>
+        <p>Browse available learning videos and courses.</p>
+        <button id="loadCandidateCoursesBtn" class="btn-small">Refresh Courses</button>
+        <div id="candidateLearningCourses" style="margin-top:15px;"></div>
+      </section>
+
       <section>
-        <h3>3. Browse Jobs</h3>
+        <h3>4. Browse Jobs</h3>
         <button id="loadOpenJobsBtn" class="btn-small">Refresh Job Board</button>
         <div id="openJobsList"></div>
       </section>
 
       <section>
-        <h3>4. Application Tracker</h3>
+        <h3>5. Application Tracker</h3>
         <button id="loadMyApplicationsBtn" class="btn-small">Update Status</button>
         <div id="myApplicationsList"></div>
       </section>
 
       <section style="background:#fff3e0;">
-        <h3>5. Organizational Interview (via invite link)</h3>
+        <h3>6. Organizational Interview (via invite link)</h3>
         <p style="font-size:12px; color:var(--light);">
           Paste the token from an HR invite link (?token=...) — this whole flow is public/token-based,
           not tied to being logged in as this candidate.
@@ -222,7 +245,7 @@
       </section>
 
       <section>
-        <h3>6. My Interview History</h3>
+        <h3>7. My Interview History</h3>
         <div class="admin-toolbar">
           <select id="historyTypeFilter">
             <option value="">All types</option>
@@ -358,6 +381,8 @@
       document.getElementById("adminSection").classList.toggle('hidden', user.role !== "admin");
       initSocket(user.id);
       confirmPendingPayment();
+      if (user.role === "hr") loadHrCourses();
+      if (user.role === "candidate") loadAvailableCourses();
     };
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
@@ -475,6 +500,107 @@
 
     // Model/report text goes into innerHTML, so escape it.
     const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    const resetLearningCourseForm = () => {
+      document.getElementById("learningCourseId").value = "";
+      document.getElementById("learningCourseTitle").value = "";
+      document.getElementById("learningCourseDescription").value = "";
+      document.getElementById("learningCourseVideoUrl").value = "";
+      document.getElementById("learningCourseTopics").value = "";
+      document.getElementById("saveLearningCourseBtn").textContent = "Add Course";
+      document.getElementById("cancelLearningCourseEditBtn").classList.add("hidden");
+    };
+
+    const renderCourseCards = (container, courses, editable) => {
+      container.innerHTML = "";
+      if (!courses.length) {
+        container.textContent = "No courses are available yet.";
+        return;
+      }
+      courses.forEach((course) => {
+        const card = document.createElement("article");
+        card.className = "list-item";
+        const videoUrl = new URL(course.videoUrl);
+        const youtubeId = videoUrl.hostname === "youtu.be"
+          ? videoUrl.pathname.slice(1)
+          : videoUrl.hostname.endsWith("youtube.com") ? videoUrl.searchParams.get("v") : null;
+        const embedUrl = youtubeId && /^[\w-]{11}$/.test(youtubeId)
+          ? `https://www.youtube-nocookie.com/embed/${youtubeId}`
+          : null;
+        card.innerHTML = `
+          <h4>${esc(course.title)}</h4>
+          <p>${esc(course.description)}</p>
+          <p><strong>Topics:</strong> ${course.topics.map(esc).join(", ")}</p>
+          ${embedUrl
+            ? `<div style="position:relative;padding-bottom:56.25%;height:0;margin:12px 0;"><iframe src="${embedUrl}" title="${esc(course.title)}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0;"></iframe></div>`
+            : `<a href="${esc(course.videoUrl)}" target="_blank" rel="noopener noreferrer">Watch course video</a>`}
+          ${editable ? `<div style="margin-top:10px;"><button class="btn-small edit-course-btn">Edit</button><button class="btn-small delete-course-btn">Delete</button></div>` : ""}`;
+        if (editable) {
+          card.querySelector(".edit-course-btn").onclick = () => {
+            document.getElementById("learningCourseId").value = course._id;
+            document.getElementById("learningCourseTitle").value = course.title;
+            document.getElementById("learningCourseDescription").value = course.description;
+            document.getElementById("learningCourseVideoUrl").value = course.videoUrl;
+            document.getElementById("learningCourseTopics").value = course.topics.join(", ");
+            document.getElementById("saveLearningCourseBtn").textContent = "Save Changes";
+            document.getElementById("cancelLearningCourseEditBtn").classList.remove("hidden");
+            document.getElementById("learningCourseTitle").focus();
+          };
+          card.querySelector(".delete-course-btn").onclick = async () => {
+            if (!window.confirm(`Delete "${course.title}"?`)) return;
+            const res = await fetch(`/api/learning/courses/${course._id}`, { method: "DELETE", headers: authHeaders() });
+            const data = await res.json();
+            if (data.success) await loadHrCourses();
+            else showJson("learningCourseOutput", data);
+          };
+        }
+        container.appendChild(card);
+      });
+    };
+
+    const loadHrCourses = async () => {
+      const res = await fetch("/api/learning/courses/hr", { headers: authHeaders() });
+      const data = await res.json();
+      if (data.success) renderCourseCards(document.getElementById("hrLearningCourses"), data.data, true);
+      else showJson("learningCourseOutput", data);
+    };
+
+    document.getElementById("loadLearningCoursesBtn").onclick = loadHrCourses;
+    document.getElementById("cancelLearningCourseEditBtn").onclick = resetLearningCourseForm;
+    document.getElementById("saveLearningCourseBtn").onclick = async () => {
+      const id = document.getElementById("learningCourseId").value;
+      const body = {
+        title: document.getElementById("learningCourseTitle").value,
+        description: document.getElementById("learningCourseDescription").value,
+        videoUrl: document.getElementById("learningCourseVideoUrl").value,
+        topics: document.getElementById("learningCourseTopics").value.split(",").map((topic) => topic.trim()).filter(Boolean),
+      };
+      const res = await fetch(id ? `/api/learning/courses/${id}` : "/api/learning/courses", {
+        method: id ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        resetLearningCourseForm();
+        document.getElementById("learningCourseOutput").classList.add("hidden");
+        await loadHrCourses();
+      } else showJson("learningCourseOutput", data);
+    };
+
+    const loadAvailableCourses = async () => {
+      const container = document.getElementById("candidateLearningCourses");
+      container.textContent = "Loading courses...";
+      try {
+        const res = await fetch("/api/learning/courses", { headers: authHeaders() });
+        const data = await res.json();
+        if (data.success) renderCourseCards(container, data.data, false);
+        else container.textContent = data.message || "Courses could not be loaded.";
+      } catch (error) {
+        container.textContent = "Courses could not be loaded. Please try again.";
+      }
+    };
+    document.getElementById("loadCandidateCoursesBtn").onclick = loadAvailableCourses;
 
     const loadTracks = async () => {
       let tracks = FALLBACK_TRACKS;
@@ -607,7 +733,6 @@
       const certificatePanel = document.getElementById("certificatePanel");
       const unlockedNote = document.getElementById("round2UnlockedNote");
       const round2Btn = document.getElementById("startRound2Btn");
-
       if (session.status === "completed") {
         stopListening();
         if (ttsSupported) window.speechSynthesis.cancel();
@@ -630,14 +755,23 @@
             document.getElementById("certificateBtn").classList.toggle("hidden", !session.certificatePaid);
           }
           const tips = session.elearningTips || [];
-          elearningPanel.classList.toggle("hidden", !tips.length);
+          elearningPanel.classList.toggle("hidden", session.result === "pass" && !tips.length);
           document.getElementById("retryInterviewBtn").classList.add("hidden");
         }
         document.getElementById("elearningTipsList").innerHTML = (session.elearningTips || []).map((t) => `<li>${esc(t)}</li>`).join("");
+        const failedPracticeRound = (session.stage === "basic" || session.stage === "technical") && session.result === "fail";
+        if (failedPracticeRound) {
+          document.getElementById("elearningTipsHeading").classList.toggle("hidden", !(session.elearningTips || []).length);
+          loadAvailableCourses();
+          document.getElementById("candidateLearningSection").scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          document.getElementById("elearningTipsHeading").classList.toggle("hidden", !(session.elearningTips || []).length);
+        }
         return;
       }
 
       elearningPanel.classList.add("hidden");
+      document.getElementById("elearningTipsHeading").classList.remove("hidden");
       certificatePanel.classList.add("hidden");
       unlockedNote.classList.add("hidden");
       document.getElementById("interviewReport").classList.add("hidden");
