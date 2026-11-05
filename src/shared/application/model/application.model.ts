@@ -1,4 +1,6 @@
 import { Schema, model, Document, Types } from "mongoose";
+import type { ParsedResume } from "../../resume/resumeParser";
+import type { ResumeParseStatus, ResumeValidation } from "../../resume/resumeValidation";
 
 export type ApplicationStatus = "pending" | "selected" | "rejected";
 
@@ -28,9 +30,22 @@ export interface IAiInterview {
   calendarLink?: string;
 }
 
+export interface IResumeSnapshot {
+  fileUrl: string;
+  publicId?: string;
+  accessType: "public" | "authenticated";
+  mimeType: string;
+  originalName?: string;
+  fileSize?: number;
+  status: ResumeParseStatus;
+  parsedData?: ParsedResume;
+  validation?: ResumeValidation;
+}
+
 export interface IApplication extends Document {
   jobId: Types.ObjectId;
   candidateId: Types.ObjectId;
+  resumeSnapshot?: IResumeSnapshot;
   resumeSnapshotSkills: string[];
   matchScore: number;
   matched: boolean;
@@ -68,6 +83,29 @@ const aiInterviewSchema = new Schema<IAiInterview>(
   { _id: false }
 );
 
+const resumeSnapshotSchema = new Schema<IResumeSnapshot>(
+  {
+    fileUrl: { type: String, required: true },
+    publicId: { type: String, required: false },
+    accessType: {
+      type: String,
+      enum: ["public", "authenticated"],
+      required: true,
+    },
+    mimeType: { type: String, required: true },
+    originalName: { type: String, required: false },
+    fileSize: { type: Number, required: false, min: 0 },
+    status: {
+      type: String,
+      enum: ["parsed", "partial", "failed"],
+      required: true,
+    },
+    parsedData: { type: Schema.Types.Mixed, required: false },
+    validation: { type: Schema.Types.Mixed, required: false },
+  },
+  { _id: false },
+);
+
 const applicationSchema = new Schema<IApplication>(
   {
     jobId: {
@@ -81,6 +119,11 @@ const applicationSchema = new Schema<IApplication>(
       ref: "User",
       required: true,
       index: true,
+    },
+    resumeSnapshot: {
+      type: resumeSnapshotSchema,
+      required: false,
+      select: false,
     },
     resumeSnapshotSkills: {
       type: [String],
