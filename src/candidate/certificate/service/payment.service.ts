@@ -26,7 +26,7 @@ const assertPassedSession = async (userId: string, sessionId: string) => {
   if (!session) {
     throw new AppError("Interview session not found", 404);
   }
-  if (session.status !== "completed" || typeof session.score !== "number") {
+  if ((session.status !== "completed" && session.status !== "expired") || typeof session.score !== "number") {
     throw new AppError("Interview is not completed yet", 400);
   }
   const passScore = getPassScore();

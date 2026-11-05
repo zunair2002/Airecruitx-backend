@@ -41,11 +41,11 @@ const attachInterviewScores = async (applications: IApplication[]) => {
       orgInterviewScore?: number;
       orgInterviewResult?: string;
     };
-    if (aiSession?.status === "completed") {
+    if (aiSession?.status === "completed" || aiSession?.status === "expired") {
       obj.aiInterviewScore = aiSession.score;
       obj.aiInterviewResult = aiSession.result;
     }
-    if (orgSession?.status === "completed") {
+    if (orgSession?.status === "completed" || orgSession?.status === "expired") {
       obj.orgInterviewScore = orgSession.score;
       obj.orgInterviewResult = orgSession.result;
     }
