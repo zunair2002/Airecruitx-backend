@@ -12,6 +12,7 @@ import sharedSupportRoutes from "./shared/support/routes/support.routes";
 import resumeRoutes from "./candidate/resume/routes/resume.routes";
 import interviewRoutes from "./candidate/interview/routes/interview.routes";
 import certificateRoutes from "./candidate/certificate/routes/certificate.routes";
+import learningRoutes from "./candidate/learning/routes/learning.routes";
 import jobBoardRoutes from "./candidate/job-board/routes/job-board.routes";
 import candidateApplicationRoutes from "./candidate/applications/routes/application.routes";
 
@@ -35,10 +36,15 @@ import { requireAuth } from "./middleware/auth.middleware";
 import { requestLogger } from "./middleware/requestLogger.middleware";
 import { asyncHandler } from "./utils/asyncHandler";
 import { AppError } from "./utils/AppError";
-import { evaluateAnswer } from "./ai/ai.service";
 import { keyPointsFromReference, topicFromText } from "./ai/topics";
+import { enqueueAndWaitForStandaloneEvaluation } from "./jobs/queues";
 
 const app: Application = express();
+
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+if (Number.isInteger(trustProxyHops) && trustProxyHops >= 0) {
+  app.set("trust proxy", trustProxyHops);
+}
 
 app.use(requestLogger);
 app.use(cors());
@@ -81,7 +87,7 @@ app.post(
     }
 
     try {
-      const evaluation = await evaluateAnswer({
+      const evaluation = await enqueueAndWaitForStandaloneEvaluation({
         stage,
         level,
         topic: typeof topic === "string" && topic ? topic : topicFromText(question),
@@ -106,6 +112,7 @@ app.use("/api/support", sharedSupportRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/certificate", certificateRoutes);
+app.use("/api/learning", learningRoutes);
 app.use("/api/jobs", jobBoardRoutes);
 app.use("/api/applications", candidateApplicationRoutes);
 

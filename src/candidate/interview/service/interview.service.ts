@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import {
   InterviewSession,
   IInterviewSession,
@@ -17,8 +18,16 @@ import {
   AI_FINAL_WAIT_MS, AI_RETRY_WINDOW_MS, BASIC_INTERVIEW_MINUTES, BASIC_QUESTIONS, INTERVIEW_GRACE_MS, ORG_INTERVIEW_MINUTES,
   ROUND2_UNLOCK_SCORE, TECHNICAL_INTERVIEW_MINUTES, TECHNICAL_QUESTIONS, passScore100,
 } from "../../../config/ai";
-import { acquireLock, cacheDel, cacheSet, releaseLock } from "../../../config/redis";
+import { cacheDel, cacheSet } from "../../../config/redis";
 import { emitToUser } from "../../../config/socket";
+import {
+  enqueueAnswerEvaluation,
+  enqueueInterviewFinalization,
+  enqueueReportGeneration,
+  waitForInterviewFinalization,
+  AnswerEvaluationJob,
+  InterviewFinalizationJob,
+} from "../../../jobs/queues";
 
 // ---------------------------------------------------------------------------------
 // Interview flow (fine-tuned AIRecruitX model):
@@ -302,11 +311,6 @@ export const startStructuredInterview = async (
 };
 
 // ---------------------------------------------------------------- background evaluation
-// In-memory handles of running evaluations, so the final answer can wait for them.
-// If the server restarts, finalizeSession re-runs anything still "pending".
-// A failed evaluation is marked "pending_eval" and retried once more before the report.
-const runningEvaluations = new Map<string, Map<number, Promise<void>>>();
-
 const keyPointsOf = (selected: ISelectedQuestion): string[] =>
   selected.keyPoints?.length ? selected.keyPoints : keyPointsFromReference(selected.referenceAnswer ?? "");
 
@@ -328,47 +332,58 @@ const evaluationFields = (ev: ai.AnswerEvaluation, selected: ISelectedQuestion, 
   return fields;
 };
 
-const evaluateTurn = (
+const evaluateTurn = async (
   sessionId: string,
   questionNumber: number,
-  selected: ISelectedQuestion,
-  answer: string,
-  level?: string
 ): Promise<void> => {
-  const stage: InterviewStage = selected.stage ?? "technical";
-  const job = (async () => {
-    const filter = { _id: sessionId };
-    const opts = { arrayFilters: [{ "t.questionNumber": questionNumber }] };
-    try {
-      const ev = await ai.evaluateAnswer({
-        stage,
-        level,
-        topic: selected.topic || topicFromText(selected.question),
-        question: selected.question,
-        keyPoints: keyPointsOf(selected),
-        answer,
-      });
-      const set = Object.fromEntries(
-        Object.entries(evaluationFields(ev, selected, "done")).map(([k, v]) => [`turns.$[t].${k}`, v])
-      );
-      await InterviewSession.updateOne(filter, { $set: set }, opts);
-    } catch (err: any) {
-      console.error(`[interview] evaluation failed (session ${sessionId}, Q${questionNumber}):`, err?.message ?? err);
-      await InterviewSession.updateOne(filter, { $set: { "turns.$[t].evalStatus": "pending_eval" } }, opts);
-    }
-  })();
+  await enqueueAnswerEvaluation({ sessionId, questionNumber });
+};
 
-  const perSession = runningEvaluations.get(sessionId) ?? new Map<number, Promise<void>>();
-  perSession.set(questionNumber, job);
-  runningEvaluations.set(sessionId, perSession);
-  return job;
+export const processAnswerEvaluation = async ({
+  sessionId,
+  questionNumber,
+}: AnswerEvaluationJob): Promise<void> => {
+  const session = await InterviewSession.findById(sessionId);
+  if (!session) return;
+  const turn = session.turns.find((item) => item.questionNumber === questionNumber);
+  const selected = session.selectedQuestions?.[questionNumber - 1];
+  if (!turn || !selected || turn.evalStatus === "done" || turn.evalStatus === "estimated") return;
+
+  const stage: InterviewStage = selected.stage ?? "technical";
+  const ev = await ai.evaluateAnswer({
+    stage,
+    level: session.level,
+    topic: selected.topic || topicFromText(selected.question),
+    question: selected.question,
+    keyPoints: keyPointsOf(selected),
+    answer: turn.answer,
+  });
+  const set = Object.fromEntries(
+    Object.entries(evaluationFields(ev, selected, "done")).map(([key, value]) => [
+      `turns.$[t].${key}`,
+      value,
+    ]),
+  );
+  await InterviewSession.updateOne(
+    { _id: sessionId },
+    { $set: set },
+    { arrayFilters: [{ "t.questionNumber": questionNumber }] },
+  );
+};
+
+export const markAnswerEvaluationFailed = async ({
+  sessionId,
+  questionNumber,
+}: AnswerEvaluationJob): Promise<void> => {
+  await InterviewSession.updateOne(
+    { _id: sessionId, "turns.questionNumber": questionNumber },
+    { $set: { "turns.$[t].evalStatus": "pending_eval" } },
+    { arrayFilters: [{ "t.questionNumber": questionNumber }] },
+  );
 };
 
 const estimatedNote = (n: number): string =>
   n ? ` Note: ${n} answer score${n > 1 ? "s are" : " is"} estimated because AI evaluation was unavailable.` : "";
-
-const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | "timeout"> =>
-  Promise.race([p, new Promise<"timeout">((r) => setTimeout(() => r("timeout"), ms))]);
 
 // ---------------------------------------------------------------- answer
 export const submitAnswer = async (
@@ -443,50 +458,99 @@ export const submitAnswer = async (
     throw new AppError("This question has already been answered", 409); // double submit
   }
 
-  const evaluation = evaluateTurn(updated._id.toString(), questionNumber, current, answer, updated.level);
+  await evaluateTurn(updated._id.toString(), questionNumber);
   if (!isLast) {
-    evaluation.catch(() => undefined);
     return updated;
   }
-  return finalizeOnceOrWait(updated._id.toString(), false);
+  await enqueueAndWaitForFinalization(updated._id.toString(), false);
+  const finalized = await InterviewSession.findById(updated._id);
+  if (!finalized) throw new AppError("Interview session not found", 404);
+  return finalized;
 };
 
-// ---------------------------------------------------------------- finish once
-// Redis lock: the last answer, the expiry sweep (on every instance) and a page reload can all
-// try to finish the same session at once; only one may run finalizeSession (it calls the AI).
-const FINALIZE_LOCK_MS = 15 * 60_000;
-const finalizeLockKey = (sessionId: string) => `interview:finalize:${sessionId}`;
+const enqueueAndWaitForFinalization = async (sessionId: string, timeUp: boolean): Promise<void> => {
+  const job = await enqueueInterviewFinalization({ sessionId, timeUp });
+  await waitForInterviewFinalization(job, 30 * 60_000);
+};
 
-/** Finishes the session unless someone else is already doing it (then returns null). */
-const finalizeOnce = async (sessionId: string, timeUp: boolean): Promise<IInterviewSession | null> => {
-  const lock = finalizeLockKey(sessionId);
-  if (!(await acquireLock(lock, FINALIZE_LOCK_MS))) return null;
+export const processInterviewFinalization = async ({
+  sessionId,
+  timeUp,
+}: InterviewFinalizationJob): Promise<string> => {
+  const session = await InterviewSession.findById(sessionId);
+  if (!session) throw new AppError("Interview session not found", 404);
+  if (isFinished(session.status)) {
+    await cacheDel(timerKey(sessionId));
+    return sessionId;
+  }
   try {
-    const session = await InterviewSession.findById(sessionId);
-    if (!session) throw new AppError("Interview session not found", 404);
-    if (isFinished(session.status)) return session;
-    // all questions answered just before the deadline -> a normal completion, not "expired"
-    if (timeUp && session.turns.length < (session.selectedQuestions?.length ?? 0)) {
+    if ((timeUp || isExpired(session)) && session.turns.length < (session.selectedQuestions?.length ?? 0)) {
       await closeUnansweredQuestions(session);
     }
-    return await finalizeSession(sessionId);
+    const finalized = await finalizeSession(sessionId);
+    if (!isFinished(finalized.status)) {
+      throw new Error(`Interview finalization did not complete for session ${sessionId}`);
+    }
+    return sessionId;
   } finally {
-    await releaseLock(lock);
     await cacheDel(timerKey(sessionId));
   }
 };
 
-/** Same, but if another request is already finishing it, waits for that result. */
-const finalizeOnceOrWait = async (sessionId: string, timeUp: boolean): Promise<IInterviewSession> => {
-  const done = await finalizeOnce(sessionId, timeUp);
-  if (done) return done;
-  const until = Date.now() + FINALIZE_LOCK_MS;
-  for (;;) {
-    const session = await InterviewSession.findById(sessionId);
-    if (!session) throw new AppError("Interview session not found", 404);
-    if (isFinished(session.status) || Date.now() > until) return session;
-    await sleep(3000);
+export const recoverPendingInterviewJobs = async (): Promise<number> => {
+  let recovered = 0;
+  const now = new Date(Date.now() - INTERVIEW_GRACE_MS);
+  const cursor = InterviewSession.find({
+    status: "in_progress",
+    $or: [
+      { "turns.evalStatus": "pending" },
+      { expiresAt: { $lt: now } },
+      {
+        $expr: {
+          $and: [
+            { $gt: [{ $size: { $ifNull: ["$selectedQuestions", []] } }, 0] },
+            {
+              $gte: [
+                { $size: { $ifNull: ["$turns", []] } },
+                { $size: { $ifNull: ["$selectedQuestions", []] } },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  })
+    .select("_id userId status expiresAt selectedQuestions turns")
+    .limit(500)
+    .cursor();
+
+  for await (const session of cursor) {
+    const sessionId = session._id.toString();
+    if (isExpired(session)) {
+      await enqueueInterviewFinalization({ sessionId, timeUp: true });
+      recovered++;
+      continue;
+    }
+
+    const allQuestionsAnswered = Boolean(
+      session.selectedQuestions?.length
+      && session.turns.length >= session.selectedQuestions.length,
+    );
+    if (allQuestionsAnswered) {
+      await enqueueInterviewFinalization({ sessionId, timeUp: false });
+      recovered++;
+      continue;
+    }
+
+    for (const turn of session.turns) {
+      if (turn.evalStatus !== "pending") continue;
+      await enqueueAnswerEvaluation(
+        { sessionId, questionNumber: turn.questionNumber },
+      );
+      recovered++;
+    }
   }
+  return recovered;
 };
 
 // Time ran out: every question without an answer becomes a 0-score "no_answer" turn, so it
@@ -519,11 +583,14 @@ const closeUnansweredQuestions = async (session: IInterviewSession): Promise<voi
 
 const expireInBackground = (session: Pick<IInterviewSession, "_id" | "userId">): void => {
   const sessionId = session._id.toString();
-  finalizeOnce(sessionId, true)
-    .then((s) => {
-      if (s?.status === "expired") emitToUser(session.userId.toString(), "interview:time-up", { sessionId });
+  enqueueAndWaitForFinalization(sessionId, true)
+    .then(async () => {
+      const finished = await InterviewSession.findById(sessionId);
+      if (finished?.status === "expired") {
+        emitToUser(session.userId.toString(), "interview:time-up", { sessionId });
+      }
     })
-    .catch((err) => console.error(`[interview] finishing timed-out session ${sessionId} failed:`, err?.message ?? err));
+    .catch((err) => console.error(`[interview] finishing timed-out session ${sessionId} failed:`, err));
 };
 
 /** Expiry sweep (src/config/interviewTimerScheduler.ts): finish sessions whose time ran out. */
@@ -545,31 +612,49 @@ const timeUpNote = (session: IInterviewSession): string => {
   return ` Time expired: answered ${answered} of ${total} questions; unanswered questions scored 0.`;
 };
 
+const waitForAnswerEvaluations = async (sessionId: string, waitMs: number): Promise<void> => {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const session = await InterviewSession.findById(sessionId);
+    if (!session) throw new AppError("Interview session not found", 404);
+    if (!session.turns.some((turn) => turn.evalStatus === "pending") || Date.now() >= deadline) return;
+    await sleep(Math.min(500, Math.max(1, deadline - Date.now())));
+  }
+};
+
 // ---------------------------------------------------------------- finish + report
 const finalizeSession = async (sessionId: string): Promise<IInterviewSession> => {
-  // 1) wait for this session's evaluations (re-run any that were lost, e.g. after a restart)
+  // 1) wait for durable answer-evaluation jobs (re-enqueue pending work after a restart)
   let session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
-  const running = runningEvaluations.get(sessionId) ?? new Map<number, Promise<void>>();
   for (const t of session.turns) {
-    if (t.evalStatus === "pending" && !running.has(t.questionNumber)) {
-      const sq = session.selectedQuestions?.[t.questionNumber - 1];
-      if (sq) running.set(t.questionNumber, evaluateTurn(sessionId, t.questionNumber, sq, t.answer, session.level));
+    if (t.evalStatus === "pending" && session.selectedQuestions?.[t.questionNumber - 1]) {
+      await enqueueAnswerEvaluation({ sessionId, questionNumber: t.questionNumber });
     }
   }
-  await withTimeout(Promise.allSettled([...running.values()]), AI_FINAL_WAIT_MS);
-  runningEvaluations.delete(sessionId);
+  await waitForAnswerEvaluations(sessionId, AI_FINAL_WAIT_MS);
 
   // 1b) evaluations that failed during the interview get one more try (up to AI_RETRY_WINDOW_MS)
   session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
-  const retry = session.turns
-    .filter((t) => t.evalStatus === "pending_eval" && session!.selectedQuestions?.[t.questionNumber - 1])
-    .map((t) => evaluateTurn(sessionId, t.questionNumber, session!.selectedQuestions![t.questionNumber - 1], t.answer, session!.level));
-  if (retry.length) {
+  const retry = session.turns.filter(
+    (t) => t.evalStatus === "pending_eval" && session!.selectedQuestions?.[t.questionNumber - 1],
+  );
+  if (retry.length > 0) {
     ai.warmUp().catch(() => undefined);
-    await withTimeout(Promise.allSettled(retry), AI_RETRY_WINDOW_MS + 15_000);
-    runningEvaluations.delete(sessionId);
+    await Promise.all(retry.map((turn) =>
+      enqueueAnswerEvaluation(
+        { sessionId, questionNumber: turn.questionNumber },
+        randomUUID(),
+      ),
+    ));
+    await waitForAnswerEvaluations(sessionId, AI_RETRY_WINDOW_MS + 15_000);
+    session = await InterviewSession.findById(sessionId);
+    if (!session) throw new AppError("Interview session not found", 404);
+  }
+
+  if (isExpired(session) && session.turns.length < (session.selectedQuestions?.length ?? 0)) {
+    await closeUnansweredQuestions(session);
     session = await InterviewSession.findById(sessionId);
     if (!session) throw new AppError("Interview session not found", 404);
   }
@@ -632,13 +717,17 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   let generatedBy: "model" | "fallback" = "fallback";
   if (basicScore !== null && technicalScore !== null && !session.questionSetId) {
     try {
-      text = await ai.writeReportText({
-        reportType, role, level: session.level ?? "intermediate", basicScore, technicalScore,
-        overall, decision, results, passMark10: passMark / 10,
+      text = await enqueueReportGeneration({
+        sessionId,
+        report: {
+          reportType, role, level: session.level ?? "intermediate", basicScore, technicalScore,
+          overall, decision, results, passMark10: passMark / 10,
+        },
       });
       generatedBy = "model";
-    } catch (err: any) {
-      console.error(`[interview] report generation failed (session ${sessionId}):`, err?.message ?? err);
+    } catch (err) {
+      if (err instanceof AppError && err.statusCode === 503) throw err;
+      console.error(`[interview] report generation failed (session ${sessionId}):`, err);
     }
   }
   if (!text) {
