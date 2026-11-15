@@ -1,6 +1,6 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-export type InterviewStatus = "in_progress" | "completed";
+export type InterviewStatus = "in_progress" | "completed" | "expired"; // expired = finished because the time limit ran out
 export type InterviewResult = "pass" | "fail";
 export type InterviewLevel = "beginner" | "intermediate" | "expert";
 
@@ -15,7 +15,9 @@ export interface IInterviewMessage {
 }
 
 export type InterviewStage = "basic" | "technical";
-export type EvalStatus = "pending" | "done" | "failed";
+// pending: being evaluated · pending_eval: evaluation failed, retried before the report ·
+// estimated: still failed at report time, fallback score · failed: legacy (excluded from scores)
+export type EvalStatus = "pending" | "pending_eval" | "done" | "estimated" | "failed";
 
 export interface IInterviewTurn {
   questionNumber: number;
@@ -26,10 +28,12 @@ export interface IInterviewTurn {
   stage?: InterviewStage;
   topic?: string;
   verdict?: string; // model verdict, e.g. correct / partially_correct / strong / weak
-  criteria?: Record<string, number>; // per-criterion 0-10 scores from the model
+  criteria?: Record<string, number>; // per-criterion 0-10 scores, calibrated (src/ai/calibration.ts)
+  rawScores?: Record<string, number>; // the model's original per-criterion scores
   improvementTip?: string;
   weakTopics?: string[];
   evalStatus?: EvalStatus;
+  unanswered?: boolean; // time ran out before this question was answered -> score 0
   // Only set for structured (HR question-set) org-interview turns — the raw marks
   // behind the normalized `score` above, for HR's exact grading view. Never surfaced
   // to the candidate (buildSessionView's turn projection omits these fields).
@@ -74,6 +78,7 @@ export interface IInterviewReport {
   recommendation?: string;
   weakTopics: string[];
   generatedBy: "model" | "fallback";
+  estimatedCount?: number; // answers whose score is "estimated" (AI evaluation unavailable)
 }
 
 export interface IInterviewSession extends Document {
@@ -102,6 +107,11 @@ export interface IInterviewSession extends Document {
   turns: IInterviewTurn[];
   currentQuestionNumber?: number;
   currentQuestion?: string;
+  // Time limit (practice rounds and HR-invite interviews). Unset = no limit (job AI interview,
+  // sessions created before timers existed).
+  startedAt?: Date;
+  expiresAt?: Date;
+  timedOut?: boolean; // the time limit ran out (status "expired"; unanswered questions score 0)
   score?: number; // overall, 0-100
   result?: InterviewResult;
   feedback?: string;
@@ -130,9 +140,11 @@ const turnSchema = new Schema<IInterviewTurn>(
     topic: { type: String, required: false },
     verdict: { type: String, required: false },
     criteria: { type: Schema.Types.Mixed, required: false },
+    rawScores: { type: Schema.Types.Mixed, required: false },
     improvementTip: { type: String, required: false },
     weakTopics: { type: [String], default: undefined },
-    evalStatus: { type: String, enum: ["pending", "done", "failed"], required: false },
+    evalStatus: { type: String, enum: ["pending", "pending_eval", "done", "estimated", "failed"], required: false },
+    unanswered: { type: Boolean, required: false },
     marksEarned: { type: Number, required: false },
     marksPossible: { type: Number, required: false },
   },
@@ -167,6 +179,7 @@ const reportSchema = new Schema<IInterviewReport>(
     recommendation: { type: String, required: false },
     weakTopics: { type: [String], default: [] },
     generatedBy: { type: String, enum: ["model", "fallback"], required: true },
+    estimatedCount: { type: Number, required: false },
   },
   { _id: false }
 );
@@ -218,7 +231,7 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
     },
     status: {
       type: String,
-      enum: ["in_progress", "completed"],
+      enum: ["in_progress", "completed", "expired"],
       required: true,
       default: "in_progress",
     },
@@ -232,6 +245,9 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
     },
     currentQuestionNumber: { type: Number, required: false },
     currentQuestion: { type: String, required: false },
+    startedAt: { type: Date, required: false },
+    expiresAt: { type: Date, required: false },
+    timedOut: { type: Boolean, required: false },
     score: { type: Number, required: false },
     result: { type: String, enum: ["pass", "fail"], required: false },
     feedback: { type: String, required: false },
@@ -243,6 +259,9 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
   },
   { timestamps: true }
 );
+
+// Expiry sweep (src/config/interviewTimerScheduler.ts): in-progress sessions past expiresAt
+interviewSessionSchema.index({ status: 1, expiresAt: 1 });
 
 export const InterviewSession = model<IInterviewSession>(
   "InterviewSession",

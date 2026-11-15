@@ -1,7 +1,9 @@
 // Client for the fine-tuned AIRecruitX model (Phi-4-mini on vLLM, OpenAI-compatible API).
 // The user-message layouts below MUST match the training data exactly — do not reformat them.
-import { AI_API_KEY, AI_BASE_URL, AI_CONCURRENCY, AI_JSON_SCHEMA, AI_MODEL, AI_TIMEOUT_MS } from "../config/ai";
-import { EVAL_SYSTEM, QGEN_SYSTEM, REPORT_SYSTEM } from "./prompts";
+import { AI_API_KEY, AI_BASE_URL, AI_CONCURRENCY, AI_JSON_SCHEMA, AI_MODEL, AI_RETRY_WINDOW_MS, AI_TIMEOUT_MS } from "../config/ai";
+import { EVAL_FAIRNESS, EVAL_SYSTEM, QGEN_DIFFICULTY, QGEN_SYSTEM, REPORT_SYSTEM } from "./prompts";
+import { calibrateScores } from "./calibration";
+import { acquireLock, cacheDel, cacheGet, cacheSet, releaseLock } from "../config/redis";
 import { AIQueue } from "./aiQueue";
 import { criteriaFor, questionScore, round1, Stage, verdictsFor } from "./scoring";
 import bankData from "./question_bank.json";
@@ -15,11 +17,12 @@ export interface GeneratedQuestion {
 
 export interface AnswerEvaluation {
   verdict: string;
-  scores: Record<string, number>;
+  scores: Record<string, number>; // calibrated (src/ai/calibration.ts)
+  rawScores: Record<string, number>; // as returned by the model
   feedback: string;
   improvementTip: string;
   weakTopics: string[];
-  questionScore: number; // 0-10, computed by the backend
+  questionScore: number; // 0-10, computed by the backend from the calibrated scores
 }
 
 export interface ReportResultLine {
@@ -159,28 +162,48 @@ function extractJson(text: string): any {
   return JSON.parse(text.slice(i, j + 1));
 }
 
+// Serverless GPU cold start: the gateway answers 502/503/504 or "no upstreams available" until a
+// worker is up. Those are retried with this backoff (last value repeats) for AI_RETRY_WINDOW_MS.
+const UNAVAILABLE_BACKOFF_MS = [3000, 5000, 10_000, 15_000, 15_000];
+const isUnavailable = (err: any): boolean =>
+  [429, 502, 503, 504].includes(err?.status)
+  || /no upstreams available/i.test(String(err?.message ?? ""))
+  || (err instanceof TypeError && /fetch failed/i.test(err.message)); // connection refused/reset while starting
+
 async function callModel<T>(opts: {
   system: string; user: string; maxTokens: number; schema: object; schemaName: string;
   validate: (o: any) => T; sampling?: (attempt: number) => Sampling; retries?: number; timeoutMs?: number;
+  unavailableWindowMs?: number;
 }): Promise<T> {
-  const retries = opts.retries ?? 2;
+  const retries = opts.retries ?? 2; // retries for bad model output (invalid JSON, missing fields)
   const sampling = opts.sampling ?? defaultSampling;
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  const deadline = Date.now() + (opts.unavailableWindowMs ?? AI_RETRY_WINDOW_MS);
+  let attempt = 0;
+  let waits = 0;
+  for (;;) {
     try {
       const raw = await postChat(opts.system, opts.user, opts.maxTokens, opts.schema, opts.schemaName, sampling(attempt), opts.timeoutMs ?? AI_TIMEOUT_MS);
       return opts.validate(extractJson(raw));
     } catch (err: any) {
-      lastErr = err;
       if (err?.status === 400 && useSchema && /response_format|json_schema|guided/i.test(err.message)) {
         useSchema = false; // server without structured-output support -> plain JSON
         continue;
       }
-      if (err?.status === 401 || err?.status === 403) break; // wrong API key: retrying will not help
-      if (attempt < retries) await sleep(attempt === 0 ? 2000 : 6000);
+      if (isUnavailable(err)) {
+        cacheDel(WARM_KEY).catch(() => undefined); // server went cold: let the next warmUp poll again
+        const delay = UNAVAILABLE_BACKOFF_MS[Math.min(waits, UNAVAILABLE_BACKOFF_MS.length - 1)];
+        if (Date.now() + delay > deadline) throw err;
+        waits++;
+        console.warn(`[ai] server unavailable (${err?.status ?? err?.message}), retry ${waits} in ${delay / 1000}s`);
+        await sleep(delay);
+        continue;
+      }
+      if (err?.status >= 400 && err?.status < 500) throw err; // bad request / wrong API key: retrying will not help
+      if (attempt >= retries) throw err;
+      attempt++;
+      await sleep(attempt === 1 ? 2000 : 6000);
     }
   }
-  throw lastErr;
 }
 
 // ------------------------------------------------------------------ question bank (fallback / top-up)
@@ -192,6 +215,10 @@ export function pickFromBank(p: { stage: Stage; level?: string; topics: string[]
   const ex = new Set((p.exclude ?? []).map(normQ));
   let pool = BANK.filter((q) => q.stage === p.stage && p.topics.includes(q.topic) && !ex.has(normQ(q.question)));
   if (pool.length < p.count) pool = BANK.filter((q) => q.stage === p.stage && !ex.has(normQ(q.question))); // widen
+  if (p.stage === "technical" && p.level !== "expert") {
+    const easier = pool.filter((q) => q.level !== "expert"); // keep fresh-graduate difficulty
+    if (easier.length >= p.count) pool = easier;
+  }
   if (p.stage === "technical" && p.level) {
     const same = pool.filter((q) => q.level === p.level);
     if (same.length >= p.count) pool = same;
@@ -207,34 +234,71 @@ export function pickFromBank(p: { stage: Stage; level?: string; topics: string[]
 }
 
 // ------------------------------------------------------------------ public API
-/** Wake the GPU server (call at interview start; do not await). */
-export async function warmUp(maxWaitMs = 240_000): Promise<boolean> {
-  const until = Date.now() + maxWaitMs;
-  while (Date.now() < until) {
+// Redis: the "GPU is warm" flag and the warm-up lock are shared by all backend instances, so
+// only one instance polls the GPU server and none polls while it is known to be warm.
+const WARM_KEY = "ai:warm";
+const WARM_LOCK = "ai:warmup:lock";
+const WARM_TTL_MS = 2 * 60_000; // serverless GPU scales down after a few idle minutes
+let warming: Promise<boolean> | null = null;
+
+/** Wake the GPU server (call at interview start; do not await). Polls /v1/models every 5s. */
+export function warmUp(maxWaitMs = AI_RETRY_WINDOW_MS): Promise<boolean> {
+  if (warming) return warming; // one poller is enough for all interviews starting together
+  warming = (async () => {
+    if (await cacheGet(WARM_KEY)) return true;
+    if (!(await acquireLock(WARM_LOCK, maxWaitMs))) return false; // another instance is polling
     try {
-      const res = await fetch(`${AI_BASE_URL}/health`, { signal: AbortSignal.timeout(60_000) });
-      if (res.ok) return true;
-    } catch { /* still starting */ }
-    await sleep(5000);
-  }
-  return false;
+      const until = Date.now() + maxWaitMs;
+      while (Date.now() < until) {
+        try {
+          const res = await fetch(`${AI_BASE_URL}/v1/models`, {
+            headers: { Authorization: `Bearer ${AI_API_KEY}` },
+            signal: AbortSignal.timeout(Math.max(1000, Math.min(60_000, until - Date.now()))),
+          });
+          if (res.ok) {
+            await cacheSet(WARM_KEY, "1", WARM_TTL_MS);
+            return true;
+          }
+        } catch { /* still starting */ }
+        await sleep(5000);
+      }
+      console.warn(`[ai] warm-up: server not ready after ${maxWaitMs / 1000}s`);
+      return false;
+    } finally {
+      await releaseLock(WARM_LOCK);
+    }
+  })().finally(() => { warming = null; });
+  return warming;
 }
 
-/** Generate `count` unique questions; de-duplicated and topped up from the question bank (also used if the model is down). */
+const MAX_QUESTION_WORDS = 24; // questions must be under 25 words
+const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * Generate `count` unique questions. Basic round: easy questions from the local bank first, the
+ * model only fills in when the bank runs out. Technical round: model first, topped up from the
+ * bank (also used if the model is down).
+ */
 export async function generateQuestions(p: {
   stage: Stage; level?: string; role: string; topics: string[]; count: number; exclude?: string[];
 }): Promise<GeneratedQuestion[]> {
-  const exclude = new Set((p.exclude ?? []).map(normQ));
+  const fromBankFirst = p.stage === "basic" ? pickFromBank(p) : [];
+  if (fromBankFirst.length >= p.count) return fromBankFirst.slice(0, p.count);
+  const need = p.count - fromBankFirst.length;
+  const excludeList = [...(p.exclude ?? []), ...fromBankFirst.map((q) => q.question)];
+  const exclude = new Set(excludeList.map(normQ));
   let qs: GeneratedQuestion[] = [];
   try {
+    const timeoutMs = Number(process.env.AI_QGEN_TIMEOUT_MS ?? 30_000);
     qs = await aiQueue.add(() => callModel({
-      system: QGEN_SYSTEM,
-      user: qgenUserMessage(p),
+      system: QGEN_SYSTEM + QGEN_DIFFICULTY[p.stage],
+      user: qgenUserMessage({ ...p, count: need }),
       maxTokens: 900, schema: QGEN_SCHEMA, schemaName: "questions",
       sampling: () => ({ temperature: 0.7, top_p: 0.9, repetition_penalty: 1.1 }),
       retries: 0,
       // the candidate is waiting on "Start": if the GPU is cold, fall back to the bank quickly
-      timeoutMs: Number(process.env.AI_QGEN_TIMEOUT_MS ?? 30_000),
+      timeoutMs,
+      unavailableWindowMs: timeoutMs,
       validate: (o) => {
         if (!o || !Array.isArray(o.questions)) throw new Error("questions: bad format");
         const seen = new Set<string>();
@@ -242,16 +306,18 @@ export async function generateQuestions(p: {
         for (const q of o.questions) {
           const k = normQ(q?.question ?? "");
           if (!k || seen.has(k) || exclude.has(k)) continue;
+          if (wordCount(String(q.question)) > MAX_QUESTION_WORDS) continue; // too long / multi-part
           seen.add(k);
           list.push({ question: String(q.question), topic: String(q.topic || p.topics[0]), keyPoints: (q.key_points || []).map(String), source: "model" });
         }
         if (!list.length) throw new Error("questions: none");
-        return list.slice(0, p.count);
+        return list.slice(0, need);
       },
     }));
   } catch (err: any) {
     console.warn("[ai] question generation failed, using question bank:", err?.message ?? err);
   }
+  qs = [...fromBankFirst, ...qs];
   if (qs.length < p.count) {
     qs = qs.concat(pickFromBank({ ...p, count: p.count - qs.length, exclude: [...(p.exclude ?? []), ...qs.map((q) => q.question)] }));
   }
@@ -271,23 +337,25 @@ export async function evaluateAnswer(p: {
 }): Promise<AnswerEvaluation> {
   const started = Date.now();
   const ev = await aiQueue.add(() => callModel({
-    system: EVAL_SYSTEM,
+    system: EVAL_SYSTEM + EVAL_FAIRNESS,
     user: evalUserMessage({ ...p, answer: p.answer.slice(0, MAX_EVAL_ANSWER_CHARS) }),
     maxTokens: 320, schema: evalSchema(p.stage), schemaName: "evaluation",
-    // A serverless GPU may return 503 while its worker is starting. Give the deployed
-    // evaluator time to become available; no local score is substituted if it does not.
-    retries: 5,
+    // 503 while the serverless GPU starts is retried inside callModel (AI_RETRY_WINDOW_MS);
+    // these retries are for malformed model output.
+    retries: 2,
     validate: (o): AnswerEvaluation => {
       if (!o || typeof o !== "object" || !o.scores) throw new Error("evaluation: missing scores");
-      const scores: Record<string, number> = {};
+      const rawScores: Record<string, number> = {};
       for (const c of criteriaFor(p.stage)) {
         if (!Number.isFinite(Number(o.scores[c]))) throw new Error(`evaluation: missing score ${c}`);
-        scores[c] = clampInt(o.scores[c]);
+        rawScores[c] = clampInt(o.scores[c]);
       }
       if (!verdictsFor(p.stage).includes(o.verdict)) throw new Error(`evaluation: bad verdict ${o.verdict}`);
+      const scores = calibrateScores(rawScores, o.verdict, p.answer);
       return {
         verdict: o.verdict,
         scores,
+        rawScores,
         feedback: String(o.feedback || ""),
         improvementTip: String(o.improvement_tip || ""),
         weakTopics: Array.isArray(o.weak_topics) ? o.weak_topics.map(String) : [],
@@ -295,7 +363,7 @@ export async function evaluateAnswer(p: {
       };
     },
   }));
-  const crit = Object.entries(ev.scores).map(([c, v]) => `${c}=${v}`).join(" ");
+  const crit = Object.entries(ev.scores).map(([c, v]) => `${c}=${ev.rawScores[c]}->${v}`).join(" ");
   console.log(`[ai] evaluate ${p.stage}/${p.topic}: ${ev.verdict} ${ev.questionScore}/10 (${crit}) ${Date.now() - started}ms`);
   return ev;
 }

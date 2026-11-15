@@ -36,10 +36,15 @@ import { requireAuth } from "./middleware/auth.middleware";
 import { requestLogger } from "./middleware/requestLogger.middleware";
 import { asyncHandler } from "./utils/asyncHandler";
 import { AppError } from "./utils/AppError";
-import { evaluateAnswer } from "./ai/ai.service";
 import { keyPointsFromReference, topicFromText } from "./ai/topics";
+import { enqueueAndWaitForStandaloneEvaluation } from "./jobs/queues";
 
 const app: Application = express();
+
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+if (Number.isInteger(trustProxyHops) && trustProxyHops >= 0) {
+  app.set("trust proxy", trustProxyHops);
+}
 
 app.use(requestLogger);
 app.use(cors());
@@ -82,7 +87,7 @@ app.post(
     }
 
     try {
-      const evaluation = await evaluateAnswer({
+      const evaluation = await enqueueAndWaitForStandaloneEvaluation({
         stage,
         level,
         topic: typeof topic === "string" && topic ? topic : topicFromText(question),
