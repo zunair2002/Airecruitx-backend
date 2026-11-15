@@ -19,6 +19,10 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
     data: {
       fileUrl: resume.fileUrl,
       status: resume.status,
+      originalName: resume.originalName,
+      fileSize: resume.fileSize,
+      createdAt: resume.createdAt,
+      updatedAt: resume.updatedAt,
     },
   });
 });
@@ -29,6 +33,27 @@ export const getMyResumeHandler = asyncHandler(async (req: Request, res: Respons
 
   res.status(200).json({
     success: true,
-    data: resume ? { fileUrl: resume.fileUrl, status: resume.status, updatedAt: resume.updatedAt } : null,
+    data: resume
+      ? {
+          fileUrl: resume.fileUrl,
+          status: resume.status,
+          originalName: resume.originalName,
+          fileSize: resume.fileSize,
+          createdAt: resume.createdAt,
+          updatedAt: resume.updatedAt,
+        }
+      : null,
   });
 });
+
+export const deleteMyResumeHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const deleted = await resumeService.deleteMyResume(
+      req.user!._id.toString(),
+    );
+    res.status(200).json({
+      success: true,
+      data: { deleted },
+    });
+  },
+);

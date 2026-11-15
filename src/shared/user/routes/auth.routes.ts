@@ -7,8 +7,12 @@ import {
   resendOtpHandler,
   meHandler,
   logoutHandler,
+  updateCandidateProfileHandler,
 } from "../controller/auth.controller";
-import { requireAuth } from "../../../middleware/auth.middleware";
+import {
+  requireAuth,
+  requireRole,
+} from "../../../middleware/auth.middleware";
 import {
   googleLoginRateLimit,
   loginRateLimit,
@@ -16,6 +20,7 @@ import {
   signupRateLimit,
   verifyEmailRateLimit,
 } from "../../../middleware/authRateLimit.middleware";
+import { uploadCandidateAvatar } from "../../../middleware/upload.middleware";
 
 const router = Router();
 
@@ -25,6 +30,13 @@ router.post("/resend-otp", resendOtpRateLimit, resendOtpHandler);
 router.post("/login", loginRateLimit, loginHandler);
 router.post("/google", googleLoginRateLimit, googleLoginHandler);
 router.get("/me", requireAuth, meHandler);
+router.patch(
+  "/profile",
+  requireAuth,
+  requireRole("candidate"),
+  uploadCandidateAvatar,
+  updateCandidateProfileHandler,
+);
 router.post("/logout", logoutHandler);
 
 export default router;

@@ -13,6 +13,10 @@ export interface IUser extends Document {
   orgId?: Types.ObjectId;
   authProvider: AuthProvider;
   avatarUrl?: string;
+  avatarPublicId?: string;
+  headline?: string;
+  about?: string;
+  interests: string[];
   isActive: boolean;
   // Google accounts are verified by Google itself (true from creation). Password
   // accounts start false and must confirm ownership of the email via OTP before they
@@ -69,6 +73,27 @@ const userSchema = new Schema<IUser>(
     avatarUrl: {
       type: String,
       required: false,
+    },
+    avatarPublicId: {
+      type: String,
+      required: false,
+      select: false,
+    },
+    headline: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "",
+    },
+    about: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
+    interests: {
+      type: [String],
+      default: [],
     },
     isActive: {
       type: Boolean,

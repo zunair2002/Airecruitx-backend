@@ -24,6 +24,22 @@ export const uploadResumeFile = multer({
   fileFilter,
 }).single("resume");
 
+const ALLOWED_AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+const avatarFileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
+  if (!ALLOWED_AVATAR_MIME_TYPES.includes(file.mimetype)) {
+    cb(new AppError("Profile photo must be JPG, PNG, or WEBP", 400));
+    return;
+  }
+  cb(null, true);
+};
+
+export const uploadCandidateAvatar = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: avatarFileFilter,
+}).single("avatar");
+
 // Optional — HR may post a job with just typed-in required skills and no JD file.
 export const uploadJdFile = multer({
   storage,

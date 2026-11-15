@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as authService from "../service/auth.service";
+import * as candidateProfileService from "../service/candidate-profile.service";
 import { IUser, UserRole } from "../model/user.model";
 
 const VALID_ROLES: UserRole[] = ["candidate", "hr", "admin"];
@@ -28,6 +29,9 @@ const toPublicUser = (user: IUser) => ({
   role: user.role,
   authProvider: user.authProvider,
   avatarUrl: user.avatarUrl,
+  headline: user.headline ?? "",
+  about: user.about ?? "",
+  interests: user.interests ?? [],
   emailVerified: user.emailVerified,
 });
 
@@ -157,6 +161,62 @@ export const meHandler = asyncHandler(async (req: Request, res: Response) => {
     },
   });
 });
+
+export const updateCandidateProfileHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const body = req.body ?? {};
+    const headline = body.headline ?? "";
+    const about = body.about ?? "";
+    if (typeof headline !== "string") {
+      throw new AppError("headline must be a string", 400);
+    }
+    if (typeof about !== "string") {
+      throw new AppError("about must be a string", 400);
+    }
+
+    let interests: unknown = body.interests ?? [];
+    if (typeof interests === "string") {
+      try {
+        interests = JSON.parse(interests);
+      } catch {
+        throw new AppError("interests must be a valid JSON array", 400);
+      }
+    }
+    if (
+      !Array.isArray(interests) ||
+      !interests.every(
+        (interest): interest is string => typeof interest === "string",
+      )
+    ) {
+      throw new AppError("interests must be an array of strings", 400);
+    }
+
+    const removeAvatarValue = body.removeAvatar;
+    if (
+      removeAvatarValue !== undefined &&
+      removeAvatarValue !== true &&
+      removeAvatarValue !== false &&
+      removeAvatarValue !== "true" &&
+      removeAvatarValue !== "false"
+    ) {
+      throw new AppError("removeAvatar must be a boolean", 400);
+    }
+
+    const user = await candidateProfileService.updateCandidateProfile(
+      req.user!._id.toString(),
+      {
+        headline,
+        about,
+        interests,
+        removeAvatar:
+          removeAvatarValue === true || removeAvatarValue === "true",
+      },
+      req.file,
+    );
+
+    res.status(200).json({ success: true, data: toPublicUser(user) });
+  },
+);
 
 // No auth check needed here — clearing a cookie can't fail based on who's asking,
 // so this skips the DB lookup requireAuth would otherwise do on every logout.
