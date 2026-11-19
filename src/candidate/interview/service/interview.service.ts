@@ -13,6 +13,7 @@ import { hrDecision, overallScore, round1, stageScore } from "../../../ai/scorin
 import { basicTopicsFor, isTrack, keyPointsFromReference, shuffle, technicalTopicsFor, topicFromText, TRACKS, TrackId } from "../../../ai/topics";
 import { adviceFor, fallbackReport } from "../../../ai/report";
 import { AI_FINAL_WAIT_MS, BASIC_QUESTIONS, ROUND2_UNLOCK_SCORE, TECHNICAL_QUESTIONS, passScore100 } from "../../../config/ai";
+import { assertPracticeAllowed, recordPracticeStart } from "./practiceUsage.service";
 
 // ---------------------------------------------------------------------------------
 // Interview flow (fine-tuned AIRecruitX model):
@@ -78,6 +79,7 @@ export const startInterview = async (
     applicationId: applicationId ?? { $exists: false },
     visibility,
     status: { $ne: "completed" },
+    cancelledAt: { $exists: false }, // a cancelled org interview is never resumed
   });
   if (existing) {
     // Reuse a usable in-progress session. Anything else (a leftover from a failed start, or
@@ -168,6 +170,8 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   const sameTrack = !context.track || context.track === inProgress?.track;
   const sameBasicSession = stage !== "technical" || String(inProgress?.basicSessionId ?? "") === String(basicSession?._id ?? "");
   if (inProgress?.currentQuestion && inProgress.selectedQuestions?.length && sameTrack && sameBasicSession) return inProgress;
+  // Resuming (above) is free; a brand-new session counts against the plan's daily allowance.
+  await assertPracticeAllowed(userId);
   if (inProgress) await inProgress.deleteOne();
   const legacy = await InterviewSession.findOne({
     userId, applicationId: { $exists: false }, visibility: "candidate", stage: { $exists: false }, status: { $ne: "completed" },
@@ -184,7 +188,7 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   const selectedQuestions = toSelected(questions, stage);
   if (!selectedQuestions.length) throw new AppError("Could not prepare interview questions", 502);
 
-  return InterviewSession.create({
+  const session = await InterviewSession.create({
     userId,
     level: context.level,
     role,
@@ -199,6 +203,10 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
     currentQuestionNumber: 1,
     currentQuestion: selectedQuestions[0].question,
   });
+  // Recorded on the user, not just as this session, so deleting the session later
+  // (abandon + restart) doesn't hand the slot back.
+  await recordPracticeStart(userId, session.createdAt);
+  return session;
 };
 
 // HR question set: HR's own questions (random draw + shuffle per candidate), graded by the
@@ -213,6 +221,7 @@ export const startStructuredInterview = async (
     applicationId,
     visibility: "hidden",
     status: { $ne: "completed" },
+    cancelledAt: { $exists: false }, // a cancelled org interview is never resumed
   });
   if (existing) return existing;
 
@@ -326,6 +335,9 @@ export const submitAnswer = async (
   if (session.status === "completed") {
     throw new AppError("This interview is already completed", 400);
   }
+  if (session.cancelledAt) {
+    throw new AppError("This interview was cancelled and no longer accepts answers", 409);
+  }
   if (!session.currentQuestionNumber || !session.currentQuestion) {
     throw new AppError("Interview session is in an invalid state", 500);
   }
@@ -360,6 +372,7 @@ export const submitAnswer = async (
       _id: sessionId,
       userId,
       status: { $ne: "completed" },
+      cancelledAt: { $exists: false },
       currentQuestionNumber: questionNumber,
       "turns.questionNumber": { $ne: questionNumber },
     },
@@ -555,8 +568,11 @@ export const buildSessionView = (session: IInterviewSession) => {
   const isHidden = session.visibility === "hidden";
   const showTurnJudgement = !isHidden && session.status === "completed";
   const selected = session.selectedQuestions;
+  // A finished (or cancelled) organisational interview is HR's record, not the
+  // candidate's: they get a status summary only — no questions or answers back.
+  const hideTurns = isHidden && (session.status === "completed" || Boolean(session.cancelledAt));
 
-  const turnsWithRound = session.turns.map((t) => ({
+  const turnsWithRound = (hideTurns ? [] : session.turns).map((t) => ({
     questionNumber: t.questionNumber,
     question: t.question,
     answer: t.answer,
@@ -589,6 +605,20 @@ export const buildSessionView = (session: IInterviewSession) => {
       turns: turnsWithRound,
       certificatePaid: session.certificatePayment?.paid ?? false,
       elearningTips: !isHidden && session.result === "fail" ? elearningTipsFor(session) : undefined,
+    };
+  }
+
+  if (session.cancelledAt) {
+    return {
+      sessionId: session._id,
+      status: session.status,
+      stage: session.stage,
+      track: session.track,
+      cancelled: true,
+      cancelledAt: session.cancelledAt,
+      cancelReason: session.cancelReason,
+      totalQuestions: selected?.length,
+      turns: turnsWithRound,
     };
   }
 

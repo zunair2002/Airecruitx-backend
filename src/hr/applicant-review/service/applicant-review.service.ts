@@ -7,7 +7,64 @@ import { InterviewSession } from "../../../candidate/interview/model/interviewSe
 import * as interviewService from "../../../candidate/interview/service/interview.service";
 import { AppError } from "../../../utils/AppError";
 import { emitToUser } from "../../../config/socket";
-import { sendOrgInterviewInvite } from "../../../shared/email/email.service";
+import {
+  sendAiInterviewInvite,
+  sendOrgInterviewCancelled,
+  sendOrgInterviewInvite,
+} from "../../../shared/email/email.service";
+import { Notification } from "../../../shared/notification/model/notification.model";
+import { OrgInterviewQuestionSet } from "../../job-posting/model/orgInterviewQuestionSet.model";
+import { cancelOrgInterview } from "../../../candidate/applications/service/application.service";
+
+const appBaseUrl = (): string => process.env.APP_BASE_URL || "http://localhost:3000";
+
+// In-app notification (bell list + realtime toast) — best-effort, never blocks the action.
+const notifyUser = async (userId: string, message: string): Promise<void> => {
+  try {
+    const notification = await Notification.create({ userId, message });
+    emitToUser(userId, "admin:notification", { notificationId: notification._id, message });
+  } catch (error) {
+    console.error(`[notifyUser] Failed to notify user ${userId}:`, error);
+  }
+};
+
+// The AI interview is started from an emailed link only, once HR has approved the
+// applicant (schedule or bulk trigger): the link opens the candidate's session page.
+const buildAiInterviewLink = (sessionId: string): string =>
+  `${appBaseUrl()}/candidate/interview/session/${sessionId}`;
+
+const emailAiInterviewLink = async (
+  application: IApplication,
+  jobTitle: string,
+  options: { dateTime?: Date; message?: string; calendarLink?: string } = {}
+): Promise<void> => {
+  if (!application.interviewSessionId) return;
+  const sessionLink = buildAiInterviewLink(application.interviewSessionId.toString());
+  try {
+    const candidate = await User.findById(application.candidateId);
+    if (candidate) {
+      await sendAiInterviewInvite(candidate.email, candidate.name, jobTitle, sessionLink, options);
+    }
+  } catch (error) {
+    console.error(`[emailAiInterviewLink] Failed to email AI interview link for application ${application._id}:`, error);
+  }
+  await notifyUser(
+    application.candidateId.toString(),
+    `Your AI interview for ${jobTitle} is ready — check your email for the link to start it.`
+  );
+};
+
+// An organisational interview is drawn from HR's uploaded question pool, so HR must
+// upload one (My jobs -> Question pool) before any candidate can be invited.
+const assertQuestionPool = async (jobId: string): Promise<void> => {
+  const questionSet = await OrgInterviewQuestionSet.findOne({ jobId }, "questions");
+  if (!questionSet || questionSet.questions.length === 0) {
+    throw new AppError(
+      "Upload a question pool for this job before inviting candidates (My jobs → Question pool).",
+      409
+    );
+  }
+};
 
 const requireOwnedJob = async (hrId: string, jobId: string) => {
   const job = await Job.findOne({ _id: jobId, hrId });
@@ -200,15 +257,19 @@ export const scheduleAiInterview = async (
     interviewSessionId: application.interviewSessionId,
   });
 
+  await emailAiInterviewLink(application, job.title, {
+    dateTime,
+    message: input.message,
+    calendarLink,
+  });
+
   return application;
 };
 
 const DEFAULT_ORG_INTERVIEW_VALIDITY_DAYS = 2;
 
-const buildOrgInterviewLink = (token: string): string => {
-  const appBaseUrl = process.env.APP_BASE_URL || "http://localhost:3000";
-  return `${appBaseUrl}/candidate/interview/org?token=${token}`;
-};
+const buildOrgInterviewLink = (token: string): string =>
+  `${appBaseUrl()}/candidate/interview/org?token=${token}`;
 
 // Formats a Date as the YYYYMMDD form Google Calendar's URL API expects for all-day events.
 const toGoogleCalendarAllDayDate = (date: Date): string => date.toISOString().slice(0, 10).replace(/-/g, "");
@@ -256,6 +317,13 @@ export const inviteToOrgInterview = async (
   }
   if (!Number.isFinite(validityDays) || validityDays <= 0) {
     throw new AppError("validityDays must be a positive number", 400);
+  }
+  await assertQuestionPool(application.jobId.toString());
+
+  // Re-inviting after a cancellation starts over: the cancelled session no longer
+  // accepts answers, so the new link must create a fresh one.
+  if (application.orgInterview?.status === "cancelled") {
+    application.orgInterviewSessionId = undefined;
   }
 
   const token = crypto.randomBytes(32).toString("hex");
@@ -310,6 +378,12 @@ export const bulkInviteToOrgInterview = async (
   applicationIds: string[],
   validityDays?: number
 ): Promise<IApplication[]> => {
+  // Check every job's question pool up front so a missing pool rejects the whole
+  // batch instead of inviting half of it.
+  const applications = await Promise.all(applicationIds.map((id) => assertHrOwnsApplication(hrId, id)));
+  const jobIds = [...new Set(applications.map((a) => a.jobId.toString()))];
+  await Promise.all(jobIds.map(assertQuestionPool));
+
   const results: IApplication[] = [];
   for (const applicationId of applicationIds) {
     results.push(await inviteToOrgInterview(hrId, applicationId, validityDays));
@@ -317,10 +391,62 @@ export const bulkInviteToOrgInterview = async (
   return results;
 };
 
+// HR withdraws an org-interview invite that was already sent. Reuses the shared
+// cancelOrgInterview (same "cancelled" status the proctoring policy sets), so the
+// candidate's token link stops working and shows "This invite was cancelled".
+export const cancelOrgInterviewInvite = async (
+  hrId: string,
+  applicationId: string,
+  reason?: string
+): Promise<IApplication> => {
+  const application = await assertHrOwnsApplication(hrId, applicationId);
+  const { status, expiresAt } = application.orgInterview ?? {};
+
+  if (status !== "invited" || (expiresAt && expiresAt.getTime() < Date.now())) {
+    throw new AppError(
+      status === "cancelled"
+        ? "This invite was already cancelled"
+        : "Only an active (sent, not completed or expired) invite can be cancelled",
+      409
+    );
+  }
+
+  const cleanReason = typeof reason === "string" ? reason.trim().slice(0, 300) : "";
+  await cancelOrgInterview(application, cleanReason || "Cancelled by the hiring team.", "hr");
+
+  const job = await Job.findById(application.jobId);
+  const jobTitle = job?.title ?? "your application";
+  try {
+    const candidate = await User.findById(application.candidateId);
+    if (candidate) {
+      await sendOrgInterviewCancelled(candidate.email, candidate.name, jobTitle, cleanReason || undefined);
+    }
+  } catch (error) {
+    console.error(`[cancelOrgInterviewInvite] Failed to send cancellation email for application ${applicationId}:`, error);
+  }
+  await notifyUser(
+    application.candidateId.toString(),
+    `Your organisational interview invite for ${jobTitle} was cancelled by the hiring team.`
+  );
+
+  emitToUser(application.candidateId.toString(), "application:org-interview", {
+    applicationId: application._id,
+    jobId: application.jobId,
+    orgInterview: {
+      status: application.orgInterview.status,
+      expiresAt: application.orgInterview.expiresAt,
+      cancelledAt: application.orgInterview.cancelledAt,
+    },
+  });
+
+  return application;
+};
+
 // Manually (re)triggers the AI interview for several matched applicants at once —
 // mainly useful when the automatic trigger at apply-time failed (e.g. the interview
-// model was briefly unreachable). Applicants that aren't matched, or already have an
-// AI interview session, are left untouched rather than erroring the whole batch.
+// model was briefly unreachable). Each approved applicant is emailed the link to their
+// session (a still-open existing session gets the link again). Applicants that aren't
+// matched are skipped rather than erroring the whole batch.
 export const bulkTriggerAiInterview = async (
   hrId: string,
   applicationIds: string[]
@@ -328,12 +454,24 @@ export const bulkTriggerAiInterview = async (
   const results: IApplication[] = [];
   for (const applicationId of applicationIds) {
     const application = await assertHrOwnsApplication(hrId, applicationId);
-    if (!application.matched || application.interviewSessionId) {
+    if (!application.matched) {
       results.push(application);
       continue;
     }
 
     const job = await requireOwnedJob(hrId, application.jobId.toString());
+
+    // Already has a session (e.g. auto-started at apply time): HR's bulk action is the
+    // approval, so (re)send the emailed link unless that interview is already finished.
+    if (application.interviewSessionId) {
+      const existing = await InterviewSession.findById(application.interviewSessionId, "status");
+      if (existing && existing.status !== "completed") {
+        await emailAiInterviewLink(application, job.title);
+      }
+      results.push(application);
+      continue;
+    }
+
     try {
       const session = await interviewService.startInterview(
         application.candidateId.toString(),
@@ -343,6 +481,7 @@ export const bulkTriggerAiInterview = async (
       application.interviewSessionId = session._id as any;
       application.aiInterview = { scheduled: true, dateTime: new Date() };
       await application.save();
+      await emailAiInterviewLink(application, job.title);
     } catch (error) {
       console.error(`[bulkTriggerAiInterview] Failed to start AI interview for application ${applicationId}:`, error);
     }

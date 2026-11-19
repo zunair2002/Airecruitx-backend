@@ -59,3 +59,45 @@ export const sendOrgInterviewInvite = async (
      <p><a href="${calendarLink}">Add this window to your calendar</a></p>`
   );
 };
+
+// Sent when HR approves a matched applicant for the AI interview (single schedule or
+// bulk trigger). The emailed link is the candidate's way in: it opens the interview
+// session page in the app (sign-in required, as the session belongs to them).
+export const sendAiInterviewInvite = async (
+  to: string,
+  candidateName: string,
+  jobTitle: string,
+  sessionLink: string,
+  options: { dateTime?: Date; message?: string; calendarLink?: string } = {}
+): Promise<void> => {
+  const { dateTime, message, calendarLink } = options;
+  await send(
+    to,
+    `Your AI interview for ${jobTitle} is ready`,
+    `<p>Hi ${candidateName},</p>
+     <p>The hiring team has approved you for an AI interview for <strong>${jobTitle}</strong>.</p>
+     ${dateTime ? `<p>Suggested time: <strong>${dateTime.toLocaleString()}</strong></p>` : ""}
+     ${message ? `<p>Message from the hiring team:<br/>${message}</p>` : ""}
+     <p><a href="${sessionLink}">Click here to start your AI interview</a></p>
+     ${calendarLink ? `<p><a href="${calendarLink}">Add it to your calendar</a></p>` : ""}
+     <p>You'll be asked to sign in to your Airecruitx account first.</p>`
+  );
+};
+
+// Sent when HR withdraws an organisational-interview invite that was already emailed.
+export const sendOrgInterviewCancelled = async (
+  to: string,
+  candidateName: string,
+  jobTitle: string,
+  reason?: string
+): Promise<void> => {
+  await send(
+    to,
+    `Your interview invite for ${jobTitle} was cancelled`,
+    `<p>Hi ${candidateName},</p>
+     <p>The hiring team has cancelled your organisational interview invite for
+     <strong>${jobTitle}</strong>. The interview link you received no longer works.</p>
+     ${reason ? `<p>Reason: ${reason}</p>` : ""}
+     <p>If you have questions, reply to the hiring team directly.</p>`
+  );
+};

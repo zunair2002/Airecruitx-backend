@@ -5,6 +5,8 @@ import {
   getOrgInterviewInviteHandler,
   startOrgInterviewByTokenHandler,
   submitOrgInterviewAnswerByTokenHandler,
+  reportOrgInterviewViolationHandler,
+  cancelOrgInterviewByTokenHandler,
 } from "../controller/application.controller";
 import { requireAuth, requireRole } from "../../../middleware/auth.middleware";
 
@@ -18,5 +20,7 @@ router.get("/mine", requireAuth, requireRole("candidate"), listMyApplicationsHan
 router.get("/org-interview/:token", getOrgInterviewInviteHandler);
 router.post("/org-interview/:token/start", startOrgInterviewByTokenHandler);
 router.post("/org-interview/:token/answer", submitOrgInterviewAnswerByTokenHandler);
+router.post("/org-interview/:token/violation", reportOrgInterviewViolationHandler);
+router.post("/org-interview/:token/cancel", cancelOrgInterviewByTokenHandler);
 
 export default router;

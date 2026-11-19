@@ -11,6 +11,7 @@ import sharedSupportRoutes from "./shared/support/routes/support.routes";
 // candidate-owned
 import resumeRoutes from "./candidate/resume/routes/resume.routes";
 import interviewRoutes from "./candidate/interview/routes/interview.routes";
+import learningRoutes from "./candidate/learning/routes/learning.routes";
 import certificateRoutes from "./candidate/certificate/routes/certificate.routes";
 import jobBoardRoutes from "./candidate/job-board/routes/job-board.routes";
 import candidateApplicationRoutes from "./candidate/applications/routes/application.routes";
@@ -105,6 +106,7 @@ app.use("/api/support", sharedSupportRoutes);
 // candidate
 app.use("/api/resume", resumeRoutes);
 app.use("/api/interview", interviewRoutes);
+app.use("/api/learning", learningRoutes);
 app.use("/api/certificate", certificateRoutes);
 app.use("/api/jobs", jobBoardRoutes);
 app.use("/api/applications", candidateApplicationRoutes);

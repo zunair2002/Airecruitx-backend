@@ -24,6 +24,18 @@ const uploadToCloudinary = (buffer: Buffer, filename: string): Promise<string> =
   });
 };
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+};
+
+const extensionFor = (mimeType: string, originalName: string): string => {
+  const fromMime = MIME_EXTENSIONS[mimeType];
+  if (fromMime) return fromMime;
+  const match = /\.[a-z0-9]{1,5}$/i.exec(originalName);
+  return match ? match[0].toLowerCase() : "";
+};
+
 // Text is extracted only to confirm the file is actually parseable (reject empty/
 // image-only PDFs) — it's never persisted. Job-match scoring re-extracts it from
 // Cloudinary on demand instead (see application.service.ts), so the database never
@@ -37,11 +49,23 @@ export const uploadAndParseResume = async (
     throw new AppError("Could not extract any text from the resume", 422);
   }
 
-  const fileUrl = await uploadToCloudinary(file.buffer, `${userId}-${Date.now()}`);
+  // Cloudinary "raw" resources keep whatever public_id we give them verbatim — with
+  // no extension the stored file (and its URL) had none, so browsers downloaded it as
+  // an extension-less blob. Append the real extension so the URL ends in .pdf/.docx.
+  const extension = extensionFor(file.mimetype, file.originalname);
+  const fileUrl = await uploadToCloudinary(file.buffer, `${userId}-${Date.now()}${extension}`);
 
   return Resume.findOneAndUpdate(
     { userId },
-    { userId, fileUrl, mimeType: file.mimetype, status: "parsed" },
+    {
+      userId,
+      fileUrl,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+      // multer's memoryStorage reports the byte length; fall back to the buffer itself.
+      fileSize: file.size ?? file.buffer.length,
+      status: "parsed",
+    },
     { upsert: true, new: true }
   );
 };
@@ -51,4 +75,12 @@ export const uploadAndParseResume = async (
 // resume yet" apart from "one exists but hasn't been re-checked this session".
 export const getMyResume = async (userId: string): Promise<IResume | null> => {
   return Resume.findOne({ userId });
+};
+
+// Removes the candidate's resume record. The Cloudinary file is left in place — it is
+// unreferenced once the record is gone, and job applications already submitted keep
+// their own resume-skill snapshot.
+export const deleteMyResume = async (userId: string): Promise<boolean> => {
+  const result = await Resume.deleteOne({ userId });
+  return result.deletedCount > 0;
 };

@@ -36,6 +36,7 @@ export const errorHandler = (
   }
 
   res.status(statusCode).json({
+    ...(err instanceof AppError ? err.details : undefined),
     success: false,
     message,
   });
