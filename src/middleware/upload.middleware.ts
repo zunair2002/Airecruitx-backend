@@ -39,3 +39,19 @@ export const uploadQuestionPoolFile = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter,
 }).single("questionsFile");
+
+const ALLOWED_PROFILE_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+const profileImageFileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
+  if (!ALLOWED_PROFILE_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+    cb(new AppError("Profile photo must be a JPEG, PNG, or WebP image", 400));
+    return;
+  }
+  cb(null, true);
+};
+
+export const uploadProfileAvatar = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE, files: 1 },
+  fileFilter: profileImageFileFilter,
+}).single("avatar");

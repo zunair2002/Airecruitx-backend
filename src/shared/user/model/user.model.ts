@@ -15,6 +15,9 @@ export interface IUser extends Document {
   orgId?: Types.ObjectId;
   authProvider: AuthProvider;
   avatarUrl?: string;
+  headline?: string;
+  about?: string;
+  interests?: string[];
   isActive: boolean;
   // Candidate subscription tier: gates premium courses and the daily practice-interview limit.
   plan: UserPlan;
@@ -77,6 +80,18 @@ const userSchema = new Schema<IUser>(
     avatarUrl: {
       type: String,
       required: false,
+    },
+    headline: {
+      type: String,
+      trim: true,
+    },
+    about: {
+      type: String,
+      trim: true,
+    },
+    interests: {
+      type: [String],
+      default: undefined,
     },
     isActive: {
       type: Boolean,

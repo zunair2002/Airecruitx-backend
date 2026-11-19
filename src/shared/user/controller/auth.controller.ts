@@ -28,6 +28,9 @@ const toPublicUser = (user: IUser) => ({
   role: user.role,
   authProvider: user.authProvider,
   avatarUrl: user.avatarUrl,
+  headline: user.headline,
+  about: user.about,
+  interests: user.interests,
   emailVerified: user.emailVerified,
   plan: user.plan ?? "free",
 });
@@ -153,6 +156,76 @@ export const meHandler = asyncHandler(async (req: Request, res: Response) => {
       ...toPublicUser(user),
       orgId: user.orgId,
     },
+  });
+});
+
+export const updateProfileHandler = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const allowedFields = ["name", "avatarUrl", "headline", "about", "interests", "removeAvatar"];
+  const unsupportedFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
+
+  if (unsupportedFields.length) {
+    throw new AppError(`Unsupported profile field(s): ${unsupportedFields.join(", ")}`, 400);
+  }
+  for (const field of ["name", "avatarUrl", "headline", "about"] as const) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      throw new AppError(`${field} must be a string`, 400);
+    }
+  }
+  if (body.name !== undefined && !body.name.trim()) {
+    throw new AppError("name must be a non-empty string", 400);
+  }
+  if (body.interests !== undefined) {
+    if (typeof body.interests === "string") {
+      try {
+        body.interests = JSON.parse(body.interests);
+      } catch {
+        throw new AppError("interests must be a JSON array of strings", 400);
+      }
+    }
+    if (!Array.isArray(body.interests) || body.interests.some((interest: unknown) => typeof interest !== "string")) {
+      throw new AppError("interests must be an array of strings", 400);
+    }
+    body.interests = body.interests.map((interest: string) => interest.trim()).filter(Boolean);
+  }
+  if (
+    body.removeAvatar !== undefined &&
+    body.removeAvatar !== true &&
+    body.removeAvatar !== false &&
+    body.removeAvatar !== "true" &&
+    body.removeAvatar !== "false"
+  ) {
+    throw new AppError("removeAvatar must be true or false", 400);
+  }
+  const removeAvatar = body.removeAvatar === true || body.removeAvatar === "true";
+  if (removeAvatar && req.file) {
+    throw new AppError("Cannot upload and remove the profile photo in the same request", 400);
+  }
+
+  if (
+    body.name === undefined &&
+    body.avatarUrl === undefined &&
+    body.headline === undefined &&
+    body.about === undefined &&
+    body.interests === undefined &&
+    body.removeAvatar === undefined
+  ) {
+    throw new AppError("At least one profile field is required", 400);
+  }
+
+  const user = await authService.updateProfile(req.user!._id.toString(), {
+    name: body.name?.trim(),
+    avatarUrl: body.avatarUrl,
+    headline: body.headline?.trim(),
+    about: body.about?.trim(),
+    interests: body.interests,
+    removeAvatar,
+    avatarFile: req.file,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: toPublicUser(user),
   });
 });
 
