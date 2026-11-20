@@ -9,26 +9,16 @@ import {
   logoutHandler,
   updateCandidateProfileHandler,
 } from "../controller/auth.controller";
-import {
-  requireAuth,
-  requireRole,
-} from "../../../middleware/auth.middleware";
-import {
-  googleLoginRateLimit,
-  loginRateLimit,
-  resendOtpRateLimit,
-  signupRateLimit,
-  verifyEmailRateLimit,
-} from "../../../middleware/authRateLimit.middleware";
+import { requireAuth, requireRole } from "../../../middleware/auth.middleware";
 import { uploadCandidateAvatar } from "../../../middleware/upload.middleware";
 
 const router = Router();
 
-router.post("/signup", signupRateLimit, signupHandler);
-router.post("/verify-email", verifyEmailRateLimit, verifyEmailHandler);
-router.post("/resend-otp", resendOtpRateLimit, resendOtpHandler);
-router.post("/login", loginRateLimit, loginHandler);
-router.post("/google", googleLoginRateLimit, googleLoginHandler);
+router.post("/signup", signupHandler);
+router.post("/verify-email", verifyEmailHandler);
+router.post("/resend-otp", resendOtpHandler);
+router.post("/login", loginHandler);
+router.post("/google", googleLoginHandler);
 router.get("/me", requireAuth, meHandler);
 router.patch(
   "/profile",

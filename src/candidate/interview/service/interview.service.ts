@@ -28,6 +28,7 @@ import {
   AnswerEvaluationJob,
   InterviewFinalizationJob,
 } from "../../../jobs/queues";
+import { assertPracticeAllowed, recordPracticeStart } from "./practiceUsage.service";
 
 // ---------------------------------------------------------------------------------
 // Interview flow (fine-tuned AIRecruitX model):
@@ -121,6 +122,7 @@ export const startInterview = async (
     applicationId: applicationId ?? { $exists: false },
     visibility,
     status: UNFINISHED,
+    cancelledAt: { $exists: false }, // a cancelled org interview is never resumed
   });
   if (existing) {
     // Time ran out: it is being finished with the answers given (no fresh attempt)
@@ -214,15 +216,25 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   // track, and for Round 2 the same Round 1 it was unlocked by); otherwise replace it.
   // Also drop leftovers from the old combined flow.
   const inProgress = await InterviewSession.findOne({
-    userId, applicationId: { $exists: false }, visibility: "candidate", stage, status: UNFINISHED,
+    userId,
+    applicationId: { $exists: false },
+    visibility: "candidate",
+    stage,
+    status: UNFINISHED,
+    cancelledAt: { $exists: false },
   });
   const sameTrack = !context.track || context.track === inProgress?.track;
   const sameBasicSession = stage !== "technical" || String(inProgress?.basicSessionId ?? "") === String(basicSession?._id ?? "");
-  if (inProgress && isExpired(inProgress)) {
+  const expiredInProgress = Boolean(inProgress && isExpired(inProgress));
+  if (expiredInProgress && inProgress) {
     expireInBackground(inProgress); // keep the timed-out attempt (scored), start a new one
   } else {
     if (inProgress?.currentQuestion && inProgress.selectedQuestions?.length && sameTrack && sameBasicSession) return inProgress;
-    if (inProgress) await inProgress.deleteOne();
+  }
+  // Resuming an existing session is free; only a new session counts against the daily allowance.
+  await assertPracticeAllowed(userId);
+  if (inProgress && !expiredInProgress) {
+    await inProgress.deleteOne();
   }
   const legacy = await InterviewSession.findOne({
     userId, applicationId: { $exists: false }, visibility: "candidate", stage: { $exists: false }, status: UNFINISHED,
@@ -239,7 +251,7 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   const selectedQuestions = toSelected(questions, stage);
   if (!selectedQuestions.length) throw new AppError("Could not prepare interview questions", 502);
 
-  return withTimerKey(await InterviewSession.create({
+  const session = await withTimerKey(await InterviewSession.create({
     userId,
     level: context.level,
     role,
@@ -255,6 +267,10 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
     currentQuestion: selectedQuestions[0].question,
     ...timerFields(stage === "basic" ? BASIC_INTERVIEW_MINUTES : TECHNICAL_INTERVIEW_MINUTES),
   }));
+  // Recorded on the user, not just as this session, so deleting the session later
+  // (abandon + restart) doesn't hand the slot back.
+  await recordPracticeStart(userId, session.createdAt);
+  return session;
 };
 
 // HR question set: HR's own questions (random draw + shuffle per candidate), graded by the
@@ -269,6 +285,7 @@ export const startStructuredInterview = async (
     applicationId,
     visibility: "hidden",
     status: UNFINISHED,
+    cancelledAt: { $exists: false }, // a cancelled org interview is never resumed
   });
   if (existing) {
     if (isExpired(existing)) expireInBackground(existing);
@@ -398,6 +415,9 @@ export const submitAnswer = async (
   if (session.status === "completed") {
     throw new AppError("This interview is already completed", 400);
   }
+  if (session.cancelledAt) {
+    throw new AppError("This interview was cancelled and no longer accepts answers", 409);
+  }
   // Time is up: this answer is not recorded; the interview is finished with the answers given
   if (session.status === "expired" || isExpired(session)) {
     expireInBackground(session);
@@ -437,6 +457,7 @@ export const submitAnswer = async (
       _id: sessionId,
       userId,
       status: "in_progress",
+      cancelledAt: { $exists: false },
       currentQuestionNumber: questionNumber,
       "turns.questionNumber": { $ne: questionNumber },
       // re-checked atomically so an answer can't slip in after the deadline
@@ -838,8 +859,11 @@ export const buildSessionView = (session: IInterviewSession) => {
   const isHidden = session.visibility === "hidden";
   const showTurnJudgement = !isHidden && isFinished(session.status);
   const selected = session.selectedQuestions;
+  // A finished (or cancelled) organisational interview is HR's record, not the
+  // candidate's: they get a status summary only — no questions or answers back.
+  const hideTurns = isHidden && (session.status === "completed" || Boolean(session.cancelledAt));
 
-  const turnsWithRound = session.turns.map((t) => ({
+  const turnsWithRound = (hideTurns ? [] : session.turns).map((t) => ({
     questionNumber: t.questionNumber,
     question: t.question,
     answer: t.answer,
@@ -875,6 +899,20 @@ export const buildSessionView = (session: IInterviewSession) => {
       timedOut: session.timedOut ?? false,
       certificatePaid: session.certificatePayment?.paid ?? false,
       elearningTips: !isHidden && session.result === "fail" ? elearningTipsFor(session) : undefined,
+    };
+  }
+
+  if (session.cancelledAt) {
+    return {
+      sessionId: session._id,
+      status: session.status,
+      stage: session.stage,
+      track: session.track,
+      cancelled: true,
+      cancelledAt: session.cancelledAt,
+      cancelReason: session.cancelReason,
+      totalQuestions: selected?.length,
+      turns: turnsWithRound,
     };
   }
 

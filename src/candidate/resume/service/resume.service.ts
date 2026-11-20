@@ -72,6 +72,18 @@ const cleanupPreviousResume = async (publicId: string | undefined) => {
   }
 };
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+};
+
+const extensionFor = (mimeType: string, originalName: string): string => {
+  const fromMime = MIME_EXTENSIONS[mimeType];
+  if (fromMime) return fromMime;
+  const match = /\.[a-z0-9]{1,5}$/i.exec(originalName);
+  return match ? match[0].toLowerCase() : "";
+};
+
 // Text is extracted only to confirm the file is actually parseable (reject empty/
 // image-only PDFs) — it's never persisted. Job-match scoring re-extracts it from
 // Cloudinary on demand instead (see application.service.ts), so the database never
@@ -89,12 +101,15 @@ export const uploadAndParseResume = async (
   const oldPublicId =
     previous?.publicId ??
     (previous ? getLegacyPublicId(previous.fileUrl) : undefined);
+  // Cloudinary "raw" resources keep whatever public_id we give them verbatim — with
+  // no extension the stored file (and its URL) had none, so browsers downloaded it as
+  // an extension-less blob. Append the real extension so the URL ends in .pdf/.docx.
+  const extension = extensionFor(file.mimetype, file.originalname);
   const storedFile = await uploadToCloudinary(
     file.buffer,
-    `${userId}-${Date.now()}`,
+    `${userId}-${Date.now()}${extension}`,
   );
-  const originalName =
-    file.originalname.split(/[\\/]/).pop()?.trim().slice(0, 255) || "resume";
+  const originalName = file.originalname.split(/[\\/]/).pop()?.trim().slice(0, 255) || "resume";
 
   let resume: IResume | null;
   try {
@@ -105,7 +120,7 @@ export const uploadAndParseResume = async (
         fileUrl: storedFile.fileUrl,
         publicId: storedFile.publicId,
         originalName,
-        fileSize: file.size,
+        fileSize: file.size ?? file.buffer.length,
         mimeType: file.mimetype,
         status: "parsed",
       },
