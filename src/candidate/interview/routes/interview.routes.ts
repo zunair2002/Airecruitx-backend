@@ -5,7 +5,6 @@ import {
   getReportHandler,
   listMySessionsHandler,
   listTracksHandler,
-  getPracticeUsageHandler,
 } from "../controller/interview.controller";
 import { requireAuth } from "../../../middleware/auth.middleware";
 
@@ -15,7 +14,6 @@ router.get("/tracks", listTracksHandler);
 router.post("/start", requireAuth, startInterviewHandler);
 router.post("/answer", requireAuth, submitAnswerHandler);
 router.get("/mine", requireAuth, listMySessionsHandler);
-router.get("/usage", requireAuth, getPracticeUsageHandler);
 router.get("/report/:sessionId", requireAuth, getReportHandler);
 
 export default router;

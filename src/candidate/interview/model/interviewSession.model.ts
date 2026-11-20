@@ -117,10 +117,6 @@ export interface IInterviewSession extends Document {
   feedback?: string;
   report?: IInterviewReport;
   certificatePayment: ICertificatePayment;
-  // Org interviews only: set when the proctoring policy (or HR) cancels the
-  // interview — no further answers are accepted (see submitAnswer).
-  cancelledAt?: Date;
-  cancelReason?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -260,8 +256,6 @@ const interviewSessionSchema = new Schema<IInterviewSession>(
       type: certificatePaymentSchema,
       default: () => ({ paid: false }),
     },
-    cancelledAt: { type: Date, required: false },
-    cancelReason: { type: String, required: false },
   },
   { timestamps: true }
 );

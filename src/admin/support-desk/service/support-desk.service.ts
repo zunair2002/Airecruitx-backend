@@ -1,67 +1,37 @@
-import { Types } from "mongoose";
-import {
-  SupportTicketDTO,
-  emitTicketEvent,
-  findTicketOr404,
-  listAllTicketDTOs,
-  loadTicketDTO,
-  materializeLegacyThread,
-  notifyUsers,
-  ownerIdOf,
-} from "../../../shared/support/service/supportTicket.service";
+import { SupportTicket, ISupportTicket } from "../../../shared/support/model/supportTicket.model";
+import { Notification } from "../../../shared/notification/model/notification.model";
+import { AppError } from "../../../utils/AppError";
+import { emitToUser } from "../../../config/socket";
 import { logActivity } from "../../activity-log/service/activity-log.service";
 
-export const listTickets = async (): Promise<SupportTicketDTO[]> => listAllTicketDTOs();
+export const listTickets = async (): Promise<ISupportTicket[]> => {
+  return SupportTicket.find().populate("userId", "name email").sort({ createdAt: -1 });
+};
 
-/**
- * Marks a ticket resolved. An optional `adminReply` is appended to the chat
- * as an admin message (and kept in the legacy `adminReply` field).
- */
 export const resolveTicket = async (
   adminId: string,
   ticketId: string,
-  adminReply?: string
-): Promise<SupportTicketDTO> => {
-  const ticket = await findTicketOr404(ticketId);
-  const reply = adminReply?.trim();
-
-  if (reply) {
-    await materializeLegacyThread(ticket);
-    const now = new Date();
-    ticket.messages.push({
-      authorId: new Types.ObjectId(adminId),
-      authorRole: "admin",
-      body: reply,
-      createdAt: now,
-    });
-    ticket.lastMessageAt = now;
-    ticket.adminReply = reply;
+  adminReply: string
+): Promise<ISupportTicket> => {
+  const ticket = await SupportTicket.findById(ticketId);
+  if (!ticket) {
+    throw new AppError("Support ticket not found", 404);
   }
+
   ticket.status = "resolved";
+  ticket.adminReply = adminReply;
   await ticket.save();
 
-  await notifyUsers(
-    [ownerIdOf(ticket)],
-    reply
-      ? `Your support ticket "${ticket.subject}" was resolved: ${reply}`
-      : `Your support ticket "${ticket.subject}" was marked as resolved`
-  );
-  await emitTicketEvent(ticket, { kind: "status", actorId: adminId });
-  await logActivity(adminId, "admin", "support.resolve", "SupportTicket", ticketId, {
-    adminReply: reply,
+  const notification = await Notification.create({
+    userId: ticket.userId,
+    message: `Your support ticket "${ticket.subject}" was resolved: ${adminReply}`,
+  });
+  emitToUser(ticket.userId.toString(), "admin:notification", {
+    notificationId: notification._id,
+    message: notification.message,
   });
 
-  return loadTicketDTO(ticketId);
-};
+  await logActivity(adminId, "admin", "support.resolve", "SupportTicket", ticketId, { adminReply });
 
-export const reopenTicket = async (adminId: string, ticketId: string): Promise<SupportTicketDTO> => {
-  const ticket = await findTicketOr404(ticketId);
-  ticket.status = "open";
-  await ticket.save();
-
-  await notifyUsers([ownerIdOf(ticket)], `Your support ticket "${ticket.subject}" was reopened`);
-  await emitTicketEvent(ticket, { kind: "status", actorId: adminId });
-  await logActivity(adminId, "admin", "support.reopen", "SupportTicket", ticketId);
-
-  return loadTicketDTO(ticketId);
+  return ticket;
 };
