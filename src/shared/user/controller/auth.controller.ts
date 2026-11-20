@@ -29,10 +29,11 @@ const toPublicUser = (user: IUser) => ({
   role: user.role,
   authProvider: user.authProvider,
   avatarUrl: user.avatarUrl,
-  headline: user.headline ?? "",
-  about: user.about ?? "",
-  interests: user.interests ?? [],
+  headline: user.headline,
+  about: user.about,
+  interests: user.interests,
   emailVerified: user.emailVerified,
+  plan: user.plan ?? "free",
 });
 
 export const signupHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -51,7 +52,7 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(`role must be one of: ${VALID_ROLES.join(", ")}`, 400);
   }
 
-  const { user, otp } = await authService.signup({ name, email, password, role });
+  const { user } = await authService.signup({ name, email, password, role });
 
   // No cookie/token here — a password signup must verify the OTP just emailed to
   // them before they get a session (see verifyEmailHandler, where the token is
@@ -61,9 +62,6 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
     data: {
       email: user.email,
       message: "Account created. Enter the verification code we emailed you to log in.",
-      // Dev-only convenience so testing never blocks on SMTP being reachable (e.g.
-      // Gmail's daily send cap) — never present when NODE_ENV=production.
-      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
     },
   });
 });
@@ -97,12 +95,12 @@ export const resendOtpHandler = asyncHandler(async (req: Request, res: Response)
     throw new AppError("email is required", 400);
   }
 
-  const { otp } = await authService.resendOtp(email);
+  await authService.resendOtp(email);
 
+  // The code is only ever delivered by email — never echoed back to the client.
   res.status(200).json({
     success: true,
     message: "Verification code resent.",
-    ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
   });
 });
 
@@ -162,61 +160,75 @@ export const meHandler = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-export const updateCandidateProfileHandler = asyncHandler(
-  async (req: Request, res: Response) => {
-    const body = req.body ?? {};
-    const headline = body.headline ?? "";
-    const about = body.about ?? "";
-    if (typeof headline !== "string") {
-      throw new AppError("headline must be a string", 400);
-    }
-    if (typeof about !== "string") {
-      throw new AppError("about must be a string", 400);
-    }
+export const updateProfileHandler = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body ?? {};
+  const allowedFields = ["name", "avatarUrl", "headline", "about", "interests", "removeAvatar"];
+  const unsupportedFields = Object.keys(body).filter((field) => !allowedFields.includes(field));
 
-    let interests: unknown = body.interests ?? [];
-    if (typeof interests === "string") {
+  if (unsupportedFields.length) {
+    throw new AppError(`Unsupported profile field(s): ${unsupportedFields.join(", ")}`, 400);
+  }
+  for (const field of ["name", "avatarUrl", "headline", "about"] as const) {
+    if (body[field] !== undefined && typeof body[field] !== "string") {
+      throw new AppError(`${field} must be a string`, 400);
+    }
+  }
+  if (body.name !== undefined && !body.name.trim()) {
+    throw new AppError("name must be a non-empty string", 400);
+  }
+  if (body.interests !== undefined) {
+    if (typeof body.interests === "string") {
       try {
-        interests = JSON.parse(interests);
+        body.interests = JSON.parse(body.interests);
       } catch {
-        throw new AppError("interests must be a valid JSON array", 400);
+        throw new AppError("interests must be a JSON array of strings", 400);
       }
     }
-    if (
-      !Array.isArray(interests) ||
-      !interests.every(
-        (interest): interest is string => typeof interest === "string",
-      )
-    ) {
+    if (!Array.isArray(body.interests) || body.interests.some((interest: unknown) => typeof interest !== "string")) {
       throw new AppError("interests must be an array of strings", 400);
     }
+    body.interests = body.interests.map((interest: string) => interest.trim()).filter(Boolean);
+  }
+  if (
+    body.removeAvatar !== undefined &&
+    body.removeAvatar !== true &&
+    body.removeAvatar !== false &&
+    body.removeAvatar !== "true" &&
+    body.removeAvatar !== "false"
+  ) {
+    throw new AppError("removeAvatar must be true or false", 400);
+  }
+  const removeAvatar = body.removeAvatar === true || body.removeAvatar === "true";
+  if (removeAvatar && req.file) {
+    throw new AppError("Cannot upload and remove the profile photo in the same request", 400);
+  }
 
-    const removeAvatarValue = body.removeAvatar;
-    if (
-      removeAvatarValue !== undefined &&
-      removeAvatarValue !== true &&
-      removeAvatarValue !== false &&
-      removeAvatarValue !== "true" &&
-      removeAvatarValue !== "false"
-    ) {
-      throw new AppError("removeAvatar must be a boolean", 400);
-    }
+  if (
+    body.name === undefined &&
+    body.avatarUrl === undefined &&
+    body.headline === undefined &&
+    body.about === undefined &&
+    body.interests === undefined &&
+    body.removeAvatar === undefined
+  ) {
+    throw new AppError("At least one profile field is required", 400);
+  }
 
-    const user = await candidateProfileService.updateCandidateProfile(
-      req.user!._id.toString(),
-      {
-        headline,
-        about,
-        interests,
-        removeAvatar:
-          removeAvatarValue === true || removeAvatarValue === "true",
-      },
-      req.file,
-    );
+  const user = await authService.updateProfile(req.user!._id.toString(), {
+    name: body.name?.trim(),
+    avatarUrl: body.avatarUrl,
+    headline: body.headline?.trim(),
+    about: body.about?.trim(),
+    interests: body.interests,
+    removeAvatar,
+    avatarFile: req.file,
+  });
 
-    res.status(200).json({ success: true, data: toPublicUser(user) });
-  },
-);
+  res.status(200).json({
+    success: true,
+    data: toPublicUser(user),
+  });
+});
 
 // No auth check needed here — clearing a cookie can't fail based on who's asking,
 // so this skips the DB lookup requireAuth would otherwise do on every logout.
