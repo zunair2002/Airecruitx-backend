@@ -31,17 +31,6 @@ const OTP_VALIDITY_MS = 10 * 60 * 1000; // 10 minutes
 
 const generateOtp = (): string => String(Math.floor(100000 + Math.random() * 900000));
 
-// Best-effort: a bounced/slow OTP email shouldn't turn into a 500 for the candidate —
-// the OTP is already saved, so resendOtp covers the case where the first email never
-// arrives.
-const sendOtpBestEffort = async (user: IUser, otp: string) => {
-  try {
-    await sendOtpEmail(user.email, user.name, otp);
-  } catch (error) {
-    console.error(`[auth] Failed to send OTP email to ${user.email}:`, error);
-  }
-};
-
 // Creates the account but does NOT log the candidate in — password-based signups must
 // verify ownership of the email (via the OTP just sent) before they get a session; see
 // verifyEmail below, which is where the token is actually issued. Google accounts skip
@@ -73,7 +62,15 @@ export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: st
     emailOtpExpiresAt: new Date(Date.now() + OTP_VALIDITY_MS),
   });
 
-  await sendOtpBestEffort(user, otp);
+  try {
+    await sendOtpEmail(user.email, user.name, otp);
+  } catch (error) {
+    if (!(error instanceof AppError) || error.statusCode !== 503) throw error;
+    throw new AppError(
+      "Account created, but the verification email could not be queued. Please request a new code after the job service is available.",
+      503,
+    );
+  }
 
   user.password = undefined;
   user.emailOtp = undefined;
@@ -121,7 +118,7 @@ export const resendOtp = async (email: string): Promise<{ otp: string }> => {
   user.emailOtpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS);
   await user.save();
 
-  await sendOtpBestEffort(user, otp);
+  await sendOtpEmail(user.email, user.name, otp);
   return { otp };
 };
 

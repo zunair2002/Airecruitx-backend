@@ -16,6 +16,7 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
   - It returns 400 if Round 1 is missing and 403 if Round 1 is below the unlock score.
 - **Session views** now include `stage`, `track` and `round`. A completed Round 1 includes `round2Unlocked`; a completed Round 2 includes `certificateEligible`.
 - **Certificates** are refused for Round 1 sessions.
+- **E-learning:** candidates can browse all active courses in the candidate dashboard at any time and are taken to that section after failing either practice round; course selection is not filtered by weak topics. Candidates fetch active courses with `GET /api/learning/courses`. HR manages the catalog through `POST /api/learning/courses`, `GET /api/learning/courses/hr`, and `PUT`/`DELETE` `/api/learning/courses/:courseId`. Only HR accounts can manage courses. Each course has a title, description, HTTPS video URL, and one or more supported interview topic IDs. YouTube videos play inline; other providers open their course page in a new tab.
 
 ## How an interview runs
 
@@ -24,9 +25,9 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
    - Technical topics come from the job title and `requiredSkills`. Practice interviews use a CS-core mix.
    - The model gets 30 s to generate questions. If it is slow (cold GPU) or down, questions come from `src/ai/question_bank.json`, which holds 1,589 questions, so an interview can always start.
    - The GPU server is woken in the background as soon as the interview starts.
-2. **Answer.** The answer is saved, the next question is returned immediately, and the answer is evaluated in the background.
+2. **Answer.** The answer is saved, the answer-evaluation job is persisted in Redis, and the next question is returned immediately.
    - The evaluation returns a verdict, four criterion scores (0–10), feedback, an improvement tip and weak topics.
-3. **Last answer.** The request waits for any outstanding evaluations (up to `AI_FINAL_WAIT_MS`). The backend then computes the scores, and the model writes the report.
+3. **Last answer.** A durable finalization job waits for outstanding evaluation jobs (up to `AI_FINAL_WAIT_MS`), computes the scores, and queues report generation. The request keeps its existing response shape.
 
 ## Scoring (deterministic, in `src/ai/scoring.ts`)
 
@@ -60,6 +61,15 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
 - **When the fallback is used:** HR question sets and model failures get a deterministic report from `src/ai/report.ts`.
 - **What the API returns:** `buildSessionView` now also returns `report`, plus `verdict`, `criteria` and `improvementTip` per turn, and `totalQuestions`. The existing fields are unchanged.
 
+## Durable background jobs
+
+BullMQ uses `REDIS_URL` for separate answer-evaluation, interview-finalization, report-generation, and email-delivery queues. Workers run alongside the backend API process; BullMQ resumes persisted waiting jobs after a process restart. OTP and organizational-interview invitation emails are queued rather than sent during the request.
+
+- Set `REDIS_URL` in every backend instance and enable Redis persistence (AOF or an appropriate managed Redis persistence policy) in production.
+- Queue submissions return HTTP 503 if Redis is not configured or cannot accept a job. In particular, account/invitation state may already have been saved; retry the OTP/invitation action after Redis recovers.
+- Jobs retry up to three times with exponential backoff. Delivery is at-least-once: an email could be sent more than once if a worker stops after SMTP accepts it but before Redis records completion.
+- Pending answer evaluations and unfinished sessions are recovered from MongoDB when workers start and by the 30-second interview recovery sweep. Interview results continue to be stored in MongoDB; Redis is the durable work queue, not the source of truth for application data.
+
 ## Environment
 
 | Variable | Default | Notes |
@@ -71,6 +81,7 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
 | `AI_QGEN_TIMEOUT_MS` | `30000` | Question generation; after this the bank is used |
 | `AI_FINAL_WAIT_MS` | `240000` | How long the last answer waits for evaluations |
 | `AI_CONCURRENCY` | `8` | Model requests in flight at once |
+| `REDIS_URL` | (unset) | Required for durable background jobs and shared Redis state |
 | `AI_JSON_SCHEMA` | `true` | Schema-constrained JSON from vLLM |
 | `INTERVIEW_BASIC_QUESTIONS` / `INTERVIEW_TECHNICAL_QUESTIONS` | `5` / `8` | |
 | `ROUND2_UNLOCK_SCORE` | `50` | Practice Round 1 score (0–100) needed for Round 2 |
@@ -93,4 +104,4 @@ The mock server uses the same API as the real deployment. Its scores are heurist
 
 - **Prompts.** `src/ai/prompts.ts` and the user-message layouts in `src/ai/ai.service.ts` must match the training data exactly. Do not reword them.
 - **Old in-progress sessions.** In-progress sessions from the old chat flow have no `selectedQuestions`. Starting again replaces them, and answering one returns 409 with a message to start a new interview.
-- **Background evaluations** run in memory. If the server restarts mid-interview, pending evaluations are re-run when the last answer is submitted.
+- **Background evaluations** use Redis-backed BullMQ jobs. Pending answer evaluations are recovered when workers start; a completed job updates the interview session in MongoDB.

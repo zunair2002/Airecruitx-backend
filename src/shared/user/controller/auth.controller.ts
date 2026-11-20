@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as authService from "../service/auth.service";
+import * as candidateProfileService from "../service/candidate-profile.service";
 import { IUser, UserRole } from "../model/user.model";
 
 const VALID_ROLES: UserRole[] = ["candidate", "hr", "admin"];

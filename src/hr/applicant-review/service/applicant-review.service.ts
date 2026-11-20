@@ -98,11 +98,11 @@ const attachInterviewScores = async (applications: IApplication[]) => {
       orgInterviewScore?: number;
       orgInterviewResult?: string;
     };
-    if (aiSession?.status === "completed") {
+    if (aiSession?.status === "completed" || aiSession?.status === "expired") {
       obj.aiInterviewScore = aiSession.score;
       obj.aiInterviewResult = aiSession.result;
     }
-    if (orgSession?.status === "completed") {
+    if (orgSession?.status === "completed" || orgSession?.status === "expired") {
       obj.orgInterviewScore = orgSession.score;
       obj.orgInterviewResult = orgSession.result;
     }
@@ -344,22 +344,26 @@ export const inviteToOrgInterview = async (
   };
   await application.save();
 
-  // Best-effort: a failed invite email shouldn't block the invite itself — HR can
-  // still see (and candidates could theoretically be given) the link in-app.
-  try {
-    const candidate = await User.findById(application.candidateId);
-    if (candidate && job) {
+  const candidate = await User.findById(application.candidateId);
+  if (candidate && job) {
+    try {
       await sendOrgInterviewInvite(
         candidate.email,
         candidate.name,
         job.title,
+        application._id.toString(),
+        token,
         joinLink,
         expiresAt,
         calendarLink
       );
+    } catch (error) {
+      if (!(error instanceof AppError) || error.statusCode !== 503) throw error;
+      throw new AppError(
+        "The interview invitation was saved, but its email could not be queued. Retry after the job service is available.",
+        503,
+      );
     }
-  } catch (error) {
-    console.error(`[inviteToOrgInterview] Failed to send invite email for application ${applicationId}:`, error);
   }
 
   emitToUser(application.candidateId.toString(), "application:org-interview", {

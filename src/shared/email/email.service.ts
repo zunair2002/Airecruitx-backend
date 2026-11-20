@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
+import { enqueueEmailDelivery } from "../../jobs/queues";
 
-// Lazily created so a missing SMTP_USER/SMTP_PASS only breaks email-sending
-// (caught and logged by callers), never blocks the rest of the app from starting.
+// Lazily created so missing SMTP configuration only fails the email worker, not app startup.
 let transporter: nodemailer.Transporter | null = null;
 
 const getTransporter = (): nodemailer.Transporter => {
@@ -28,6 +28,10 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
 // Sent right after a password-based signup (and again on resend) — the candidate/HR
 // enters this code to prove they own the email before they can log in.
 export const sendOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
+  await enqueueEmailDelivery({ kind: "otp", to, name, otp });
+};
+
+export const deliverOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
   await send(
     to,
     "Verify your email — Airecruitx",
@@ -41,6 +45,29 @@ export const sendOtpEmail = async (to: string, name: string, otp: string): Promi
 // Sent when HR invites a candidate to a self-paced AI interview: no fixed time, just
 // a personal link valid until expiresAt — the candidate can start it whenever suits them.
 export const sendOrgInterviewInvite = async (
+  to: string,
+  candidateName: string,
+  jobTitle: string,
+  applicationId: string,
+  inviteToken: string,
+  joinLink: string,
+  expiresAt: Date,
+  calendarLink: string
+): Promise<void> => {
+  await enqueueEmailDelivery({
+    kind: "org-interview-invite",
+    to,
+    candidateName,
+    jobTitle,
+    applicationId,
+    inviteToken,
+    joinLink,
+    expiresAt: expiresAt.toISOString(),
+    calendarLink,
+  });
+};
+
+export const deliverOrgInterviewInvite = async (
   to: string,
   candidateName: string,
   jobTitle: string,

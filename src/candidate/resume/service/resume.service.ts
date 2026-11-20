@@ -3,7 +3,10 @@ import { Resume, IResume } from "../model/resume.model";
 import { AppError } from "../../../utils/AppError";
 import { extractTextFromFile } from "../../../shared/util/extractTextFromFile";
 
-const uploadToCloudinary = (buffer: Buffer, filename: string): Promise<string> => {
+const uploadToCloudinary = (
+  buffer: Buffer,
+  filename: string,
+): Promise<{ fileUrl: string; publicId: string }> => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
@@ -17,7 +20,7 @@ const uploadToCloudinary = (buffer: Buffer, filename: string): Promise<string> =
           reject(new AppError("Failed to upload resume to storage", 502));
           return;
         }
-        resolve(result.secure_url);
+        resolve({ fileUrl: result.secure_url, publicId: result.public_id });
       }
     );
     uploadStream.end(buffer);
@@ -68,6 +71,38 @@ export const uploadAndParseResume = async (
     },
     { upsert: true, new: true }
   );
+  const originalName =
+    file.originalname.split(/[\\/]/).pop()?.trim().slice(0, 255) || "resume";
+
+  let resume: IResume | null;
+  try {
+    resume = await Resume.findOneAndUpdate(
+      { userId },
+      {
+        userId,
+        fileUrl: storedFile.fileUrl,
+        publicId: storedFile.publicId,
+        originalName,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        status: "parsed",
+      },
+      { upsert: true, new: true, runValidators: true },
+    );
+  } catch (error) {
+    await cleanupPreviousResume(storedFile.publicId);
+    throw error;
+  }
+  if (!resume) {
+    await cleanupPreviousResume(storedFile.publicId);
+    throw new AppError("Failed to save uploaded resume", 500);
+  }
+
+  if (oldPublicId !== storedFile.publicId) {
+    await cleanupPreviousResume(oldPublicId);
+  }
+
+  return resume;
 };
 
 // Lets the candidate know whether they already have a resume on file (and its link)

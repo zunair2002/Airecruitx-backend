@@ -11,6 +11,9 @@ export type ResumeStatus = "parsed" | "failed";
 export interface IResume extends Document {
   userId: Types.ObjectId;
   fileUrl: string;
+  publicId?: string;
+  originalName?: string;
+  fileSize?: number;
   mimeType: string;
   // Original upload name (e.g. "Ali_CV.pdf") and size in bytes — shown in the UI and
   // used as the download filename. Optional so resumes uploaded before these fields
@@ -34,6 +37,22 @@ const resumeSchema = new Schema<IResume>(
     fileUrl: {
       type: String,
       required: true,
+    },
+    publicId: {
+      type: String,
+      required: false,
+      select: false,
+    },
+    originalName: {
+      type: String,
+      required: false,
+      trim: true,
+      maxlength: 255,
+    },
+    fileSize: {
+      type: Number,
+      required: false,
+      min: 0,
     },
     mimeType: {
       type: String,
