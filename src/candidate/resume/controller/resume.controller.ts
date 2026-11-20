@@ -2,19 +2,6 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as resumeService from "../service/resume.service";
-import type { IResume } from "../model/resume.model";
-
-// What the candidate sees about their resume: the link, parse status, original
-// filename + size (for display and as the download name) and timestamps.
-const toResumeResponse = (resume: IResume) => ({
-  fileUrl: resume.fileUrl,
-  status: resume.status,
-  mimeType: resume.mimeType,
-  originalName: resume.originalName,
-  fileSize: resume.fileSize,
-  createdAt: resume.createdAt,
-  updatedAt: resume.updatedAt,
-});
 
 export const uploadResumeHandler = asyncHandler(async (req: Request, res: Response) => {
   if (!req.file) {
@@ -29,7 +16,14 @@ export const uploadResumeHandler = asyncHandler(async (req: Request, res: Respon
   // resume, they simply upload again; this same endpoint overwrites the old one.
   res.status(200).json({
     success: true,
-    data: toResumeResponse(resume),
+    data: {
+      fileUrl: resume.fileUrl,
+      status: resume.status,
+      originalName: resume.originalName,
+      fileSize: resume.fileSize,
+      createdAt: resume.createdAt,
+      updatedAt: resume.updatedAt,
+    },
   });
 });
 
@@ -39,12 +33,27 @@ export const getMyResumeHandler = asyncHandler(async (req: Request, res: Respons
 
   res.status(200).json({
     success: true,
-    data: resume ? toResumeResponse(resume) : null,
+    data: resume
+      ? {
+          fileUrl: resume.fileUrl,
+          status: resume.status,
+          originalName: resume.originalName,
+          fileSize: resume.fileSize,
+          createdAt: resume.createdAt,
+          updatedAt: resume.updatedAt,
+        }
+      : null,
   });
 });
 
-export const deleteMyResumeHandler = asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.user!._id.toString();
-  const deleted = await resumeService.deleteMyResume(userId);
-  res.status(200).json({ success: true, data: { deleted } });
-});
+export const deleteMyResumeHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const deleted = await resumeService.deleteMyResume(
+      req.user!._id.toString(),
+    );
+    res.status(200).json({
+      success: true,
+      data: { deleted },
+    });
+  },
+);

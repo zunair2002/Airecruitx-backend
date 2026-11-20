@@ -15,11 +15,6 @@ export interface IResume extends Document {
   originalName?: string;
   fileSize?: number;
   mimeType: string;
-  // Original upload name (e.g. "Ali_CV.pdf") and size in bytes — shown in the UI and
-  // used as the download filename. Optional so resumes uploaded before these fields
-  // existed still load.
-  originalName?: string;
-  fileSize?: number;
   status: ResumeStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -57,14 +52,6 @@ const resumeSchema = new Schema<IResume>(
     mimeType: {
       type: String,
       required: true,
-    },
-    originalName: {
-      type: String,
-      trim: true,
-    },
-    fileSize: {
-      type: Number,
-      min: 0,
     },
     status: {
       type: String,

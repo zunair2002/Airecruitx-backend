@@ -3,7 +3,6 @@ import { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as interviewService from "../service/interview.service";
-import { getPracticeUsage } from "../service/practiceUsage.service";
 import { isTrack, TRACKS } from "../../../ai/topics";
 
 const VALID_LEVELS = ["beginner", "intermediate", "expert"];
@@ -88,10 +87,4 @@ export const listMySessionsHandler = asyncHandler(async (req: Request, res: Resp
   const sessions = await interviewService.listSessionsForCandidate(userId, type as any);
 
   res.status(200).json({ success: true, data: sessions });
-});
-
-// Practice-interview allowance for the signed-in candidate: { plan, limit, used, remaining, resetsAt, nextAvailableAt }.
-export const getPracticeUsageHandler = asyncHandler(async (req: Request, res: Response) => {
-  const usage = await getPracticeUsage(req.user!._id.toString());
-  res.status(200).json({ success: true, data: usage });
 });

@@ -27,16 +27,49 @@ const uploadToCloudinary = (
   });
 };
 
-const MIME_EXTENSIONS: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+const getLegacyPublicId = (fileUrl: string): string => {
+  let pathname: string;
+  try {
+    pathname = new URL(fileUrl).pathname;
+  } catch {
+    throw new AppError("Stored resume URL is invalid; it cannot be deleted safely", 502);
+  }
+
+  const uploadIndex = pathname.indexOf("/upload/");
+  if (uploadIndex < 0) {
+    throw new AppError("Stored resume URL is invalid; it cannot be deleted safely", 502);
+  }
+
+  const assetPath = pathname.slice(uploadIndex + "/upload/".length);
+  const segments = assetPath.split("/").filter(Boolean);
+  const versionIndex = segments.findIndex((segment) => /^v\d+$/.test(segment));
+  const publicId = segments.slice(versionIndex >= 0 ? versionIndex + 1 : 0).join("/");
+  if (!publicId) {
+    throw new AppError("Stored resume URL is invalid; it cannot be deleted safely", 502);
+  }
+  try {
+    return decodeURIComponent(publicId);
+  } catch {
+    throw new AppError("Stored resume URL is invalid; it cannot be deleted safely", 502);
+  }
 };
 
-const extensionFor = (mimeType: string, originalName: string): string => {
-  const fromMime = MIME_EXTENSIONS[mimeType];
-  if (fromMime) return fromMime;
-  const match = /\.[a-z0-9]{1,5}$/i.exec(originalName);
-  return match ? match[0].toLowerCase() : "";
+const destroyResumeAsset = async (publicId: string): Promise<void> => {
+  const result = await cloudinary.uploader.destroy(publicId, {
+    resource_type: "raw",
+  });
+  if (result.result !== "ok" && result.result !== "not found") {
+    throw new AppError("Failed to remove resume from storage", 502);
+  }
+};
+
+const cleanupPreviousResume = async (publicId: string | undefined) => {
+  if (!publicId) return;
+  try {
+    await destroyResumeAsset(publicId);
+  } catch (error) {
+    console.error("[resume.service] Failed to remove replaced resume:", error);
+  }
 };
 
 // Text is extracted only to confirm the file is actually parseable (reject empty/
@@ -52,24 +85,13 @@ export const uploadAndParseResume = async (
     throw new AppError("Could not extract any text from the resume", 422);
   }
 
-  // Cloudinary "raw" resources keep whatever public_id we give them verbatim — with
-  // no extension the stored file (and its URL) had none, so browsers downloaded it as
-  // an extension-less blob. Append the real extension so the URL ends in .pdf/.docx.
-  const extension = extensionFor(file.mimetype, file.originalname);
-  const fileUrl = await uploadToCloudinary(file.buffer, `${userId}-${Date.now()}${extension}`);
-
-  return Resume.findOneAndUpdate(
-    { userId },
-    {
-      userId,
-      fileUrl,
-      mimeType: file.mimetype,
-      originalName: file.originalname,
-      // multer's memoryStorage reports the byte length; fall back to the buffer itself.
-      fileSize: file.size ?? file.buffer.length,
-      status: "parsed",
-    },
-    { upsert: true, new: true }
+  const previous = await Resume.findOne({ userId }).select("+publicId");
+  const oldPublicId =
+    previous?.publicId ??
+    (previous ? getLegacyPublicId(previous.fileUrl) : undefined);
+  const storedFile = await uploadToCloudinary(
+    file.buffer,
+    `${userId}-${Date.now()}`,
   );
   const originalName =
     file.originalname.split(/[\\/]/).pop()?.trim().slice(0, 255) || "resume";
@@ -112,10 +134,12 @@ export const getMyResume = async (userId: string): Promise<IResume | null> => {
   return Resume.findOne({ userId });
 };
 
-// Removes the candidate's resume record. The Cloudinary file is left in place — it is
-// unreferenced once the record is gone, and job applications already submitted keep
-// their own resume-skill snapshot.
 export const deleteMyResume = async (userId: string): Promise<boolean> => {
-  const result = await Resume.deleteOne({ userId });
-  return result.deletedCount > 0;
+  const resume = await Resume.findOne({ userId }).select("+publicId");
+  if (!resume) return false;
+
+  const publicId = resume.publicId ?? getLegacyPublicId(resume.fileUrl);
+  await destroyResumeAsset(publicId);
+  await Resume.deleteOne({ _id: resume._id, userId });
+  return true;
 };

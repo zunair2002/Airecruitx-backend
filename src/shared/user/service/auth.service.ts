@@ -3,7 +3,6 @@ import { firebaseAuth } from "../../../config/firebase";
 import { User, IUser, UserRole } from "../model/user.model";
 import { AppError } from "../../../utils/AppError";
 import { sendOtpEmail } from "../../email/email.service";
-import cloudinary from "../../../config/cloudinary";
 
 interface SignupInput {
   name: string;
@@ -207,54 +206,5 @@ export const getProfile = async (userId: string): Promise<IUser> => {
   if (!user) {
     throw new AppError("User profile not found", 404);
   }
-  return user;
-};
-
-interface UpdateProfileInput {
-  name?: string;
-  avatarUrl?: string;
-  headline?: string;
-  about?: string;
-  interests?: string[];
-  removeAvatar?: boolean;
-  avatarFile?: Express.Multer.File;
-}
-
-const uploadAvatarToCloudinary = (buffer: Buffer, userId: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: "profile-photos", public_id: userId, overwrite: true, resource_type: "image" },
-      (error, result) => {
-        if (error || !result) {
-          console.error("[auth.service] Failed to upload profile photo to Cloudinary:", error);
-          reject(new AppError("Failed to upload profile photo", 502));
-          return;
-        }
-        resolve(result.secure_url);
-      }
-    );
-    uploadStream.end(buffer);
-  });
-};
-
-export const updateProfile = async (userId: string, input: UpdateProfileInput): Promise<IUser> => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError("User profile not found", 404);
-  }
-
-  if (input.name !== undefined) user.name = input.name;
-  if (input.removeAvatar) {
-    user.avatarUrl = undefined;
-  } else if (input.avatarFile) {
-    user.avatarUrl = await uploadAvatarToCloudinary(input.avatarFile.buffer, userId);
-  } else if (input.avatarUrl !== undefined) {
-    user.avatarUrl = input.avatarUrl;
-  }
-  if (input.headline !== undefined) user.headline = input.headline;
-  if (input.about !== undefined) user.about = input.about;
-  if (input.interests !== undefined) user.interests = input.interests;
-
-  await user.save();
   return user;
 };

@@ -7,21 +7,7 @@ export type ApplicationStatus = "pending" | "selected" | "rejected";
 // like within that window. "invited" -> "completed" (finished in time) or "expired"
 // (window passed before they finished) are the only transitions; there's no separate
 // "scheduled" state since the invite itself is immediately usable.
-// "cancelled": ended early — by the proctoring policy (3rd violation) or by HR; see
-// cancelledAt / cancelReason / cancelledBy.
-export type OrgInterviewStatus = "invited" | "completed" | "expired" | "cancelled";
-
-// A proctoring violation reported by the candidate's browser during the org interview.
-export type OrgInterviewViolationType =
-  | "tab_hidden"
-  | "window_blur"
-  | "fullscreen_exit"
-  | "camera_off";
-
-export interface IOrgInterviewViolation {
-  type: OrgInterviewViolationType;
-  at: Date;
-}
+export type OrgInterviewStatus = "invited" | "completed" | "expired";
 
 export interface IOrgInterview {
   status?: OrgInterviewStatus;
@@ -29,11 +15,6 @@ export interface IOrgInterview {
   expiresAt?: Date;
   invitedAt?: Date;
   completedAt?: Date;
-  startedAt?: Date;
-  cancelledAt?: Date;
-  cancelReason?: string;
-  cancelledBy?: "proctoring" | "hr";
-  violations?: IOrgInterviewViolation[];
   notes?: string;
   // "Add to Calendar" link for the validity window (an all-day range, not a fixed
   // slot, since the candidate can take the interview any time within it).
@@ -66,31 +47,11 @@ export interface IApplication extends Document {
 
 const orgInterviewSchema = new Schema<IOrgInterview>(
   {
-    status: { type: String, enum: ["invited", "completed", "expired", "cancelled"], required: false },
+    status: { type: String, enum: ["invited", "completed", "expired"], required: false },
     token: { type: String, required: false },
     expiresAt: { type: Date, required: false },
     invitedAt: { type: Date, required: false },
     completedAt: { type: Date, required: false },
-    startedAt: { type: Date, required: false },
-    cancelledAt: { type: Date, required: false },
-    cancelReason: { type: String, required: false },
-    cancelledBy: { type: String, enum: ["proctoring", "hr"], required: false },
-    violations: {
-      type: [
-        new Schema<IOrgInterviewViolation>(
-          {
-            type: {
-              type: String,
-              enum: ["tab_hidden", "window_blur", "fullscreen_exit", "camera_off"],
-              required: true,
-            },
-            at: { type: Date, required: true },
-          },
-          { _id: false }
-        ),
-      ],
-      default: undefined,
-    },
     notes: { type: String, required: false },
     calendarLink: { type: String, required: false },
   },
