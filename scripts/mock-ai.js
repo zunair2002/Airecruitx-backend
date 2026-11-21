@@ -23,7 +23,7 @@ const BANK = require(path.join(__dirname, "..", "src", "ai", "question_bank.json
 let failFirst = Number(process.env.MOCK_FAIL_FIRST || 0);
 let delayMs = Number(process.env.MOCK_DELAY_MS || 50);
 let stats;
-const resetStats = () => (stats = { requests: 0, failed: 0, models: 0, qgen: 0, eval: 0, report: 0, schemaErrors: [] });
+const resetStats = () => (stats = { requests: 0, failed: 0, models: 0, qgen: 0, eval: 0, report: 0, schemaErrors: [], evalRequests: [] });
 resetStats();
 
 const field = (u, name) => (u.match(new RegExp(`^${name}: (.*)$`, "m")) || [])[1] || "";
@@ -122,6 +122,8 @@ app.post("/v1/chat/completions", (req, res) => {
   const user = req.body.messages?.[1]?.content || "";
   const kind = sys.includes("answer evaluator") ? "eval" : sys.includes("interviewer") ? "qgen" : "report";
   stats[kind]++;
+  // QA: which stage/level/question each evaluation request carried (last 500)
+  if (kind === "eval") stats.evalRequests = [...stats.evalRequests, { stage: field(user, "stage"), level: field(user, "level"), question: field(user, "question") }].slice(-500);
   const out = kind === "eval" ? evaluate(user) : kind === "qgen" ? generate(user) : report(user);
   const schema = req.body.response_format?.json_schema?.schema;
   const errs = checkSchema(schema, out);
