@@ -15,8 +15,9 @@ import { adviceFor, fallbackReport } from "../../../ai/report";
 import { estimateEvaluation } from "../../../ai/calibration";
 import {
   AI_FINAL_WAIT_MS, AI_RETRY_WINDOW_MS, BASIC_INTERVIEW_MINUTES, BASIC_QUESTIONS, INTERVIEW_GRACE_MS, ORG_INTERVIEW_MINUTES,
-  ROUND2_UNLOCK_SCORE, TECHNICAL_INTERVIEW_MINUTES, TECHNICAL_QUESTIONS, passScore100,
+  ORG_WARMUP_MINUTES, ROUND2_UNLOCK_SCORE, TECHNICAL_INTERVIEW_MINUTES, TECHNICAL_QUESTIONS, passScore100,
 } from "../../../config/ai";
+import { CLOSING_MESSAGE, isWarmup, warmupSelectedQuestions } from "../../../ai/warmupQuestions";
 import { emitToUser } from "../../../config/socket";
 import { assertPracticeAllowed, recordPracticeStart } from "./practiceUsage.service";
 
@@ -68,9 +69,9 @@ const GENERAL_TIPS = [
   "Use the STAR method (Situation, Task, Action, Result) to structure behavioral answers.",
   "Lead with a short summary before diving into details.",
 ];
-export const deriveElearningTips = (turns: { question: string; score: number }[]): string[] => {
+export const deriveElearningTips = (turns: { question: string; score?: number; kind?: "warmup" | "pool" }[]): string[] => {
   const weakTopics = turns
-    .filter((t) => t.score <= 4)
+    .filter((t) => !isWarmup(t) && typeof t.score === "number" && t.score <= 4)
     .map((t) => `Review this topic before retrying: "${t.question}"`);
   return [...GENERAL_TIPS, ...weakTopics];
 };
@@ -250,6 +251,7 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
 
 // HR question set: HR's own questions (random draw + shuffle per candidate), graded by the
 // same fine-tuned evaluator using HR's reference answer as the key points, then scaled to marks.
+// The pool questions are preceded by the 3 fixed warm-up questions (never evaluated or scored).
 export const startStructuredInterview = async (
   userId: string,
   applicationId: string,
@@ -272,7 +274,7 @@ export const startStructuredInterview = async (
     questionSet.questionsPerInterview && questionSet.questionsPerInterview > 0
       ? Math.min(questionSet.questionsPerInterview, poolSize)
       : poolSize;
-  const selectedQuestions: ISelectedQuestion[] = shuffle(questionSet.questions)
+  const poolQuestions: ISelectedQuestion[] = shuffle(questionSet.questions)
     .slice(0, count)
     .map((q) => ({
       question: q.question,
@@ -282,7 +284,9 @@ export const startStructuredInterview = async (
       topic: topicFromText(q.question),
       keyPoints: keyPointsFromReference(q.referenceAnswer),
       source: "hr" as const,
+      kind: "pool" as const,
     }));
+  const selectedQuestions: ISelectedQuestion[] = [...warmupSelectedQuestions(), ...poolQuestions];
 
   ai.warmUp().catch(() => undefined);
 
@@ -298,7 +302,7 @@ export const startStructuredInterview = async (
     turns: [],
     currentQuestionNumber: 1,
     currentQuestion: selectedQuestions[0].question,
-    ...timerFields(ORG_INTERVIEW_MINUTES),
+    ...timerFields(ORG_INTERVIEW_MINUTES + ORG_WARMUP_MINUTES),
   });
 };
 
@@ -384,6 +388,7 @@ export const processAnswerEvaluation = async ({
   const turn = session.turns.find((item) => item.questionNumber === questionNumber);
   const selected = session.selectedQuestions?.[questionNumber - 1];
   if (!turn || !selected || turn.evalStatus === "done" || turn.evalStatus === "estimated") return;
+  if (isWarmup(selected) || isWarmup(turn)) return; // warm-up answers are never sent to the model
 
   const stage: InterviewStage = selected.stage ?? "technical";
   const ev = await ai.evaluateAnswer({
@@ -461,17 +466,30 @@ export const submitAnswer = async (
   if (!current) {
     throw new AppError("Interview session is in an invalid state", 500);
   }
-  const newTurn = {
-    questionNumber,
-    question: current.question,
-    answer,
-    feedback: "",
-    score: 0,
-    stage: current.stage,
-    topic: current.topic,
-    evalStatus: "pending" as const,
-    marksPossible: current.marks,
-  };
+  // Warm-up answers go through the same atomic guard below (409 duplicate / 410 time-up) but
+  // are stored as final at once: no evaluation, no score, no marks.
+  const warmup = isWarmup(current);
+  const newTurn = warmup
+    ? {
+        questionNumber,
+        question: current.question,
+        answer,
+        feedback: "",
+        kind: "warmup" as const,
+        evalStatus: "done" as const,
+      }
+    : {
+        questionNumber,
+        question: current.question,
+        answer,
+        feedback: "",
+        score: 0,
+        stage: current.stage,
+        topic: current.topic,
+        evalStatus: "pending" as const,
+        marksPossible: current.marks,
+        ...(current.kind ? { kind: current.kind } : {}),
+      };
 
   const isLast = questionNumber >= selected.length;
   // Atomic push: the filter only matches while this question is still current and unanswered,
@@ -504,8 +522,8 @@ export const submitAnswer = async (
     throw new AppError("This question has already been answered", 409); // double submit
   }
 
-  // Respond at once; the answer is evaluated in the background.
-  void evaluateTurn({ sessionId: updated._id.toString(), questionNumber });
+  // Respond at once; the answer is evaluated in the background (warm-up answers never are).
+  if (!warmup) void evaluateTurn({ sessionId: updated._id.toString(), questionNumber });
   if (!isLast) {
     return updated;
   }
@@ -578,7 +596,7 @@ export const recoverPendingInterviewJobs = async (): Promise<number> => {
     }
 
     for (const turn of session.turns) {
-      if (turn.evalStatus !== "pending") continue;
+      if (turn.evalStatus !== "pending" || isWarmup(turn)) continue;
       const task = { sessionId, questionNumber: turn.questionNumber };
       if (runningEvaluations.has(evaluationKey(task))) continue;
       void evaluateTurn(task);
@@ -590,12 +608,12 @@ export const recoverPendingInterviewJobs = async (): Promise<number> => {
 
 // Time ran out: every question without an answer becomes a 0-score "no_answer" turn, so it
 // counts in the round average (answering a few questions and letting the timer run out
-// must not give a high score).
+// must not give a high score). Unanswered warm-up questions are skipped: they never score.
 const closeUnansweredQuestions = async (session: IInterviewSession): Promise<void> => {
   const answered = new Set(session.turns.map((t) => t.questionNumber));
   const missing = (session.selectedQuestions ?? [])
     .map((q, i) => ({ q, questionNumber: i + 1 }))
-    .filter(({ questionNumber }) => !answered.has(questionNumber))
+    .filter(({ q, questionNumber }) => !isWarmup(q) && !answered.has(questionNumber))
     .map(({ q, questionNumber }) => ({
       questionNumber,
       question: q.question,
@@ -609,6 +627,7 @@ const closeUnansweredQuestions = async (session: IInterviewSession): Promise<voi
       unanswered: true,
       marksEarned: q.marks ? 0 : undefined,
       marksPossible: q.marks,
+      ...(q.kind ? { kind: q.kind } : {}),
     }));
   await InterviewSession.updateOne(
     { _id: session._id, status: "in_progress" },
@@ -642,8 +661,11 @@ export const finalizeExpiredSessions = async (): Promise<number> => {
 
 const timeUpNote = (session: IInterviewSession): string => {
   if (!session.timedOut) return "";
-  const total = session.selectedQuestions?.length ?? session.turns.length;
-  const answered = session.turns.filter((t) => !t.unanswered).length;
+  // warm-up questions are not part of the scored interview, so they are not counted here
+  const total = session.selectedQuestions
+    ? session.selectedQuestions.filter((q) => !isWarmup(q)).length
+    : session.turns.filter((t) => !isWarmup(t)).length;
+  const answered = session.turns.filter((t) => !t.unanswered && !isWarmup(t)).length;
   return ` Time expired: answered ${answered} of ${total} questions; unanswered questions scored 0.`;
 };
 
@@ -653,7 +675,7 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   let session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
   const pending = session.turns
-    .filter((t) => t.evalStatus === "pending" && session!.selectedQuestions?.[t.questionNumber - 1])
+    .filter((t) => t.evalStatus === "pending" && !isWarmup(t) && session!.selectedQuestions?.[t.questionNumber - 1])
     .map((t) => evaluateTurn({ sessionId, questionNumber: t.questionNumber }));
   await withTimeout(Promise.allSettled(pending), AI_FINAL_WAIT_MS);
 
@@ -661,7 +683,7 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
   const retry = session.turns.filter(
-    (t) => t.evalStatus === "pending_eval" && session!.selectedQuestions?.[t.questionNumber - 1],
+    (t) => t.evalStatus === "pending_eval" && !isWarmup(t) && session!.selectedQuestions?.[t.questionNumber - 1],
   );
   if (retry.length > 0) {
     ai.warmUp().catch(() => undefined);
@@ -681,14 +703,18 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
 
   // 1c) still not evaluated: fallback score, flagged "estimated" in the turn and the report
   for (const t of session.turns) {
+    if (isWarmup(t)) continue; // warm-up answers are never scored (no estimate, no "too short" 0)
     if (t.evalStatus !== "pending" && t.evalStatus !== "pending_eval") continue;
     const sq = session.selectedQuestions?.[t.questionNumber - 1] ?? { question: t.question, stage: t.stage };
     const est = estimateEvaluation({ stage: sq.stage ?? t.stage ?? "technical", keyPoints: keyPointsOf(sq), answer: t.answer });
     Object.assign(t, evaluationFields(est, sq, "estimated"));
   }
 
-  // 2) deterministic scores (legacy "failed" evaluations are excluded rather than counted as zero)
-  const scored = session.turns.filter((t) => t.evalStatus === "done" || t.evalStatus === "estimated" || t.evalStatus === undefined);
+  // 2) deterministic scores (legacy "failed" evaluations are excluded rather than counted as zero;
+  //    warm-up turns are never part of any score, average or marks total)
+  const scored = session.turns.filter(
+    (t) => !isWarmup(t) && (t.evalStatus === "done" || t.evalStatus === "estimated" || t.evalStatus === undefined),
+  );
   const roundStage = session.stage ?? "combined";
   if (roundStage === "basic") return finalizeBasicRound(session, scored);
 
@@ -753,7 +779,7 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
     });
   }
   if (!scored.length) {
-    text.summary = session.timedOut && !session.turns.length
+    text.summary = session.timedOut && !session.turns.some((t) => !isWarmup(t))
       ? "No question was answered before the time limit."
       : "The answers could not be evaluated automatically. Please try the interview again later.";
   }
@@ -871,6 +897,43 @@ export const getSession = async (userId: string, sessionId: string): Promise<IIn
 };
 
 // ---------------------------------------------------------------- views
+// Progress of a structured (HR question-pool) interview: warm-up questions come first and are
+// numbered on their own; pool questions are numbered 1..totalPoolQuestions after them.
+const progressFor = (selected: ISelectedQuestion[], questionNumber?: number) => {
+  const totalWarmup = selected.filter(isWarmup).length;
+  const totalPoolQuestions = selected.length - totalWarmup;
+  if (!questionNumber) return { totalWarmup, totalPoolQuestions };
+  const before = selected.slice(0, questionNumber);
+  const warmupCount = before.filter(isWarmup).length;
+  return isWarmup(selected[questionNumber - 1])
+    ? { totalWarmup, totalPoolQuestions, warmupNumber: warmupCount }
+    : { totalWarmup, totalPoolQuestions, poolQuestionNumber: questionNumber - warmupCount };
+};
+
+/** Pool position (1-based) of a question number in a structured session; undefined for a warm-up. */
+export const poolQuestionNumberOf = (selected: ISelectedQuestion[] | undefined, questionNumber: number): number | undefined => {
+  if (!selected?.length) return questionNumber;
+  if (isWarmup(selected[questionNumber - 1])) return undefined;
+  return questionNumber - selected.slice(0, questionNumber).filter(isWarmup).length;
+};
+
+/**
+ * HR-side view of an org interview session: warm-up answers are split into "introduction"
+ * (question + answer only, no score) and turns holds only the scored pool questions, each with
+ * its poolQuestionNumber. Sessions without warm-ups come back unchanged apart from these fields.
+ */
+export const buildHrSessionView = (session: IInterviewSession) => {
+  const obj = session.toObject() as Record<string, any>;
+  const selected = session.selectedQuestions;
+  obj.introduction = session.turns
+    .filter(isWarmup)
+    .map((t) => ({ questionNumber: t.questionNumber, question: t.question, answer: t.answer }));
+  obj.turns = (obj.turns as IInterviewSession["turns"])
+    .filter((t) => !isWarmup(t))
+    .map((t) => ({ ...t, kind: t.kind ?? "pool", poolQuestionNumber: poolQuestionNumberOf(selected, t.questionNumber) }));
+  return obj;
+};
+
 // Per-turn feedback/score is withheld while the interview is in progress, and for "hidden"
 // (organizational) interviews the candidate never sees feedback, scores, result or report.
 export const buildSessionView = (session: IInterviewSession) => {
@@ -880,9 +943,11 @@ export const buildSessionView = (session: IInterviewSession) => {
   // A finished (completed, timed out or cancelled) organisational interview is HR's record,
   // not the candidate's: they get a status summary only — no questions or answers back.
   const hideTurns = isHidden && (isFinished(session.status) || Boolean(session.cancelledAt));
+  const structured = Boolean(session.questionSetId);
 
   const turnsWithRound = (hideTurns ? [] : session.turns).map((t) => ({
     questionNumber: t.questionNumber,
+    kind: t.kind ?? "pool",
     question: t.question,
     answer: t.answer,
     feedback: showTurnJudgement ? t.feedback : undefined,
@@ -917,6 +982,7 @@ export const buildSessionView = (session: IInterviewSession) => {
       timedOut: session.timedOut ?? false,
       certificatePaid: session.certificatePayment?.paid ?? false,
       elearningTips: !isHidden && session.result === "fail" ? elearningTipsFor(session) : undefined,
+      closingMessage: structured ? CLOSING_MESSAGE : undefined,
     };
   }
 
@@ -941,7 +1007,9 @@ export const buildSessionView = (session: IInterviewSession) => {
     track: session.track,
     questionNumber: session.currentQuestionNumber,
     question: session.currentQuestion,
+    kind: (session.currentQuestionNumber && selected?.[session.currentQuestionNumber - 1]?.kind) || "pool",
     totalQuestions: selected?.length,
+    ...(structured && selected?.length ? progressFor(selected, session.currentQuestionNumber) : {}),
     round: session.currentQuestionNumber ? questionRound(session.currentQuestionNumber, selected) : undefined,
     turns: turnsWithRound,
     // timer (server clock): the client counts down from remainingSeconds

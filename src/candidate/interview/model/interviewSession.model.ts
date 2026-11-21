@@ -18,13 +18,19 @@ export type InterviewStage = "basic" | "technical";
 // pending: being evaluated · pending_eval: evaluation failed, retried before the report ·
 // estimated: still failed at report time, fallback score · failed: legacy (excluded from scores)
 export type EvalStatus = "pending" | "pending_eval" | "done" | "estimated" | "failed";
+// "warmup": fixed introduction question of a structured org interview (src/ai/warmupQuestions.ts),
+// never evaluated or scored. Missing = "pool" (sessions created before warm-ups existed).
+export type QuestionKind = "warmup" | "pool";
 
 export interface IInterviewTurn {
   questionNumber: number;
   question: string;
   answer: string;
   feedback: string; // "" until the background evaluation finishes
-  score: number; // 0-10, weighted from the criterion scores below (computed by the backend)
+  // 0-10, weighted from the criterion scores below (computed by the backend).
+  // Unset on warm-up turns, which are never scored.
+  score: number;
+  kind?: QuestionKind;
   stage?: InterviewStage;
   topic?: string;
   verdict?: string; // model verdict, e.g. correct / partially_correct / strong / weak
@@ -60,6 +66,7 @@ export interface ISelectedQuestion {
   topic?: string;
   keyPoints?: string[]; // what a good answer contains — sent to the evaluator, never to the candidate
   source?: "model" | "bank" | "hr";
+  kind?: QuestionKind; // missing = "pool"
 }
 
 // Final report: numbers + decision computed by the backend, narrative written by the model
@@ -139,7 +146,12 @@ const turnSchema = new Schema<IInterviewTurn>(
     question: { type: String, required: true },
     answer: { type: String, required: true },
     feedback: { type: String, default: "" },
-    score: { type: Number, default: 0 },
+    kind: { type: String, enum: ["warmup", "pool"], required: false }, // before score: its default reads it
+    // 0 by default as before; warm-up turns stay without a score
+    score: {
+      type: Number,
+      default: function (this: IInterviewTurn) { return this.kind === "warmup" ? undefined : 0; },
+    },
     stage: { type: String, enum: ["basic", "technical"], required: false },
     topic: { type: String, required: false },
     verdict: { type: String, required: false },
@@ -164,6 +176,7 @@ const selectedQuestionSchema = new Schema<ISelectedQuestion>(
     topic: { type: String, required: false },
     keyPoints: { type: [String], default: undefined },
     source: { type: String, enum: ["model", "bank", "hr"], required: false },
+    kind: { type: String, enum: ["warmup", "pool"], required: false },
   },
   { _id: false }
 );

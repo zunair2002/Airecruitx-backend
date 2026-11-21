@@ -378,11 +378,11 @@ async function orgInviteTests() {
   const token1 = (await apps.findOne({ _id: appId })).orgInterview?.token;
   const token2 = (await apps.findOne({ _id: appId2 })).orgInterview?.token;
 
-  await test(`[${current_phase}] org invite: timer 20 min (remainingSeconds ~1200)`, async () => {
+  await test(`[${current_phase}] org invite: timer 20 + 3 warm-up min (remainingSeconds ~1380)`, async () => {
     const g = await api("GET", `/api/applications/org-interview/${token1}`);
     const s = await api("POST", `/api/applications/org-interview/${token1}/start`);
     return {
-      ok: i1.status === 200 && g.status === 200 && s.status === 200 && near(s.data.remainingSeconds, 1200, 5),
+      ok: i1.status === 200 && g.status === 200 && s.status === 200 && near(s.data.remainingSeconds, 1380, 5),
       detail: `invite ${i1.status}, landing ${g.status}, start ${s.status}, remaining ${s.data?.remainingSeconds}`,
     };
   });
@@ -394,6 +394,161 @@ async function orgInviteTests() {
     return { ok: i2.status === 200 && g.status === 410 && s.status === 410 && status === "expired", detail: `landing ${g.status}, start ${s.status}, invite ${status}` };
   });
 }
+
+// HR question-pool interview: 3 fixed warm-up questions first (never evaluated or scored),
+// then exactly questionsPerInterview pool questions, then the closing message.
+const WARMUPS = [
+  "Hello, welcome to your interview! How are you today?",
+  "Could you briefly introduce yourself?",
+  "What interests you about this role?",
+];
+const CLOSING = "Thank you for your time. Your interview is complete. The HR team will review your responses and contact you.";
+
+async function warmupTests() {
+  const hr = await makeUser("hr", "whr");
+  const job = await api("POST", "/api/jobs", { token: hr.token, body: { title: "API Engineer", description: "REST APIs", requiredSkills: ["Node.js"] } });
+  if (job.status !== 201 && job.status !== 200) throw new Error(`create job ${job.status}: ${job.json.message}`);
+  const jobId = job.data._id || job.data.id;
+  const PER_INTERVIEW = 3;
+  const pool = [4, 6, 10, 5, 7].map((marks, i) => ({
+    question: `Pool question ${i + 1}: how do you design a reliable REST endpoint?`,
+    referenceAnswer: `Validation, idempotency, status codes, error handling and tests (${i + 1}).`,
+    marks,
+  }));
+  await db.collection("orginterviewquestionsets").insertOne({
+    jobId: oid(jobId), hrId: oid(hr.id), questionsPerInterview: PER_INTERVIEW, questions: pool,
+    createdAt: new Date(), updatedAt: new Date(),
+  });
+  const poolBefore = JSON.stringify((await db.collection("orginterviewquestionsets").findOne({ jobId: oid(jobId) })).questions);
+  const apps = db.collection("applications");
+  const invited = async (tag) => {
+    const c = await makeUser("candidate", tag);
+    const id = (await apps.insertOne({
+      jobId: oid(jobId), candidateId: oid(c.id), resumeSnapshotSkills: ["Node.js"], matchScore: 100, matched: true,
+      status: "selected", aiInterview: { scheduled: false }, orgInterview: {}, createdAt: new Date(), updatedAt: new Date(),
+    })).insertedId;
+    const inv = await api("POST", `/api/applications/${id}/org-interview-invite`, { token: hr.token, body: {} });
+    if (inv.status !== 200) throw new Error(`invite ${inv.status}: ${inv.json.message}`);
+    return { c, appId: id, token: (await apps.findOne({ _id: id })).orgInterview.token };
+  };
+  const answer = (token, text, questionNumber) =>
+    api("POST", `/api/applications/org-interview/${token}/answer`, { body: { answer: text, questionNumber } });
+
+  // ---- full run
+  const run = await invited("wflow");
+  const start = await api("POST", `/api/applications/org-interview/${run.token}/start`);
+  const s0 = start.data;
+  await api("POST", "/__mock/reset", { base: MOCK });
+  const views = [s0];
+  const warmStatuses = [];
+  let dup;
+  for (let n = 1; n <= 3; n++) {
+    const r = await answer(run.token, n === 1 ? "I am fine, thank you." : `Warm-up answer ${n}: I am a backend developer who enjoys APIs.`, n);
+    warmStatuses.push(r.status);
+    if (n === 1) dup = await answer(run.token, "I am fine, thank you.", 1); // same question again
+    views.push(r.data);
+  }
+  await sleep(1500);
+  const evalsAfterWarmup = (await api("GET", "/__mock/stats", { base: MOCK })).json.eval;
+  const afterWarmupDoc = await sessionDoc(s0.sessionId);
+
+  await test(`[${current_phase}] warm-up: first 3 questions are the fixed warm-ups, in order`, () => {
+    const qs = views.slice(0, 3).map((v) => v.question);
+    const kinds = views.slice(0, 3).map((v) => v.kind).join();
+    const nums = views.slice(0, 3).map((v) => v.warmupNumber).join();
+    const ok = start.status === 200 && JSON.stringify(qs) === JSON.stringify(WARMUPS) && kinds === "warmup,warmup,warmup"
+      && nums === "1,2,3" && views.slice(0, 3).every((v) => v.totalWarmup === 3 && v.totalPoolQuestions === PER_INTERVIEW && v.poolQuestionNumber === undefined)
+      && JSON.stringify(afterWarmupDoc.selectedQuestions.slice(0, 3).map((q) => q.question)) === JSON.stringify(WARMUPS);
+    return { ok, detail: `kinds ${kinds}, warmupNumber ${nums}, totalQuestions ${s0.totalQuestions}` };
+  });
+  await test(`[${current_phase}] warm-up: no AI evaluation call, turns saved as done without score/marks`, () => {
+    const w = afterWarmupDoc.turns.filter((t) => t.kind === "warmup");
+    const ok = evalsAfterWarmup === 0 && w.length === 3 && w.every((t) => t.evalStatus === "done" && t.score === undefined
+      && t.marksPossible === undefined && t.marksEarned === undefined && t.criteria === undefined);
+    return { ok, detail: `mock eval calls ${evalsAfterWarmup}, warm-up turns ${w.length}, statuses ${w.map((t) => t.evalStatus)}, scores ${w.map((t) => t.score)}` };
+  });
+  await test(`[${current_phase}] warm-up: same atomic guard (duplicate answer -> 409)`, () => ({
+    ok: warmStatuses.join() === "200,200,200" && dup.status === 409, detail: `answers ${warmStatuses}, duplicate ${dup.status}`,
+  }));
+  await test(`[${current_phase}] warm-up: then the pool starts at poolQuestionNumber 1 (kind pool)`, () => {
+    const v = views[3];
+    return { ok: v.kind === "pool" && v.poolQuestionNumber === 1 && v.warmupNumber === undefined && v.questionNumber === 4,
+      detail: `kind ${v.kind}, pool# ${v.poolQuestionNumber}, questionNumber ${v.questionNumber}` };
+  });
+
+  let final;
+  for (let p = 1; p <= PER_INTERVIEW; p++) {
+    const r = await answer(run.token, `Pool answer ${p}: validation, idempotency, status codes, error handling and tests [raw=${5 + p}]`, 3 + p);
+    if (r.status !== 200) throw new Error(`pool answer ${p} -> ${r.status}: ${r.json.message}`);
+    final = r.data;
+  }
+  const doc = await sessionDoc(s0.sessionId);
+  const evalsTotal = (await api("GET", "/__mock/stats", { base: MOCK })).json.eval;
+  const poolTurns = doc.turns.filter((t) => t.kind !== "warmup");
+  const poolSelected = doc.selectedQuestions.filter((q) => q.kind !== "warmup");
+
+  await test(`[${current_phase}] warm-up: pool count = questionsPerInterview, HR pool unchanged`, async () => {
+    const poolAfter = JSON.stringify((await db.collection("orginterviewquestionsets").findOne({ jobId: oid(jobId) })).questions);
+    return { ok: poolSelected.length === PER_INTERVIEW && poolTurns.length === PER_INTERVIEW && doc.selectedQuestions.length === 3 + PER_INTERVIEW && poolAfter === poolBefore,
+      detail: `pool selected ${poolSelected.length}, pool turns ${poolTurns.length}, total ${doc.selectedQuestions.length}, pool unchanged ${poolAfter === poolBefore}` };
+  });
+  await test(`[${current_phase}] warm-up: marks and score count only pool questions`, () => {
+    const possible = poolTurns.reduce((s, t) => s + (t.marksPossible ?? 0), 0);
+    const earned = poolTurns.reduce((s, t) => s + (t.marksEarned ?? 0), 0);
+    const expectedPossible = poolSelected.reduce((s, q) => s + q.marks, 0);
+    const expectedOverall = Math.round((earned / possible) * 10 * 10) / 10;
+    const ok = evalsTotal === PER_INTERVIEW && possible === expectedPossible && doc.report.overallScore === expectedOverall
+      && doc.score === Math.round(expectedOverall * 10) && doc.report.basicScore === undefined && !Number.isNaN(doc.score);
+    return { ok, detail: `eval calls ${evalsTotal}, marks ${earned}/${possible} (pool ${expectedPossible}), overall ${doc.report.overallScore}, score ${doc.score}` };
+  });
+  await test(`[${current_phase}] warm-up: closingMessage on completion, results still hidden from candidate`, async () => {
+    const view = await api("POST", `/api/applications/org-interview/${run.token}/start`).catch(() => null);
+    return { ok: final.status === "completed" && final.closingMessage === CLOSING && final.score === undefined && final.report === undefined && final.turns.length === 0,
+      detail: `status ${final.status}, closingMessage ${JSON.stringify(final.closingMessage)}, score ${final.score}, reopen ${view?.status}` };
+  });
+  const rep = await api("GET", `/api/applications/${run.appId}/report`, { token: hr.token });
+  await test(`[${current_phase}] HR report: introduction (no score) + pool turns with poolQuestionNumber`, () => {
+    const o = rep.data?.orgInterviewSession;
+    const intro = o?.introduction ?? [];
+    const ok = rep.status === 200 && intro.length === 3 && JSON.stringify(intro.map((x) => x.question)) === JSON.stringify(WARMUPS)
+      && intro.every((x) => typeof x.answer === "string" && x.score === undefined && x.marksEarned === undefined)
+      && o.turns.length === PER_INTERVIEW && o.turns.map((t) => t.poolQuestionNumber).join() === "1,2,3" && o.turns.every((t) => t.kind === "pool");
+    return { ok, detail: `status ${rep.status}, introduction ${intro.length}, turns ${o?.turns?.length}, pool# ${o?.turns?.map((t) => t.poolQuestionNumber)}` };
+  });
+  warmupReportExample = rep.data?.orgInterviewSession;
+
+  // ---- proctoring during the warm-up: 2 warnings, cancelled on the 3rd
+  const pr = await invited("wproc");
+  await api("POST", `/api/applications/org-interview/${pr.token}/start`);
+  await answer(pr.token, "I am fine, thank you.", 1);
+  const vio = [];
+  for (const type of ["tab_hidden", "window_blur", "fullscreen_exit"]) {
+    vio.push((await api("POST", `/api/applications/org-interview/${pr.token}/violation`, { body: { type } })).data);
+    await sleep(2100); // past the 2 s de-duplication window
+  }
+  const afterCancel = await answer(pr.token, "Warm-up answer 2: I build APIs.", 2);
+  await test(`[${current_phase}] proctoring during warm-up: 2 warnings, 3rd cancels, answers refused`, () => ({
+    ok: vio[0]?.violationCount === 1 && !vio[0].cancelled && vio[1]?.violationCount === 2 && !vio[1].cancelled
+      && vio[2]?.violationCount === 3 && vio[2].cancelled === true && afterCancel.status === 409,
+    detail: `counts ${vio.map((v) => v?.violationCount)}, cancelled ${vio.map((v) => v?.cancelled)}, answer after ${afterCancel.status}`,
+  }));
+
+  // ---- time up during the warm-up: 410, unanswered warm-ups are not turned into 0-mark pool questions
+  const tu = await invited("wtime");
+  const ts = (await api("POST", `/api/applications/org-interview/${tu.token}/start`)).data;
+  await answer(tu.token, "I am fine, thank you.", 1);
+  await db.collection("interviewsessions").updateOne({ _id: oid(ts.sessionId) }, { $set: { expiresAt: new Date(Date.now() - 10_000) } });
+  const late = await answer(tu.token, "Warm-up answer 2: too late.", 2);
+  const ex = await waitDoc(ts.sessionId, (d) => d.status === "expired", 30_000);
+  await test(`[${current_phase}] time up during warm-up: 410, only pool questions get 0 marks`, () => {
+    const unanswered = ex.turns.filter((t) => t.unanswered);
+    const ok = late.status === 410 && ex.status === "expired" && unanswered.length === PER_INTERVIEW
+      && unanswered.every((t) => t.kind === "pool" && t.marksEarned === 0) && ex.turns.filter((t) => t.kind === "warmup").length === 1
+      && ex.score === 0 && /answered 0 of 3 questions/.test(ex.report.summary);
+    return { ok, detail: `answer ${late.status}, status ${ex.status}, unanswered ${unanswered.length} (${unanswered.map((t) => t.kind)}), warm-up turns ${ex.turns.filter((t) => t.kind === "warmup").length}, score ${ex.score}` };
+  });
+}
+let warmupReportExample = null;
 
 async function retryTest() {
   const u = await makeUser("candidate", "retry");
@@ -640,6 +795,7 @@ let qaConn = null;
     await answerValidationTests();
     await fullFlowTests();
     await orgInviteTests();
+    await warmupTests();
     await retryTest();
     await concurrencyTest(5);
     await test(`[${current_phase}] mock: every model output matched the backend json_schema`, async () => {
@@ -696,6 +852,9 @@ let qaConn = null;
     if (mongo) await mongo.stop();
   }
 
+  if (warmupReportExample) {
+    fs.writeFileSync(path.join(LOG_DIR, "hr-report-org-session.json"), JSON.stringify(warmupReportExample, null, 2));
+  }
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} passed in ${((Date.now() - started) / 60000).toFixed(1)} min. Logs: ${LOG_DIR}`);
   for (const f of failed) console.log(`  FAIL ${f.name}: ${f.detail}`);

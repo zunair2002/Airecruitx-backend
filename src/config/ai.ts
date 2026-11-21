@@ -30,6 +30,8 @@ export const TECHNICAL_QUESTIONS = Number(process.env.INTERVIEW_TECHNICAL_QUESTI
 export const BASIC_INTERVIEW_MINUTES = numEnv("BASIC_INTERVIEW_MINUTES", 10); // practice Round 1
 export const TECHNICAL_INTERVIEW_MINUTES = numEnv("TECHNICAL_INTERVIEW_MINUTES", 20); // practice Round 2
 export const ORG_INTERVIEW_MINUTES = numEnv("ORG_INTERVIEW_MINUTES", 20); // HR invite (org interview)
+// Extra time for the 3 warm-up questions of an HR question-pool interview (src/ai/warmupQuestions.ts)
+export const ORG_WARMUP_MINUTES = numEnv("ORG_WARMUP_MINUTES", 3);
 // An answer sent this long after expiresAt is still accepted (network / speech-to-text delay)
 export const INTERVIEW_GRACE_MS = 3_000;
 

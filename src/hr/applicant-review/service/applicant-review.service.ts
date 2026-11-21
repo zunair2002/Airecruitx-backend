@@ -142,7 +142,12 @@ export const getApplicationReport = async (hrId: string, applicationId: string) 
       : null,
   ]);
 
-  return { application, interviewSession, orgInterviewSession };
+  // Org interview: warm-up answers come back as "introduction" (no score); turns = pool questions only
+  return {
+    application,
+    interviewSession,
+    orgInterviewSession: orgInterviewSession ? interviewService.buildHrSessionView(orgInterviewSession) : null,
+  };
 };
 
 const assertHrOwnsApplication = async (hrId: string, applicationId: string): Promise<IApplication> => {
