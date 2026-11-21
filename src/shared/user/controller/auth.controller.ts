@@ -33,6 +33,7 @@ const toPublicUser = (user: IUser) => ({
   about: user.about ?? "",
   interests: user.interests ?? [],
   emailVerified: user.emailVerified,
+  plan: user.plan ?? "free",
 });
 
 export const signupHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -51,7 +52,7 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
     throw new AppError(`role must be one of: ${VALID_ROLES.join(", ")}`, 400);
   }
 
-  const { user, otp } = await authService.signup({ name, email, password, role });
+  const { user } = await authService.signup({ name, email, password, role });
 
   // No cookie/token here — a password signup must verify the OTP just emailed to
   // them before they get a session (see verifyEmailHandler, where the token is
@@ -61,9 +62,6 @@ export const signupHandler = asyncHandler(async (req: Request, res: Response) =>
     data: {
       email: user.email,
       message: "Account created. Enter the verification code we emailed you to log in.",
-      // Dev-only convenience so testing never blocks on SMTP being reachable (e.g.
-      // Gmail's daily send cap) — never present when NODE_ENV=production.
-      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
     },
   });
 });
@@ -97,12 +95,12 @@ export const resendOtpHandler = asyncHandler(async (req: Request, res: Response)
     throw new AppError("email is required", 400);
   }
 
-  const { otp } = await authService.resendOtp(email);
+  await authService.resendOtp(email);
 
+  // The code is only ever delivered by email — never echoed back to the client.
   res.status(200).json({
     success: true,
     message: "Verification code resent.",
-    ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
   });
 });
 

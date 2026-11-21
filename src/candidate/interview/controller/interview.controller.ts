@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as interviewService from "../service/interview.service";
+import { getPracticeUsage } from "../service/practiceUsage.service";
 import { isTrack, TRACKS } from "../../../ai/topics";
 
 const VALID_LEVELS = ["beginner", "intermediate", "expert"];
@@ -33,8 +34,17 @@ export const startInterviewHandler = asyncHandler(async (req: Request, res: Resp
   res.status(200).json({ success: true, data: interviewService.buildSessionView(session) });
 });
 
+// Optional `questionNumber` in an answer body: a positive integer, or undefined when absent.
+export const parseQuestionNumber = (value: unknown): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new AppError("questionNumber must be a positive integer", 400);
+  }
+  return value;
+};
+
 export const submitAnswerHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { sessionId, answer } = req.body ?? {};
+  const { sessionId, answer, questionNumber } = req.body ?? {};
 
   if (!sessionId || typeof sessionId !== "string") {
     throw new AppError("sessionId is required", 400);
@@ -51,7 +61,7 @@ export const submitAnswerHandler = asyncHandler(async (req: Request, res: Respon
   }
 
   const userId = req.user!._id.toString();
-  const session = await interviewService.submitAnswer(userId, sessionId, trimmed);
+  const session = await interviewService.submitAnswer(userId, sessionId, trimmed, parseQuestionNumber(questionNumber));
 
   res.status(200).json({ success: true, data: interviewService.buildSessionView(session) });
 });
@@ -87,4 +97,10 @@ export const listMySessionsHandler = asyncHandler(async (req: Request, res: Resp
   const sessions = await interviewService.listSessionsForCandidate(userId, type as any);
 
   res.status(200).json({ success: true, data: sessions });
+});
+
+// Practice-interview allowance for the signed-in candidate: { plan, limit, used, remaining, resetsAt, nextAvailableAt }.
+export const getPracticeUsageHandler = asyncHandler(async (req: Request, res: Response) => {
+  const usage = await getPracticeUsage(req.user!._id.toString());
+  res.status(200).json({ success: true, data: usage });
 });

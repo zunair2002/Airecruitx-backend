@@ -129,7 +129,9 @@ async function makeUser(role = "candidate", tag = "u") {
   const ip = nextIp();
   const s = await api("POST", "/api/auth/signup", { ip, body: { name: `QA ${tag}`, email, password, role } });
   if (s.status !== 201) throw new Error(`signup ${s.status}: ${s.json.message}`);
-  const v = await api("POST", "/api/auth/verify-email", { ip, body: { email, otp: s.data.devOtp } });
+  // The API never returns the OTP (it is only emailed), so read it from the test database.
+  const stored = await db.collection("users").findOne({ email: email.toLowerCase() }, { projection: { emailOtp: 1 } });
+  const v = await api("POST", "/api/auth/verify-email", { ip, body: { email, otp: stored?.emailOtp } });
   if (v.status !== 200) throw new Error(`verify ${v.status}: ${v.json.message}`);
   return { email, password, ip, token: v.data.token, id: String(v.data.user.id) };
 }
@@ -260,7 +262,7 @@ async function answerValidationTests() {
     return { ok: r.status === 200 && r.data.questionNumber === 2, detail: `status ${r.status}` };
   });
   await test(`[${current_phase}] answer: same question twice at once -> one 200, one 409`, async () => {
-    const body = { sessionId: s.sessionId, answer: answerText("dup", 2, 7) };
+    const body = { sessionId: s.sessionId, questionNumber: 2, answer: answerText("dup", 2, 7) };
     const rs = await Promise.all([1, 2].map(() => api("POST", "/api/interview/answer", { token: u.token, body })));
     const codes = rs.map((r) => r.status).sort();
     const doc = await sessionDoc(s.sessionId);
@@ -353,6 +355,16 @@ async function orgInviteTests() {
   const job = await api("POST", "/api/jobs", { token: hr.token, body: { title: "Backend Developer", description: "Node.js APIs", requiredSkills: ["Node.js", "MongoDB"] } });
   if (job.status !== 201 && job.status !== 200) throw new Error(`create job ${job.status}: ${job.json.message}`);
   const jobId = job.data._id || job.data.id;
+  // HR must upload a question pool before inviting anyone to an org interview.
+  await db.collection("orginterviewquestionsets").insertOne({
+    jobId: oid(jobId), hrId: oid(hr.id), questionsPerInterview: 3,
+    questions: [1, 2, 3, 4].map((n) => ({
+      question: `Explain concept ${n} of building Node.js APIs.`,
+      referenceAnswer: `Concept ${n}: routing, validation, error handling and tests.`,
+      marks: 10,
+    })),
+    createdAt: new Date(), updatedAt: new Date(),
+  });
   const apps = db.collection("applications");
   const mk = async (c) => (await apps.insertOne({
     jobId: oid(jobId), candidateId: oid(c.id), resumeSnapshotSkills: ["Node.js"], matchScore: 100, matched: true,

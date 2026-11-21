@@ -132,3 +132,17 @@ export const bulkOrgInterviewInviteHandler = asyncHandler(async (req: Request, r
 
   res.status(200).json({ success: true, data: applications });
 });
+
+// HR withdraws an organisational-interview invite that was already emailed.
+export const cancelOrgInterviewInviteHandler = asyncHandler(async (req: Request, res: Response) => {
+  const hrId = req.user!._id.toString();
+  const { reason } = req.body ?? {};
+
+  const application = await applicantReviewService.cancelOrgInterviewInvite(
+    hrId,
+    req.params.applicationId,
+    typeof reason === "string" ? reason : undefined
+  );
+
+  res.status(200).json({ success: true, data: application });
+});

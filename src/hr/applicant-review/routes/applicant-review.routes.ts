@@ -9,6 +9,7 @@ import {
   bulkUpdateStatusHandler,
   bulkAiInterviewHandler,
   bulkOrgInterviewInviteHandler,
+  cancelOrgInterviewInviteHandler,
 } from "../controller/applicant-review.controller";
 import { requireAuth, requireRole } from "../../../middleware/auth.middleware";
 
@@ -36,6 +37,12 @@ router.post(
   requireAuth,
   requireRole("hr"),
   inviteToOrgInterviewHandler
+);
+router.post(
+  "/:applicationId/org-interview-invite/cancel",
+  requireAuth,
+  requireRole("hr"),
+  cancelOrgInterviewInviteHandler
 );
 
 export default router;
