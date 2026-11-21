@@ -276,26 +276,17 @@ export const inviteToOrgInterview = async (
   };
   await application.save();
 
+  // Sent in the background (retried, failures logged): a failed email doesn't block the invite.
   const candidate = await User.findById(application.candidateId);
   if (candidate && job) {
-    try {
-      await sendOrgInterviewInvite(
-        candidate.email,
-        candidate.name,
-        job.title,
-        application._id.toString(),
-        token,
-        joinLink,
-        expiresAt,
-        calendarLink
-      );
-    } catch (error) {
-      if (!(error instanceof AppError) || error.statusCode !== 503) throw error;
-      throw new AppError(
-        "The interview invitation was saved, but its email could not be queued. Retry after the job service is available.",
-        503,
-      );
-    }
+    await sendOrgInterviewInvite(
+      candidate.email,
+      candidate.name,
+      job.title,
+      joinLink,
+      expiresAt,
+      calendarLink
+    );
   }
 
   emitToUser(application.candidateId.toString(), "application:org-interview", {

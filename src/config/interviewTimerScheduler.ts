@@ -4,11 +4,13 @@ import {
   recoverPendingInterviewJobs,
 } from "../candidate/interview/service/interview.service";
 
-// Every 30 seconds, finishes expired interviews and recovers pending queue work. BullMQ job IDs
-// deduplicate finalization across instances.
+// Finishes interviews whose time limit (MongoDB expiresAt) ran out and restarts pending
+// background work (e.g. after a restart). Runs once at startup, then every 30 seconds.
+// Double finalization is prevented by the in-process dedup map and the atomic
+// "in_progress" -> "completed"/"expired" update in interview.service.ts.
 export const startInterviewTimerScheduler = (): void => {
   let running = false;
-  cron.schedule("*/30 * * * * *", async () => {
+  const sweep = async (): Promise<void> => {
     if (running) return;
     running = true;
     try {
@@ -16,12 +18,14 @@ export const startInterviewTimerScheduler = (): void => {
       if (n > 0) console.log(`[interviewTimerScheduler] Finishing ${n} timed-out interview(s).`);
       const recovered = await recoverPendingInterviewJobs();
       if (recovered > 0) {
-        console.log(`[interviewTimerScheduler] Re-enqueued ${recovered} pending interview job(s).`);
+        console.log(`[interviewTimerScheduler] Restarted ${recovered} pending interview task(s).`);
       }
     } catch (error) {
-      console.error("[interviewTimerScheduler] Failed to recover interview jobs:", error);
+      console.error("[interviewTimerScheduler] Failed to recover interview tasks:", error);
     } finally {
       running = false;
     }
-  });
+  };
+  void sweep();
+  cron.schedule("*/30 * * * * *", sweep);
 };

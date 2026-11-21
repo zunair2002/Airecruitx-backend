@@ -37,7 +37,7 @@ import { requestLogger } from "./middleware/requestLogger.middleware";
 import { asyncHandler } from "./utils/asyncHandler";
 import { AppError } from "./utils/AppError";
 import { keyPointsFromReference, topicFromText } from "./ai/topics";
-import { enqueueAndWaitForStandaloneEvaluation } from "./jobs/queues";
+import { evaluateAnswer } from "./ai/ai.service";
 
 const app: Application = express();
 
@@ -87,7 +87,7 @@ app.post(
     }
 
     try {
-      const evaluation = await enqueueAndWaitForStandaloneEvaluation({
+      const evaluation = await evaluateAnswer({
         stage,
         level,
         topic: typeof topic === "string" && topic ? topic : topicFromText(question),

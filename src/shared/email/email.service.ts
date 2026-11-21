@@ -1,7 +1,6 @@
 import nodemailer from "nodemailer";
-import { enqueueEmailDelivery } from "../../jobs/queues";
 
-// Lazily created so missing SMTP configuration only fails the email worker, not app startup.
+// Lazily created so missing SMTP configuration only fails the email send, not app startup.
 let transporter: nodemailer.Transporter | null = null;
 
 const getTransporter = (): nodemailer.Transporter => {
@@ -25,14 +24,38 @@ const send = async (to: string, subject: string, html: string): Promise<void> =>
   await getTransporter().sendMail({ from, to, subject, html });
 };
 
+// Waits between attempts: first try immediately, then retry after 1 s and after 5 s.
+const RETRY_DELAYS_MS = [1000, 5000];
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Sends in the background so the request never waits for SMTP. Failures are retried twice and
+ * then logged with the recipient, kind and error message only (never the content or OTP).
+ */
+const sendInBackground = (kind: string, to: string, subject: string, html: string): void => {
+  void (async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await send(to, subject, html);
+        return;
+      } catch (error) {
+        if (attempt >= RETRY_DELAYS_MS.length) throw error;
+        await sleep(RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  })().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(
+      `[email] Failed to send email after ${RETRY_DELAYS_MS.length + 1} attempts (to=${to}, kind=${kind}): ${message}`,
+    );
+  });
+};
+
 // Sent right after a password-based signup (and again on resend) — the candidate/HR
 // enters this code to prove they own the email before they can log in.
 export const sendOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
-  await enqueueEmailDelivery({ kind: "otp", to, name, otp });
-};
-
-export const deliverOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
-  await send(
+  sendInBackground(
+    "otp",
     to,
     "Verify your email — Airecruitx",
     `<p>Hi ${name},</p>
@@ -48,34 +71,12 @@ export const sendOrgInterviewInvite = async (
   to: string,
   candidateName: string,
   jobTitle: string,
-  applicationId: string,
-  inviteToken: string,
   joinLink: string,
   expiresAt: Date,
   calendarLink: string
 ): Promise<void> => {
-  await enqueueEmailDelivery({
-    kind: "org-interview-invite",
-    to,
-    candidateName,
-    jobTitle,
-    applicationId,
-    inviteToken,
-    joinLink,
-    expiresAt: expiresAt.toISOString(),
-    calendarLink,
-  });
-};
-
-export const deliverOrgInterviewInvite = async (
-  to: string,
-  candidateName: string,
-  jobTitle: string,
-  joinLink: string,
-  expiresAt: Date,
-  calendarLink: string
-): Promise<void> => {
-  await send(
+  sendInBackground(
+    "org-interview-invite",
     to,
     `You're invited to interview for ${jobTitle}`,
     `<p>Hi ${candidateName},</p>

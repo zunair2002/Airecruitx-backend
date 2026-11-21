@@ -5,7 +5,6 @@
  *   - an in-memory MongoDB (mongodb-memory-server)  -> your MONGO_URI database is never touched
  *     (or QA_ATLAS_TEST_DB=1: a new temporary database on the .env cluster, dropped at the end)
  *   - scripts/mock-ai.js on :8001                    -> no Modal credits are spent
- *   - a tiny Redis-compatible server on :6399        -> or set QA_REDIS_URL to use a real Redis
  *   - the backend (src/server.ts via ts-node) on :5055, several times with different env
  * All overrides go through the child process env; .env is not modified, and no env value is
  * printed. Backend logs go to <os tmp>/airecruitx-qa/.
@@ -14,14 +13,12 @@
  */
 const { spawn } = require("child_process");
 const fs = require("fs");
-const net = require("net");
 const os = require("os");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
 const API_PORT = 5055;
 const MOCK_PORT = Number(process.env.MOCK_PORT || 8001);
-const MINI_REDIS_PORT = 6399;
 const API = `http://localhost:${API_PORT}`;
 const MOCK = `http://localhost:${MOCK_PORT}`;
 const LOG_DIR = path.join(os.tmpdir(), "airecruitx-qa");
@@ -47,94 +44,23 @@ async function test(name, fn) {
 }
 const near = (v, target, tol) => typeof v === "number" && Math.abs(v - target) <= tol;
 
-async function api(method, p, { body, token, base = API } = {}) {
+// Auth routes are rate limited per IP. Tests give each simulated client its own address through
+// X-Forwarded-For (the backend runs with TRUST_PROXY_HOPS=1), so unrelated tests don't share limits.
+let ipSeq = 0;
+const nextIp = () => { ipSeq++; return `10.77.${(ipSeq >> 8) & 255}.${ipSeq & 255}`; };
+
+async function api(method, p, { body, token, base = API, ip } = {}) {
   const res = await fetch(base + p, {
     method,
-    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(ip ? { "X-Forwarded-For": ip } : {}),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  return { status: res.status, json, data: json.data };
-}
-
-// ------------------------------------------------------------ tiny Redis (RESP) server
-// Enough of the protocol for ioredis + the commands the backend uses (GET/SET PX NX/DEL).
-function startMiniRedis(port) {
-  const store = new Map(); // key -> { v, exp }
-  const live = (k) => {
-    const e = store.get(k);
-    if (e && e.exp && e.exp <= Date.now()) store.delete(k);
-    return store.get(k);
-  };
-  const bulk = (s) => (s === null ? "$-1\r\n" : `$${Buffer.byteLength(s)}\r\n${s}\r\n`);
-  const handle = (args) => {
-    const cmd = String(args[0] || "").toUpperCase();
-    switch (cmd) {
-      case "PING": return "+PONG\r\n";
-      case "INFO": return bulk("# Server\r\nredis_version:7.0.0-qa\r\n# Persistence\r\nloading:0\r\n");
-      case "SELECT": case "CLIENT": case "QUIT": return "+OK\r\n";
-      case "COMMAND": return "*0\r\n";
-      case "GET": return bulk(live(args[1])?.v ?? null);
-      case "SET": {
-        const [, k, v, ...opts] = args;
-        let exp = 0, nx = false;
-        for (let i = 0; i < opts.length; i++) {
-          const o = opts[i].toUpperCase();
-          if (o === "PX") exp = Date.now() + Number(opts[++i]);
-          else if (o === "EX") exp = Date.now() + Number(opts[++i]) * 1000;
-          else if (o === "NX") nx = true;
-        }
-        if (nx && live(k)) return "$-1\r\n";
-        store.set(k, { v, exp });
-        return "+OK\r\n";
-      }
-      case "DEL": { let n = 0; for (const k of args.slice(1)) if (store.delete(k)) n++; return `:${n}\r\n`; }
-      case "PTTL": { const e = live(args[1]); return `:${!e ? -2 : e.exp ? e.exp - Date.now() : -1}\r\n`; }
-      default: return `-ERR unknown command '${cmd}'\r\n`;
-    }
-  };
-  const parse = (buf) => {
-    if (buf[0] !== 42) return null; // '*'
-    let i = buf.indexOf("\r\n");
-    if (i < 0) return null;
-    const n = Number(buf.slice(1, i).toString());
-    let pos = i + 2;
-    const args = [];
-    for (let k = 0; k < n; k++) {
-      const j = buf.indexOf("\r\n", pos);
-      if (j < 0) return null;
-      const len = Number(buf.slice(pos + 1, j).toString());
-      if (buf.length < j + 2 + len + 2) return null;
-      args.push(buf.slice(j + 2, j + 2 + len).toString());
-      pos = j + 2 + len + 2;
-    }
-    return { args, len: pos };
-  };
-  const server = net.createServer((sock) => {
-    let buf = Buffer.alloc(0);
-    sock.on("data", (d) => {
-      buf = Buffer.concat([buf, d]);
-      let r;
-      while (buf.length && (r = parse(buf))) {
-        buf = buf.slice(r.len);
-        sock.write(handle(r.args));
-      }
-    });
-    sock.on("error", () => undefined);
-  });
-  return new Promise((resolve) => server.listen(port, () => resolve({
-    server, url: `redis://127.0.0.1:${port}`,
-    pttl: async (k) => { const e = live(k); return !e ? -2 : e.exp ? e.exp - Date.now() : -1; },
-    get: async (k) => live(k)?.v ?? null,
-    close: () => new Promise((r) => server.close(() => r())),
-  })));
-}
-
-async function realRedisProbe(url) {
-  const { Redis } = require("ioredis");
-  const r = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1 });
-  await r.connect();
-  return { url, pttl: (k) => r.pttl(k), get: (k) => r.get(k), close: async () => r.disconnect() };
+  return { status: res.status, json, data: json.data, headers: res.headers };
 }
 
 // ------------------------------------------------------------ processes
@@ -181,7 +107,7 @@ const BASE_ENV = () => ({
   ROUND2_UNLOCK_SCORE: "50", CERTIFICATE_PASS_SCORE: "70",
   BASIC_INTERVIEW_MINUTES: "10", TECHNICAL_INTERVIEW_MINUTES: "20", ORG_INTERVIEW_MINUTES: "20",
   SCORE_SCALE: "1.15", SCORE_OFFSET: "0.8", SCORE_FLOOR_CORRECT: "6",
-  REDIS_URL: "",
+  TRUST_PROXY_HOPS: "1", // lets tests set the client IP with X-Forwarded-For
 });
 async function startBackend(name, extra = {}) {
   const env = { ...process.env, ...BASE_ENV(), ...extra };
@@ -200,11 +126,12 @@ let userSeq = 0;
 async function makeUser(role = "candidate", tag = "u") {
   const email = `qa-${tag}-${Date.now()}-${userSeq++}@example.com`;
   const password = "Passw0rd!qa";
-  const s = await api("POST", "/api/auth/signup", { body: { name: `QA ${tag}`, email, password, role } });
+  const ip = nextIp();
+  const s = await api("POST", "/api/auth/signup", { ip, body: { name: `QA ${tag}`, email, password, role } });
   if (s.status !== 201) throw new Error(`signup ${s.status}: ${s.json.message}`);
-  const v = await api("POST", "/api/auth/verify-email", { body: { email, otp: s.data.devOtp } });
+  const v = await api("POST", "/api/auth/verify-email", { ip, body: { email, otp: s.data.devOtp } });
   if (v.status !== 200) throw new Error(`verify ${v.status}: ${v.json.message}`);
-  return { email, password, token: v.data.token, id: String(v.data.user.id) };
+  return { email, password, ip, token: v.data.token, id: String(v.data.user.id) };
 }
 const answerText = (tag, n, raw) => `${tag} answer for question ${n}: I would explain the main idea clearly with an example [raw=${raw}]`;
 
@@ -271,17 +198,57 @@ function unitTests() {
 async function authTests() {
   const u = await makeUser("candidate", "auth");
   await test(`[${current_phase}] auth: login correct password -> 200`, async () => {
-    const r = await api("POST", "/api/auth/login", { body: { email: u.email, password: u.password } });
+    const r = await api("POST", "/api/auth/login", { ip: u.ip, body: { email: u.email, password: u.password } });
     return { ok: r.status === 200 && !!r.data?.token, detail: `status ${r.status}` };
   });
   await test(`[${current_phase}] auth: login wrong password -> 401`, async () => {
-    const r = await api("POST", "/api/auth/login", { body: { email: u.email, password: "wrong-pass" } });
+    const r = await api("POST", "/api/auth/login", { ip: u.ip, body: { email: u.email, password: "wrong-pass" } });
     return { ok: r.status === 401, detail: `status ${r.status}` };
   });
   await test(`[${current_phase}] auth: protected route without token -> 401`, async () => {
     const a = await api("GET", "/api/auth/me");
     const b = await api("POST", "/api/interview/start", { body: { stage: "basic" } });
     return { ok: a.status === 401 && b.status === 401, detail: `me ${a.status}, start ${b.status}` };
+  });
+}
+
+const RATE_LIMIT_MESSAGE = /^Too many requests\. Please try again in (\d+) seconds\.$/;
+const is429 = (r, maxSeconds) => {
+  const m = RATE_LIMIT_MESSAGE.exec(r.json.message ?? "");
+  const retryAfter = Number(r.headers.get("retry-after"));
+  return r.status === 429 && r.json.success === false && !!m
+    && Number(m[1]) === retryAfter && retryAfter >= 1 && retryAfter <= maxSeconds;
+};
+
+async function rateLimitTests() {
+  const u = await makeUser("candidate", "rl");
+  await test(`[${current_phase}] rate limit: 11th login for one email -> 429 + Retry-After, same message as before`, async () => {
+    const codes = [];
+    let last;
+    for (let i = 0; i < 11; i++) {
+      // a new IP every time, so only the per-email limit (10 / 15 min) can trigger
+      last = await api("POST", "/api/auth/login", { ip: nextIp(), body: { email: u.email, password: "wrong-pass" } });
+      codes.push(last.status);
+    }
+    const okCodes = codes.slice(0, 10).every((c) => c === 401);
+    return { ok: okCodes && is429(last, 15 * 60), detail: `codes ${codes.join(",")}, retry-after ${last.headers.get("retry-after")}, "${last.json.message}"` };
+  });
+  await test(`[${current_phase}] rate limit: 11th signup from one IP -> 429 (per-IP limit)`, async () => {
+    const ip = nextIp();
+    const codes = [];
+    let last;
+    for (let i = 0; i < 11; i++) {
+      last = await api("POST", "/api/auth/signup", {
+        ip, body: { name: "QA rl", email: `qa-rlip-${Date.now()}-${i}@example.com`, password: "Passw0rd!qa", role: "candidate" },
+      });
+      codes.push(last.status);
+    }
+    const okCodes = codes.slice(0, 10).every((c) => c === 201);
+    return { ok: okCodes && is429(last, 15 * 60), detail: `codes ${codes.join(",")}` };
+  });
+  await test(`[${current_phase}] rate limit: other IPs/emails are not affected`, async () => {
+    const r = await api("POST", "/api/auth/login", { ip: nextIp(), body: { email: `qa-unknown-${Date.now()}@example.com`, password: "x" } });
+    return { ok: r.status !== 429, detail: `status ${r.status}` };
   });
 }
 
@@ -318,7 +285,7 @@ async function answerValidationTests() {
   return { user: u, session: s };
 }
 
-async function fullFlowTests(redisProbe) {
+async function fullFlowTests() {
   const a = await makeUser("candidate", "flow");
   const other = await makeUser("candidate", "other");
 
@@ -336,16 +303,6 @@ async function fullFlowTests(redisProbe) {
       detail: `total ${st.totalQuestions}, remaining ${st.remainingSeconds}`,
     };
   });
-  if (redisProbe) {
-    await test(`[${current_phase}] redis: interview:expire:<id> set with TTL ~ time limit, removed when finished`, async () => {
-      const u2 = await makeUser("candidate", "rkey");
-      const st = (await api("POST", "/api/interview/start", { token: u2.token, body: { stage: "basic" } })).data;
-      const ttl = await redisProbe.pttl(`interview:expire:${st.sessionId}`);
-      const afterFinish = await redisProbe.pttl(`interview:expire:${r1.final.sessionId}`);
-      const warm = await redisProbe.get("ai:warm");
-      return { ok: near(ttl, 603_000, 5_000) && afterFinish === -2 && warm === "1", detail: `ttl ${ttl}ms, finished ${afterFinish}, ai:warm ${warm}` };
-    });
-  }
   await test(`[${current_phase}] Round 1 complete -> report + Round 2 unlocked (>=50)`, async () => {
     const f = r1.final;
     return { ok: f.status === "completed" && f.round2Unlocked === true && f.score >= 50 && !!f.report?.summary, detail: `score ${f.score}` };
@@ -507,6 +464,103 @@ async function timerTests() {
   });
 }
 
+// The last answer is still being finalized (its evaluation is slow) when the time limit passes,
+// so page reloads (GET report -> expiry path) and the 30 s sweep try to finish the same session.
+async function finalizeOnceTest(backend) {
+  const u = await makeUser("candidate", "race");
+  const s = (await api("POST", "/api/interview/start", { token: u.token, body: { stage: "basic" } })).data;
+  for (let n = 1; n <= 4; n++) {
+    await api("POST", "/api/interview/answer", { token: u.token, body: { sessionId: s.sessionId, answer: answerText("race", n, 8) } });
+  }
+  await waitDoc(s.sessionId, (x) => x.turns.length === 4 && x.turns.every((t) => t.evalStatus === "done"), 30_000);
+  await api("POST", "/__mock/config", { base: MOCK, body: { delayMs: 8000 } });
+  // deadline (incl. 3 s grace) is now 2 s away
+  await db.collection("interviewsessions").updateOne(
+    { _id: oid(s.sessionId) }, { $set: { expiresAt: new Date(Date.now() - 3000 + 2000) } },
+  );
+  await test(`[${current_phase}] last answer + timer at the same time -> session finalized exactly once`, async () => {
+    const last = api("POST", "/api/interview/answer", { token: u.token, body: { sessionId: s.sessionId, answer: answerText("race", 5, 8) } });
+    await sleep(3500); // deadline passed while the last answer is still being finalized
+    const reloads = await Promise.all(Array.from({ length: 5 }, () => api("GET", `/api/interview/report/${s.sessionId}`, { token: u.token })));
+    const r = await last;
+    await sleep(2000);
+    const doc = await sessionDoc(s.sessionId);
+    const commits = (backend.log.match(new RegExp(`session ${s.sessionId} finalized`, "g")) || []).length;
+    const failures = (backend.log.match(new RegExp(`session ${s.sessionId} failed`, "g")) || []).length;
+    return {
+      ok: r.status === 200 && r.data.status === "completed" && doc.status === "completed" && doc.turns.length === 5
+        && reloads.every((x) => x.status === 200) && commits === 1 && failures === 0,
+      detail: `answer ${r.status}/${r.data?.status}, db ${doc.status}, commits ${commits}, reloads ${reloads.map((x) => x.status).join(",")}`,
+    };
+  });
+  await api("POST", "/__mock/config", { base: MOCK, body: { delayMs: 30 } });
+
+  // Atomic guard on its own: three finalizations of one session at once, bypassing the
+  // in-process dedup, in this process against the same database. Only one may commit.
+  await test(`[${current_phase}] atomic guard: 3 parallel finalizations of one session -> 1 commit, 2 discarded`, async () => {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) await mongoose.connect(mongoUri);
+    const svc = require(path.join(ROOT, "src/candidate/interview/service/interview.service"));
+    const src = await sessionDoc(s.sessionId);
+    const copy = { ...src, _id: new mongoose.Types.ObjectId(), status: "in_progress", currentQuestionNumber: 5, currentQuestion: src.turns[4].question };
+    for (const k of ["report", "score", "result", "feedback"]) delete copy[k];
+    await db.collection("interviewsessions").insertOne(copy);
+    const id = String(copy._id);
+    const lines = [];
+    const origLog = console.log;
+    console.log = (...a) => { lines.push(a.join(" ")); };
+    let done;
+    try {
+      done = await Promise.all([1, 2, 3].map(() => svc.processInterviewFinalization({ sessionId: id, timeUp: false })));
+    } finally {
+      console.log = origLog;
+    }
+    const commits = lines.filter((l) => l.includes(`session ${id} finalized`)).length;
+    const discarded = lines.filter((l) => l.includes(`session ${id} was already finalized`)).length;
+    const doc = await sessionDoc(id);
+    return {
+      ok: done.length === 3 && commits === 1 && discarded === 2 && doc.status === "completed" && !!doc.report,
+      detail: `commits ${commits}, discarded ${discarded}, status ${doc.status}`,
+    };
+  });
+}
+
+// AI unavailable while answering: the answer is saved and the response is immediate; the
+// evaluation fails into "pending_eval"; once the AI is back the final answer retries it.
+async function pendingEvalRetryTest() {
+  const u = await makeUser("candidate", "peval");
+  const s = (await api("POST", "/api/interview/start", { token: u.token, body: { stage: "basic" } })).data;
+  await api("POST", "/__mock/config", { base: MOCK, body: { failFirst: 100_000 } });
+  const t0 = Date.now();
+  const first = await api("POST", "/api/interview/answer", { token: u.token, body: { sessionId: s.sessionId, answer: answerText("peval", 1, 7) } });
+  const answerMs = Date.now() - t0;
+  await test(`[${current_phase}] AI down: answer saved and response immediate (evaluation in background)`, async () => {
+    const doc = await sessionDoc(s.sessionId);
+    return {
+      ok: first.status === 200 && first.data.questionNumber === 2 && answerMs < 3000 && doc.turns.length === 1 && doc.turns[0].evalStatus === "pending",
+      detail: `status ${first.status}, ${answerMs}ms, evalStatus ${doc.turns[0]?.evalStatus}`,
+    };
+  });
+  await test(`[${current_phase}] AI down: failed evaluation -> evalStatus "pending_eval"`, async () => {
+    const doc = await waitDoc(s.sessionId, (x) => x.turns[0]?.evalStatus !== "pending", 60_000);
+    return { ok: doc.turns[0].evalStatus === "pending_eval", detail: `evalStatus ${doc.turns[0].evalStatus}` };
+  });
+  await api("POST", "/__mock/config", { base: MOCK, body: { failFirst: 0 } });
+  await test(`[${current_phase}] AI back: last answer retries "pending_eval" -> evaluated by the model, not estimated`, async () => {
+    let v = first.data;
+    for (let n = 2; v.status === "in_progress"; n++) {
+      const r = await api("POST", "/api/interview/answer", { token: u.token, body: { sessionId: s.sessionId, answer: answerText("peval", n, 7) } });
+      if (r.status !== 200) return { ok: false, detail: `answer ${n} -> ${r.status} ${r.json.message}` };
+      v = r.data;
+    }
+    const doc = await sessionDoc(s.sessionId);
+    return {
+      ok: v.status === "completed" && doc.turns.every((t) => t.evalStatus === "done") && doc.turns[0].rawScores?.relevance === 7 && !v.report?.estimatedCount,
+      detail: `statuses ${doc.turns.map((t) => t.evalStatus).join(",")}, estimated ${v.report?.estimatedCount ?? 0}`,
+    };
+  });
+}
+
 async function mockDownTest(backend) {
   const u = await makeUser("candidate", "down");
   const s = (await api("POST", "/api/interview/start", { token: u.token, body: { stage: "basic" } })).data;
@@ -534,7 +588,7 @@ let dropTestDb = null;
 let qaConn = null;
 (async () => {
   const started = Date.now();
-  let mongo, miniRedis, redisProbe, mock, backend;
+  let mongo, mock, backend;
   try {
     await unitTests();
 
@@ -558,12 +612,9 @@ let qaConn = null;
     const conn = await connectDb();
     qaConn = conn;
 
-    if (process.env.QA_REDIS_URL) redisProbe = await realRedisProbe(process.env.QA_REDIS_URL);
-    else redisProbe = miniRedis = await startMiniRedis(MINI_REDIS_PORT);
-
-    // ---------------- A: normal (Redis up, mock up)
-    current_phase = "A redis";
-    console.log(`\n=== Phase A: Redis ${process.env.QA_REDIS_URL ? "(real)" : "(mini stand-in)"} + mock AI ===`);
+    // ---------------- A: normal (mock AI up)
+    current_phase = "A normal";
+    console.log("\n=== Phase A: mock AI ===");
     mock = await startMock({ MOCK_FAIL_FIRST: "2" });
     await test(`[${current_phase}] mock: MOCK_FAIL_FIRST=2 -> 503 "no upstreams available" twice, then 200`, async () => {
       const codes = [];
@@ -571,10 +622,11 @@ let qaConn = null;
       for (let i = 0; i < 3; i++) { const r = await fetch(`${MOCK}/v1/models`); codes.push(r.status); if (i === 0) body = await r.text(); }
       return { ok: codes.join() === "503,503,200" && /no upstreams available/.test(body), detail: codes.join(",") };
     });
-    backend = await startBackend("A", { REDIS_URL: redisProbe.url });
+    backend = await startBackend("A");
     await authTests();
+    await rateLimitTests();
     await answerValidationTests();
-    await fullFlowTests(redisProbe);
+    await fullFlowTests();
     await orgInviteTests();
     await retryTest();
     await concurrencyTest(5);
@@ -584,43 +636,37 @@ let qaConn = null;
     });
     await test(`[${current_phase}] no 500 responses and no crash in backend log`, () => {
       const fiveHundreds = (backend.log.match(/ 5\d\d \d+ms/g) || []).length;
-      return { ok: fiveHundreds === 0 && !backend.exited, detail: `5xx lines ${fiveHundreds}` };
+      const unhandled = /unhandled ?rejection/i.test(backend.log);
+      return { ok: fiveHundreds === 0 && !unhandled && !backend.exited, detail: `5xx lines ${fiveHundreds}, unhandled rejection ${unhandled}` };
     });
     await stopChild(backend);
 
-    // ---------------- B: timer (1-minute basic round)
+    // ---------------- B: timer (1-minute basic round) + finalize-once race
     current_phase = "B timer";
     console.log("\n=== Phase B: timer (BASIC_INTERVIEW_MINUTES=1) ===");
-    backend = await startBackend("B", { REDIS_URL: redisProbe.url, BASIC_INTERVIEW_MINUTES: "1" });
+    backend = await startBackend("B", { BASIC_INTERVIEW_MINUTES: "1" });
     await timerTests();
+    await finalizeOnceTest(backend);
     await stopChild(backend);
 
-    // ---------------- C: no REDIS_URL, AI down, short retry windows
-    current_phase = "C no-redis ai-down";
-    console.log("\n=== Phase C: REDIS_URL removed + mock AI stopped ===");
+    // ---------------- C: AI unavailable during the interview, back for the last answer
+    current_phase = "C ai-retry";
+    console.log("\n=== Phase C: AI unavailable, then back (pending_eval -> retry) ===");
+    await api("POST", "/__mock/reset", { base: MOCK });
+    backend = await startBackend("C", { AI_RETRY_WINDOW_MS: "15000", AI_FINAL_WAIT_MS: "60000" });
+    await pendingEvalRetryTest();
+    await test(`[${current_phase}] no crash, no unhandled rejection`, () => {
+      const unhandled = /unhandled ?rejection/i.test(backend.log);
+      return { ok: !unhandled && !backend.exited, detail: `unhandled rejection ${unhandled}` };
+    });
+    await stopChild(backend);
+
+    // ---------------- D: AI down for the whole interview, short retry windows
+    current_phase = "D ai-down";
+    console.log("\n=== Phase D: mock AI stopped ===");
     await stopChild(mock);
-    backend = await startBackend("C", { REDIS_URL: "", AI_RETRY_WINDOW_MS: "20000", AI_FINAL_WAIT_MS: "30000", AI_QGEN_TIMEOUT_MS: "5000" });
-    await test(`[${current_phase}] no REDIS_URL -> starts, one warning "[redis] not available, using memory fallback"`, () => {
-      const n = (backend.log.match(/\[redis\] not available, using memory fallback/g) || []).length;
-      return { ok: n === 1 && !backend.exited, detail: `warnings ${n}` };
-    });
+    backend = await startBackend("D", { AI_RETRY_WINDOW_MS: "20000", AI_FINAL_WAIT_MS: "30000", AI_QGEN_TIMEOUT_MS: "5000" });
     await mockDownTest(backend);
-    await stopChild(backend);
-
-    // ---------------- D: wrong REDIS_URL, everything else normal
-    current_phase = "D bad-redis";
-    console.log("\n=== Phase D: wrong REDIS_URL (nothing listening) ===");
-    mock = await startMock();
-    backend = await startBackend("D", { REDIS_URL: "redis://127.0.0.1:6390" });
-    await authTests();
-    await answerValidationTests();
-    await fullFlowTests(null);
-    await concurrencyTest(5);
-    await test(`[${current_phase}] wrong REDIS_URL -> no crash, single warning, no 500s`, () => {
-      const n = (backend.log.match(/\[redis\] not available, using memory fallback/g) || []).length;
-      const fiveHundreds = (backend.log.match(/ 5\d\d \d+ms/g) || []).length;
-      return { ok: n === 1 && fiveHundreds === 0 && !backend.exited, detail: `warnings ${n}, 5xx ${fiveHundreds}` };
-    });
     await stopChild(backend);
   } catch (err) {
     record(`suite aborted during "${current}"`, false, err?.message ?? String(err));
@@ -633,8 +679,8 @@ let qaConn = null;
       }
       await qaConn.close();
     }
-    if (miniRedis) await miniRedis.close();
-    else if (redisProbe) await redisProbe.close();
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
     if (mongo) await mongo.stop();
   }
 
