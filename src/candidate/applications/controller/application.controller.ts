@@ -3,6 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as applicationService from "../service/application.service";
 import * as interviewService from "../../interview/service/interview.service";
+import { parseQuestionNumber } from "../../interview/controller/interview.controller";
 
 export const applyToJobHandler = asyncHandler(async (req: Request, res: Response) => {
   const candidateId = req.user!._id.toString();
@@ -18,7 +19,7 @@ export const listMyApplicationsHandler = asyncHandler(async (req: Request, res: 
   res.status(200).json({ success: true, data: applications });
 });
 
-// The three handlers below are token-authenticated, not requireAuth-gated — the
+// The org-interview handlers below are token-authenticated, not requireAuth-gated — the
 // candidate reaches them from an emailed link, possibly without an active login
 // session on that device. See resolveActiveOrgInterviewInvite in application.service.ts.
 
@@ -43,12 +44,40 @@ export const startOrgInterviewByTokenHandler = asyncHandler(async (req: Request,
 });
 
 export const submitOrgInterviewAnswerByTokenHandler = asyncHandler(async (req: Request, res: Response) => {
-  const { answer } = req.body ?? {};
+  const { answer, questionNumber } = req.body ?? {};
   if (!answer || typeof answer !== "string") {
     throw new AppError("answer is required", 400);
   }
 
-  const session = await applicationService.submitOrgInterviewAnswerByToken(requireToken(req.params), answer);
+  const session = await applicationService.submitOrgInterviewAnswerByToken(
+    requireToken(req.params),
+    answer,
+    parseQuestionNumber(questionNumber)
+  );
 
   res.status(200).json({ success: true, data: interviewService.buildSessionView(session) });
+});
+
+export const reportOrgInterviewViolationHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { type } = req.body ?? {};
+  if (!applicationService.ORG_INTERVIEW_VIOLATION_TYPES.includes(type)) {
+    throw new AppError(
+      `type must be one of: ${applicationService.ORG_INTERVIEW_VIOLATION_TYPES.join(", ")}`,
+      400
+    );
+  }
+
+  const state = await applicationService.reportOrgInterviewViolation(requireToken(req.params), type);
+
+  res.status(200).json({ success: true, data: state });
+});
+
+export const cancelOrgInterviewByTokenHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { reason } = req.body ?? {};
+  const state = await applicationService.cancelOrgInterviewByToken(
+    requireToken(req.params),
+    typeof reason === "string" ? reason : undefined
+  );
+
+  res.status(200).json({ success: true, data: state });
 });

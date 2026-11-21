@@ -27,6 +27,18 @@ const uploadToCloudinary = (
   });
 };
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+};
+
+const extensionFor = (mimeType: string, originalName: string): string => {
+  const fromMime = MIME_EXTENSIONS[mimeType];
+  if (fromMime) return fromMime;
+  const match = /\.[a-z0-9]{1,5}$/i.exec(originalName);
+  return match ? match[0].toLowerCase() : "";
+};
+
 const getLegacyPublicId = (fileUrl: string): string => {
   let pathname: string;
   try {
@@ -85,13 +97,17 @@ export const uploadAndParseResume = async (
     throw new AppError("Could not extract any text from the resume", 422);
   }
 
+  // Cloudinary "raw" resources keep whatever public_id we give them verbatim — with
+  // no extension the stored file (and its URL) had none, so browsers downloaded it as
+  // an extension-less blob. Append the real extension so the URL ends in .pdf/.docx.
+  const extension = extensionFor(file.mimetype, file.originalname);
   const previous = await Resume.findOne({ userId }).select("+publicId");
   const oldPublicId =
     previous?.publicId ??
     (previous ? getLegacyPublicId(previous.fileUrl) : undefined);
   const storedFile = await uploadToCloudinary(
     file.buffer,
-    `${userId}-${Date.now()}`,
+    `${userId}-${Date.now()}${extension}`,
   );
   const originalName =
     file.originalname.split(/[\\/]/).pop()?.trim().slice(0, 255) || "resume";
@@ -105,7 +121,8 @@ export const uploadAndParseResume = async (
         fileUrl: storedFile.fileUrl,
         publicId: storedFile.publicId,
         originalName,
-        fileSize: file.size,
+        // multer's memoryStorage reports the byte length; fall back to the buffer itself.
+        fileSize: file.size ?? file.buffer.length,
         mimeType: file.mimetype,
         status: "parsed",
       },
@@ -134,6 +151,7 @@ export const getMyResume = async (userId: string): Promise<IResume | null> => {
   return Resume.findOne({ userId });
 };
 
+// Removes the resume record and its Cloudinary file.
 export const deleteMyResume = async (userId: string): Promise<boolean> => {
   const resume = await Resume.findOne({ userId }).select("+publicId");
   if (!resume) return false;

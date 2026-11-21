@@ -11,7 +11,10 @@ export type ResumeStatus = "parsed" | "failed";
 export interface IResume extends Document {
   userId: Types.ObjectId;
   fileUrl: string;
+  // Cloudinary public_id, so a replaced or deleted resume's file can be removed too.
   publicId?: string;
+  // Original upload name (e.g. "Ali_CV.pdf") and size in bytes, shown in the UI and
+  // used as the download filename. Optional so older resumes still load.
   originalName?: string;
   fileSize?: number;
   mimeType: string;
