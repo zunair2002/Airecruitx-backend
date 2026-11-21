@@ -7,6 +7,7 @@ import { connectDB } from "./config/db";
 import { initSocket } from "./config/socket";
 import { startOrgInterviewExpiryScheduler } from "./config/orgInterviewExpiryScheduler";
 import { startInterviewTimerScheduler } from "./config/interviewTimerScheduler";
+import { startPlanExpiryScheduler } from "./config/planExpiryScheduler";
 import "./config/firebase";
 import dns from "dns";
 
@@ -21,6 +22,7 @@ const start = async () => {
   initSocket(httpServer);
   startOrgInterviewExpiryScheduler();
   startInterviewTimerScheduler();
+  startPlanExpiryScheduler();
 
   httpServer.listen(PORT, () => {
     console.log(`Airecruitx backend running on port ${PORT}`);

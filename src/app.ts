@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./shared/user/routes/auth.routes";
 import sharedNotificationRoutes from "./shared/notification/routes/notification.routes";
 import sharedSupportRoutes from "./shared/support/routes/support.routes";
+import billingRoutes from "./shared/billing/routes/billing.routes";
+import { stripeWebhookHandler } from "./shared/billing/controller/billing.controller";
 
 // candidate-owned
 import resumeRoutes from "./candidate/resume/routes/resume.routes";
@@ -48,6 +50,8 @@ if (Number.isInteger(trustProxyHops) && trustProxyHops >= 0) {
 
 app.use(requestLogger);
 app.use(cors());
+// Stripe signs the raw body, so its webhook must be read before express.json() parses it.
+app.post("/api/billing/webhook", express.raw({ type: "application/json", limit: "1mb" }), stripeWebhookHandler);
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "..", "public")));
@@ -107,6 +111,7 @@ app.post(
 app.use("/api/auth", authRoutes);
 app.use("/api/notifications", sharedNotificationRoutes);
 app.use("/api/support", sharedSupportRoutes);
+app.use("/api/billing", billingRoutes);
 
 // candidate
 app.use("/api/resume", resumeRoutes);

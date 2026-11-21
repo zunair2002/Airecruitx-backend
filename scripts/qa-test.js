@@ -95,6 +95,7 @@ async function waitFor(url, ms, child) {
 }
 
 let mongoUri;
+const QA_WEBHOOK_SECRET = "whsec_qa_test_secret";
 const BASE_ENV = () => ({
   PORT: String(API_PORT),
   MONGO_URI: mongoUri,
@@ -108,6 +109,10 @@ const BASE_ENV = () => ({
   BASIC_INTERVIEW_MINUTES: "10", TECHNICAL_INTERVIEW_MINUTES: "20", ORG_INTERVIEW_MINUTES: "20",
   SCORE_SCALE: "1.15", SCORE_OFFSET: "0.8", SCORE_FLOOR_CORRECT: "6",
   TRUST_PROXY_HOPS: "1", // lets tests set the client IP with X-Forwarded-For
+  // Billing: a dummy key (the real one in .env is never used) and a test webhook secret.
+  // No test calls the Stripe API; webhook events are signed locally.
+  STRIPE_SECRET_KEY: "sk_test_qa_dummy", STRIPE_WEBHOOK_SECRET: QA_WEBHOOK_SECRET,
+  STRIPE_PREMIUM_PRICE_ID: "", PREMIUM_PRICE_CENTS: "2900", PREMIUM_TRIAL_DAYS: "0",
 });
 async function startBackend(name, extra = {}) {
   const env = { ...process.env, ...BASE_ENV(), ...extra };
@@ -345,6 +350,124 @@ async function fullFlowTests() {
     const w = await runRound(weak, "basic", 2);
     const r = await api("POST", "/api/interview/start", { token: weak.token, body: { stage: "technical" } });
     return { ok: w.final.score < 50 && w.final.round2Unlocked === false && r.status === 403, detail: `score ${w.final.score}, start ${r.status}` };
+  });
+}
+
+// ------------------------------------------------------------ billing (Premium)
+let stripeQa;
+async function webhook(event, { sign = true, secret = QA_WEBHOOK_SECRET } = {}) {
+  if (!stripeQa) { const S = require("stripe"); stripeQa = new (S.default || S)("sk_test_qa_dummy"); }
+  const payload = JSON.stringify(event);
+  const headers = { "Content-Type": "application/json" };
+  if (sign) headers["Stripe-Signature"] = stripeQa.webhooks.generateTestHeaderString({ payload, secret });
+  const res = await fetch(`${API}/api/billing/webhook`, { method: "POST", headers, body: payload });
+  return { status: res.status, json: await res.json().catch(() => ({})) };
+}
+let evSeq = 0;
+const stripeEvent = (type, object) => ({
+  id: `evt_qa_${Date.now()}_${evSeq++}`, object: "event", type, api_version: "2026-07-29.dahlia",
+  created: Math.floor(Date.now() / 1000), data: { object },
+});
+const subscriptionObj = ({ userId, subId, customer, status = "active", cancelAtPeriodEnd = false, days = 30 }) => {
+  const now = Math.floor(Date.now() / 1000);
+  return {
+    id: subId, object: "subscription", customer, status, cancel_at_period_end: cancelAtPeriodEnd,
+    metadata: { userId },
+    items: { object: "list", data: [{ id: `si_${subId}`, object: "subscription_item", current_period_start: now, current_period_end: now + days * 86400 }] },
+  };
+};
+
+async function billingTests() {
+  const cand = await makeUser("candidate", "bill");
+  const cand2 = await makeUser("candidate", "bill2");
+  const hr = await makeUser("hr", "billhr");
+  const admin = await makeUser("admin", "billadm");
+  const sub = { userId: cand.id, subId: `sub_qa_${Date.now()}`, customer: `cus_qa_${Date.now()}` };
+
+  await test(`[${current_phase}] billing: plans -> premium 2900/month, 10 practice a day`, async () => {
+    const r = await api("GET", "/api/billing/plans");
+    const p = r.data?.plans?.find((x) => x.id === "premium");
+    return { ok: r.status === 200 && p?.priceCents === 2900 && p.interval === "month" && p.practiceInterviewsPerDay === 10 && r.data.checkoutAvailable === true, detail: JSON.stringify(p) };
+  });
+  await test(`[${current_phase}] billing: new candidate is free, can upgrade; HR gets 403`, async () => {
+    const r = await api("GET", "/api/billing/subscription", { token: cand.token });
+    const h = await api("GET", "/api/billing/subscription", { token: hr.token });
+    return { ok: r.data?.plan === "free" && r.data.canUpgrade === true && r.data.canCancel === false && h.status === 403, detail: `${JSON.stringify(r.data)} hr ${h.status}` };
+  });
+  await test(`[${current_phase}] billing: webhook without / with wrong signature -> 400, nothing applied`, async () => {
+    const ev = stripeEvent("customer.subscription.created", subscriptionObj(sub));
+    const a = await webhook(ev, { sign: false });
+    const b = await webhook(ev, { secret: "whsec_wrong" });
+    const r = await api("GET", "/api/billing/subscription", { token: cand.token });
+    return { ok: a.status === 400 && b.status === 400 && r.data?.plan === "free", detail: `${a.status}, ${b.status}, plan ${r.data?.plan}` };
+  });
+  await test(`[${current_phase}] billing: subscription.created (active) -> Premium everywhere`, async () => {
+    const w = await webhook(stripeEvent("customer.subscription.created", subscriptionObj(sub)));
+    const r = await api("GET", "/api/billing/subscription", { token: cand.token });
+    const me = await api("GET", "/api/auth/me", { token: cand.token });
+    const usage = await api("GET", "/api/interview/usage", { token: cand.token });
+    const meUser = me.data?.user ?? me.data;
+    return {
+      ok: w.status === 200 && r.data?.plan === "premium" && r.data.source === "stripe" && r.data.canCancel === true
+        && meUser?.plan === "premium" && usage.data?.limit === 10,
+      detail: `webhook ${w.status}, ${JSON.stringify(r.data)}, me ${meUser?.plan}, limit ${usage.data?.limit}`,
+    };
+  });
+  await test(`[${current_phase}] billing: premium course unlocked for Premium, locked for Free`, async () => {
+    const c = await api("POST", "/api/learning/courses", { token: hr.token, body: { title: "QA premium course", description: "d", videoUrl: "https://example.com/v", topics: ["general_cs"], tier: "premium" } });
+    const mine = (await api("GET", "/api/learning/courses", { token: cand.token })).data?.find((x) => x.title === "QA premium course");
+    const free = (await api("GET", "/api/learning/courses", { token: cand2.token })).data?.find((x) => x.title === "QA premium course");
+    return { ok: c.status === 201 && mine?.locked === false && !!mine.videoUrl && free?.locked === true && free.videoUrl === "", detail: `create ${c.status}, premium locked=${mine?.locked}, free locked=${free?.locked}` };
+  });
+  await test(`[${current_phase}] billing: checkout while Premium -> 409 (no Stripe call)`, async () => {
+    const r = await api("POST", "/api/billing/checkout", { token: cand.token });
+    return { ok: r.status === 409, detail: `${r.status} ${r.json.message}` };
+  });
+  await test(`[${current_phase}] billing: cancel at period end (updated event) -> still Premium, can resume`, async () => {
+    await webhook(stripeEvent("customer.subscription.updated", subscriptionObj({ ...sub, cancelAtPeriodEnd: true })));
+    const r = await api("GET", "/api/billing/subscription", { token: cand.token });
+    return { ok: r.data?.plan === "premium" && r.data.cancelAtPeriodEnd === true && r.data.canResume === true && r.data.canCancel === false, detail: JSON.stringify(r.data) };
+  });
+  await test(`[${current_phase}] billing: invoice.payment_failed -> failed entry in payment history`, async () => {
+    const inv = {
+      id: `in_qa_${Date.now()}`, object: "invoice", customer: sub.customer, currency: "usd", amount_due: 2900, amount_paid: 0,
+      number: "QA-0001", hosted_invoice_url: "https://invoice.example/qa", invoice_pdf: null,
+      parent: { type: "subscription_details", subscription_details: { subscription: sub.subId, metadata: { userId: cand.id } } },
+      lines: { object: "list", data: [{ description: "1 × Airecruitx Premium", period: { start: Math.floor(Date.now() / 1000), end: Math.floor(Date.now() / 1000) + 2592000 } }] },
+    };
+    const w = await webhook(stripeEvent("invoice.payment_failed", inv));
+    const w2 = await webhook(stripeEvent("invoice.payment_failed", inv)); // retried event: no duplicate
+    const r = await api("GET", "/api/billing/payments", { token: cand.token });
+    const other = await api("GET", "/api/billing/payments", { token: cand2.token });
+    const p = r.data?.[0];
+    return { ok: w.status === 200 && w2.status === 200 && r.data?.length === 1 && p.status === "failed" && p.amountCents === 2900 && p.invoiceNumber === "QA-0001" && other.data?.length === 0, detail: `${r.data?.length} entries, ${JSON.stringify(p)}` };
+  });
+  await test(`[${current_phase}] billing: admin can't change a plan paid through Stripe (409)`, async () => {
+    const r = await api("PATCH", `/api/admin/users/${cand.id}/plan`, { token: admin.token, body: { plan: "free" } });
+    return { ok: r.status === 409, detail: `${r.status} ${r.json.message}` };
+  });
+  await test(`[${current_phase}] billing: subscription.deleted -> back to Free`, async () => {
+    await webhook(stripeEvent("customer.subscription.deleted", subscriptionObj({ ...sub, status: "canceled" })));
+    const r = await api("GET", "/api/billing/subscription", { token: cand.token });
+    const usage = await api("GET", "/api/interview/usage", { token: cand.token });
+    return { ok: r.data?.plan === "free" && r.data.canUpgrade === true && usage.data?.limit === 5, detail: `${JSON.stringify(r.data)}, limit ${usage.data?.limit}` };
+  });
+  await test(`[${current_phase}] billing: admin grant -> validation, Premium until date, lapses to Free`, async () => {
+    const notCand = await api("PATCH", `/api/admin/users/${hr.id}/plan`, { token: admin.token, body: { plan: "premium" } });
+    const past = await api("PATCH", `/api/admin/users/${cand2.id}/plan`, { token: admin.token, body: { plan: "premium", expiresAt: "2020-01-01T00:00:00Z" } });
+    const byCand = await api("PATCH", `/api/admin/users/${cand2.id}/plan`, { token: cand2.token, body: { plan: "premium" } });
+    const until = new Date(Date.now() + 7 * 86400000).toISOString();
+    const ok = await api("PATCH", `/api/admin/users/${cand2.id}/plan`, { token: admin.token, body: { plan: "premium", expiresAt: until } });
+    const s1 = (await api("GET", "/api/billing/subscription", { token: cand2.token })).data;
+    await db.collection("users").updateOne({ _id: oid(cand2.id) }, { $set: { planExpiresAt: new Date(Date.now() - 1000) } });
+    const s2 = (await api("GET", "/api/billing/subscription", { token: cand2.token })).data;
+    const log = await db.collection("auditlogs").findOne({ action: "user.plan-change", targetId: cand2.id });
+    return {
+      ok: notCand.status === 400 && past.status === 400 && byCand.status === 403 && ok.status === 200
+        && s1?.plan === "premium" && s1.source === "admin" && s1.canCancel === false && !!s1.planExpiresAt
+        && s2?.plan === "free" && !!log,
+      detail: `hr ${notCand.status}, past ${past.status}, self ${byCand.status}, grant ${ok.status}, ${s1?.plan}/${s1?.source} -> ${s2?.plan}, log ${!!log}`,
+    };
   });
 }
 
@@ -640,6 +763,7 @@ let qaConn = null;
     await answerValidationTests();
     await fullFlowTests();
     await orgInviteTests();
+    await billingTests();
     await retryTest();
     await concurrencyTest(5);
     await test(`[${current_phase}] mock: every model output matched the backend json_schema`, async () => {

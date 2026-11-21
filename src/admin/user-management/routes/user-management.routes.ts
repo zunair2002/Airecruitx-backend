@@ -4,6 +4,7 @@ import {
   listUsersHandler,
   setUserActiveHandler,
   setUserRoleHandler,
+  setUserPlanHandler,
   deleteUserHandler,
 } from "../controller/user-management.controller";
 
@@ -14,6 +15,7 @@ router.use(requireAuth, requireRole("admin"));
 router.get("/", listUsersHandler);
 router.patch("/:userId/active", setUserActiveHandler);
 router.patch("/:userId/role", setUserRoleHandler);
+router.patch("/:userId/plan", setUserPlanHandler);
 router.delete("/:userId", deleteUserHandler);
 
 export default router;

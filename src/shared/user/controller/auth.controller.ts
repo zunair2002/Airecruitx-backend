@@ -3,7 +3,7 @@ import { asyncHandler } from "../../../utils/asyncHandler";
 import { AppError } from "../../../utils/AppError";
 import * as authService from "../service/auth.service";
 import * as candidateProfileService from "../service/candidate-profile.service";
-import { IUser, UserRole } from "../model/user.model";
+import { IUser, UserRole, effectivePlan } from "../model/user.model";
 
 const VALID_ROLES: UserRole[] = ["candidate", "hr", "admin"];
 
@@ -33,7 +33,7 @@ const toPublicUser = (user: IUser) => ({
   about: user.about ?? "",
   interests: user.interests ?? [],
   emailVerified: user.emailVerified,
-  plan: user.plan ?? "free",
+  plan: effectivePlan(user),
 });
 
 export const signupHandler = asyncHandler(async (req: Request, res: Response) => {

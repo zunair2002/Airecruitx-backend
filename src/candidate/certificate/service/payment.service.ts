@@ -1,6 +1,7 @@
 import { InterviewSession } from "../../interview/model/interviewSession.model";
 import { AppError } from "../../../utils/AppError";
 import { getStripeClient } from "../../../config/stripe";
+import { recordCertificatePayment } from "../../../shared/billing/service/billing.service";
 
 const getPassScore = (): number => {
   const raw = process.env.CERTIFICATE_PASS_SCORE;
@@ -105,6 +106,10 @@ export const confirmCertificatePayment = async (
 
   session.certificatePayment.paid = true;
   await session.save();
+  // Payment history is a display copy; the certificate is already marked paid either way.
+  await recordCertificatePayment(userId, checkoutSession).catch((error) =>
+    console.error(`[certificate] Failed to record payment for session ${sessionId}:`, error)
+  );
 
   return { paid: true };
 };

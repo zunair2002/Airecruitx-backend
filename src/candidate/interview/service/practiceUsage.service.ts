@@ -1,5 +1,5 @@
 import { InterviewSession } from "../model/interviewSession.model";
-import { User, UserPlan } from "../../../shared/user/model/user.model";
+import { User, UserPlan, effectivePlan } from "../../../shared/user/model/user.model";
 import { AppError } from "../../../utils/AppError";
 
 // Daily practice-interview allowance per plan. Free users who use up their allowance
@@ -65,7 +65,7 @@ const MAX_TRACKED_STARTS = 50;
 
 export async function getPracticeUsage(userId: string): Promise<PracticeUsage> {
   const [user, sessions] = await Promise.all([
-    User.findById(userId).select("plan +practiceStarts").lean(),
+    User.findById(userId).select("plan planExpiresAt +practiceStarts").lean(),
     InterviewSession.find({
       userId,
       applicationId: { $exists: false },
@@ -75,7 +75,7 @@ export async function getPracticeUsage(userId: string): Promise<PracticeUsage> {
       .select("createdAt")
       .lean(),
   ]);
-  const plan: UserPlan = user?.plan === "premium" ? "premium" : "free";
+  const plan: UserPlan = effectivePlan(user);
 
   // Usage comes from the recorded start times, which survive the session being deleted
   // when the candidate abandons it for a new one. Sessions created before tracking
