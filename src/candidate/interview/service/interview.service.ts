@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import {
   InterviewSession,
   IInterviewSession,
@@ -18,16 +17,7 @@ import {
   AI_FINAL_WAIT_MS, AI_RETRY_WINDOW_MS, BASIC_INTERVIEW_MINUTES, BASIC_QUESTIONS, INTERVIEW_GRACE_MS, ORG_INTERVIEW_MINUTES,
   ROUND2_UNLOCK_SCORE, TECHNICAL_INTERVIEW_MINUTES, TECHNICAL_QUESTIONS, passScore100,
 } from "../../../config/ai";
-import { cacheDel, cacheSet } from "../../../config/redis";
 import { emitToUser } from "../../../config/socket";
-import {
-  enqueueAnswerEvaluation,
-  enqueueInterviewFinalization,
-  enqueueReportGeneration,
-  waitForInterviewFinalization,
-  AnswerEvaluationJob,
-  InterviewFinalizationJob,
-} from "../../../jobs/queues";
 
 // ---------------------------------------------------------------------------------
 // Interview flow (fine-tuned AIRecruitX model):
@@ -56,18 +46,13 @@ const UNFINISHED = { $nin: ["completed", "expired"] };
 const isExpired = (s: Pick<IInterviewSession, "status" | "expiresAt">): boolean =>
   !isFinished(s.status) && !!s.expiresAt && Date.now() > s.expiresAt.getTime() + INTERVIEW_GRACE_MS;
 
-// Redis: live timer of each running interview (TTL = its time limit), so every instance can see
-// which interviews are running without a MongoDB read. MongoDB expiresAt stays the source of truth.
-const timerKey = (sessionId: string) => `interview:expire:${sessionId}`;
-const withTimerKey = async (session: IInterviewSession): Promise<IInterviewSession> => {
-  if (session.expiresAt) {
-    const ttl = session.expiresAt.getTime() + INTERVIEW_GRACE_MS - Date.now();
-    await cacheSet(timerKey(session._id.toString()), session.expiresAt.toISOString(), Math.max(1000, ttl));
-  }
-  return session;
+const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | "timeout"> => {
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([
+    p,
+    new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), ms); }),
+  ]).finally(() => clearTimeout(timer));
 };
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Round 1 = basic questions, Round 2 = technical. Sessions created before this change have
 // no stage on their questions, so they fall back to the old "first N questions" rule.
@@ -158,7 +143,7 @@ export const startInterview = async (
     throw new AppError("Could not prepare interview questions", 502);
   }
 
-  return withTimerKey(await InterviewSession.create({
+  return InterviewSession.create({
     userId,
     applicationId,
     level: context.level,
@@ -174,7 +159,7 @@ export const startInterview = async (
     // HR-invite interviews are timed; the job AI interview is created on apply / by HR long
     // before the candidate opens it, so it has no time limit.
     ...(visibility === "hidden" ? timerFields(ORG_INTERVIEW_MINUTES) : {}),
-  }));
+  });
 };
 
 // ---------------------------------------------------------------- practice: two separate rounds
@@ -239,7 +224,7 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   const selectedQuestions = toSelected(questions, stage);
   if (!selectedQuestions.length) throw new AppError("Could not prepare interview questions", 502);
 
-  return withTimerKey(await InterviewSession.create({
+  return InterviewSession.create({
     userId,
     level: context.level,
     role,
@@ -254,7 +239,7 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
     currentQuestionNumber: 1,
     currentQuestion: selectedQuestions[0].question,
     ...timerFields(stage === "basic" ? BASIC_INTERVIEW_MINUTES : TECHNICAL_INTERVIEW_MINUTES),
-  }));
+  });
 };
 
 // HR question set: HR's own questions (random draw + shuffle per candidate), graded by the
@@ -294,7 +279,7 @@ export const startStructuredInterview = async (
 
   ai.warmUp().catch(() => undefined);
 
-  return withTimerKey(await InterviewSession.create({
+  return InterviewSession.create({
     userId,
     applicationId,
     questionSetId: questionSet._id,
@@ -307,7 +292,7 @@ export const startStructuredInterview = async (
     currentQuestionNumber: 1,
     currentQuestion: selectedQuestions[0].question,
     ...timerFields(ORG_INTERVIEW_MINUTES),
-  }));
+  });
 };
 
 // ---------------------------------------------------------------- background evaluation
@@ -332,17 +317,61 @@ const evaluationFields = (ev: ai.AnswerEvaluation, selected: ISelectedQuestion, 
   return fields;
 };
 
-const evaluateTurn = async (
-  sessionId: string,
-  questionNumber: number,
-): Promise<void> => {
-  await enqueueAnswerEvaluation({ sessionId, questionNumber });
+// In-process background tasks (single backend instance). Each answer evaluation and each
+// finalization runs at most once at a time: a second request for the same work joins the running
+// promise, and the map entry is removed as soon as the task settles. Model calls go through
+// ai.aiQueue, so at most AI_CONCURRENCY requests are in flight. After a restart MongoDB still
+// holds the "pending" turns, and recoverPendingInterviewJobs (startup + every 30 s) restarts them.
+interface AnswerEvaluationTask { sessionId: string; questionNumber: number }
+interface InterviewFinalizationTask { sessionId: string; timeUp: boolean }
+
+const runningEvaluations = new Map<string, Promise<void>>();
+const runningFinalizations = new Map<string, Promise<void>>();
+const evaluationKey = ({ sessionId, questionNumber }: AnswerEvaluationTask): string => `${sessionId}:${questionNumber}`;
+
+/** Starts (or joins) the background evaluation of one answer. Never rejects: failures mark the turn "pending_eval". */
+const evaluateTurn = (task: AnswerEvaluationTask): Promise<void> => {
+  const key = evaluationKey(task);
+  const running = runningEvaluations.get(key);
+  if (running) return running;
+  const promise: Promise<void> = processAnswerEvaluation(task)
+    .catch(async (err: any) => {
+      console.error(`[interview] evaluation failed (session ${task.sessionId}, Q${task.questionNumber}):`, err?.message ?? err);
+      await markAnswerEvaluationFailed(task);
+    })
+    .catch((err: any) => {
+      console.error(`[interview] could not record failed evaluation (session ${task.sessionId}, Q${task.questionNumber}):`, err?.message ?? err);
+    })
+    .finally(() => {
+      if (runningEvaluations.get(key) === promise) runningEvaluations.delete(key);
+    });
+  runningEvaluations.set(key, promise);
+  return promise;
+};
+
+/** Finishes a session once; concurrent callers (last answer, timer sweep, page reload) share the same run. */
+const finalizeOnceOrWait = (sessionId: string, timeUp: boolean): Promise<void> => {
+  const running = runningFinalizations.get(sessionId);
+  if (running) return running;
+  const promise: Promise<void> = processInterviewFinalization({ sessionId, timeUp })
+    .then(() => undefined)
+    .finally(() => {
+      if (runningFinalizations.get(sessionId) === promise) runningFinalizations.delete(sessionId);
+    });
+  runningFinalizations.set(sessionId, promise);
+  return promise;
+};
+
+const finalizeInBackground = (sessionId: string, timeUp: boolean): void => {
+  finalizeOnceOrWait(sessionId, timeUp).catch((err: any) => {
+    console.error(`[interview] finalizing session ${sessionId} failed:`, err?.message ?? err);
+  });
 };
 
 export const processAnswerEvaluation = async ({
   sessionId,
   questionNumber,
-}: AnswerEvaluationJob): Promise<void> => {
+}: AnswerEvaluationTask): Promise<void> => {
   const session = await InterviewSession.findById(sessionId);
   if (!session) return;
   const turn = session.turns.find((item) => item.questionNumber === questionNumber);
@@ -374,7 +403,7 @@ export const processAnswerEvaluation = async ({
 export const markAnswerEvaluationFailed = async ({
   sessionId,
   questionNumber,
-}: AnswerEvaluationJob): Promise<void> => {
+}: AnswerEvaluationTask): Promise<void> => {
   await InterviewSession.updateOne(
     { _id: sessionId, "turns.questionNumber": questionNumber },
     { $set: { "turns.$[t].evalStatus": "pending_eval" } },
@@ -431,7 +460,7 @@ export const submitAnswer = async (
   const isLast = questionNumber >= selected.length;
   // Atomic push: the filter only matches while this question is still current and unanswered,
   // so two concurrent submits can't both add a turn (the loser gets null -> 409).
-  // The turn must exist before the background job updates it.
+  // The turn must exist before the background evaluation updates it.
   const updated = await InterviewSession.findOneAndUpdate(
     {
       _id: sessionId,
@@ -458,43 +487,32 @@ export const submitAnswer = async (
     throw new AppError("This question has already been answered", 409); // double submit
   }
 
-  await evaluateTurn(updated._id.toString(), questionNumber);
+  // Respond at once; the answer is evaluated in the background.
+  void evaluateTurn({ sessionId: updated._id.toString(), questionNumber });
   if (!isLast) {
     return updated;
   }
-  await enqueueAndWaitForFinalization(updated._id.toString(), false);
+  await finalizeOnceOrWait(updated._id.toString(), false);
   const finalized = await InterviewSession.findById(updated._id);
   if (!finalized) throw new AppError("Interview session not found", 404);
   return finalized;
 };
 
-const enqueueAndWaitForFinalization = async (sessionId: string, timeUp: boolean): Promise<void> => {
-  const job = await enqueueInterviewFinalization({ sessionId, timeUp });
-  await waitForInterviewFinalization(job, 30 * 60_000);
-};
-
 export const processInterviewFinalization = async ({
   sessionId,
   timeUp,
-}: InterviewFinalizationJob): Promise<string> => {
+}: InterviewFinalizationTask): Promise<string> => {
   const session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
-  if (isFinished(session.status)) {
-    await cacheDel(timerKey(sessionId));
-    return sessionId;
+  if (isFinished(session.status)) return sessionId;
+  if ((timeUp || isExpired(session)) && session.turns.length < (session.selectedQuestions?.length ?? 0)) {
+    await closeUnansweredQuestions(session);
   }
-  try {
-    if ((timeUp || isExpired(session)) && session.turns.length < (session.selectedQuestions?.length ?? 0)) {
-      await closeUnansweredQuestions(session);
-    }
-    const finalized = await finalizeSession(sessionId);
-    if (!isFinished(finalized.status)) {
-      throw new Error(`Interview finalization did not complete for session ${sessionId}`);
-    }
-    return sessionId;
-  } finally {
-    await cacheDel(timerKey(sessionId));
+  const finalized = await finalizeSession(sessionId);
+  if (!isFinished(finalized.status)) {
+    throw new Error(`Interview finalization did not complete for session ${sessionId}`);
   }
+  return sessionId;
 };
 
 export const recoverPendingInterviewJobs = async (): Promise<number> => {
@@ -527,8 +545,8 @@ export const recoverPendingInterviewJobs = async (): Promise<number> => {
   for await (const session of cursor) {
     const sessionId = session._id.toString();
     if (isExpired(session)) {
-      await enqueueInterviewFinalization({ sessionId, timeUp: true });
-      recovered++;
+      if (!runningFinalizations.has(sessionId)) recovered++;
+      finalizeInBackground(sessionId, true);
       continue;
     }
 
@@ -537,16 +555,16 @@ export const recoverPendingInterviewJobs = async (): Promise<number> => {
       && session.turns.length >= session.selectedQuestions.length,
     );
     if (allQuestionsAnswered) {
-      await enqueueInterviewFinalization({ sessionId, timeUp: false });
-      recovered++;
+      if (!runningFinalizations.has(sessionId)) recovered++;
+      finalizeInBackground(sessionId, false);
       continue;
     }
 
     for (const turn of session.turns) {
       if (turn.evalStatus !== "pending") continue;
-      await enqueueAnswerEvaluation(
-        { sessionId, questionNumber: turn.questionNumber },
-      );
+      const task = { sessionId, questionNumber: turn.questionNumber };
+      if (runningEvaluations.has(evaluationKey(task))) continue;
+      void evaluateTurn(task);
       recovered++;
     }
   }
@@ -583,7 +601,7 @@ const closeUnansweredQuestions = async (session: IInterviewSession): Promise<voi
 
 const expireInBackground = (session: Pick<IInterviewSession, "_id" | "userId">): void => {
   const sessionId = session._id.toString();
-  enqueueAndWaitForFinalization(sessionId, true)
+  finalizeOnceOrWait(sessionId, true)
     .then(async () => {
       const finished = await InterviewSession.findById(sessionId);
       if (finished?.status === "expired") {
@@ -612,27 +630,15 @@ const timeUpNote = (session: IInterviewSession): string => {
   return ` Time expired: answered ${answered} of ${total} questions; unanswered questions scored 0.`;
 };
 
-const waitForAnswerEvaluations = async (sessionId: string, waitMs: number): Promise<void> => {
-  const deadline = Date.now() + waitMs;
-  for (;;) {
-    const session = await InterviewSession.findById(sessionId);
-    if (!session) throw new AppError("Interview session not found", 404);
-    if (!session.turns.some((turn) => turn.evalStatus === "pending") || Date.now() >= deadline) return;
-    await sleep(Math.min(500, Math.max(1, deadline - Date.now())));
-  }
-};
-
 // ---------------------------------------------------------------- finish + report
 const finalizeSession = async (sessionId: string): Promise<IInterviewSession> => {
-  // 1) wait for durable answer-evaluation jobs (re-enqueue pending work after a restart)
+  // 1) wait for this session's evaluations (joins running ones; re-runs any lost to a restart)
   let session = await InterviewSession.findById(sessionId);
   if (!session) throw new AppError("Interview session not found", 404);
-  for (const t of session.turns) {
-    if (t.evalStatus === "pending" && session.selectedQuestions?.[t.questionNumber - 1]) {
-      await enqueueAnswerEvaluation({ sessionId, questionNumber: t.questionNumber });
-    }
-  }
-  await waitForAnswerEvaluations(sessionId, AI_FINAL_WAIT_MS);
+  const pending = session.turns
+    .filter((t) => t.evalStatus === "pending" && session!.selectedQuestions?.[t.questionNumber - 1])
+    .map((t) => evaluateTurn({ sessionId, questionNumber: t.questionNumber }));
+  await withTimeout(Promise.allSettled(pending), AI_FINAL_WAIT_MS);
 
   // 1b) evaluations that failed during the interview get one more try (up to AI_RETRY_WINDOW_MS)
   session = await InterviewSession.findById(sessionId);
@@ -642,13 +648,10 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   );
   if (retry.length > 0) {
     ai.warmUp().catch(() => undefined);
-    await Promise.all(retry.map((turn) =>
-      enqueueAnswerEvaluation(
-        { sessionId, questionNumber: turn.questionNumber },
-        randomUUID(),
-      ),
-    ));
-    await waitForAnswerEvaluations(sessionId, AI_RETRY_WINDOW_MS + 15_000);
+    await withTimeout(
+      Promise.allSettled(retry.map((turn) => evaluateTurn({ sessionId, questionNumber: turn.questionNumber }))),
+      AI_RETRY_WINDOW_MS + 15_000,
+    );
     session = await InterviewSession.findById(sessionId);
     if (!session) throw new AppError("Interview session not found", 404);
   }
@@ -717,17 +720,13 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
   let generatedBy: "model" | "fallback" = "fallback";
   if (basicScore !== null && technicalScore !== null && !session.questionSetId) {
     try {
-      text = await enqueueReportGeneration({
-        sessionId,
-        report: {
-          reportType, role, level: session.level ?? "intermediate", basicScore, technicalScore,
-          overall, decision, results, passMark10: passMark / 10,
-        },
+      text = await ai.writeReportText({
+        reportType, role, level: session.level ?? "intermediate", basicScore, technicalScore,
+        overall, decision, results, passMark10: passMark / 10,
       });
       generatedBy = "model";
-    } catch (err) {
-      if (err instanceof AppError && err.statusCode === 503) throw err;
-      console.error(`[interview] report generation failed (session ${sessionId}):`, err);
+    } catch (err: any) {
+      console.error(`[interview] report generation failed (session ${sessionId}):`, err?.message ?? err);
     }
   }
   if (!text) {
@@ -761,15 +760,14 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
     estimatedCount: estimatedCount || undefined,
   };
 
-  session.status = session.timedOut ? "expired" : "completed";
-  session.score = Math.round(overall * 10); // 0-100, as used by certificates and HR views
-  session.result = passed ? "pass" : "fail";
-  session.feedback = report.summary;
-  session.report = report;
-  session.messages = [];
-  session.currentQuestionNumber = undefined;
-  session.currentQuestion = undefined;
-  await session.save();
+  const { session: finished, committed } = await commitFinalResult(session, {
+    status: session.timedOut ? "expired" : "completed",
+    score: Math.round(overall * 10), // 0-100, as used by certificates and HR views
+    result: passed ? "pass" : "fail",
+    feedback: report.summary,
+    report,
+  });
+  if (!committed) return finished; // another caller finished it first
 
   // HR invite finished (also when the time ran out with no request open): mark the invite
   // completed so HR sees it, same as submitOrgInterviewAnswerByToken does.
@@ -779,7 +777,7 @@ const finalizeSession = async (sessionId: string): Promise<IInterviewSession> =>
       { $set: { "orgInterview.status": "completed", "orgInterview.completedAt": new Date() } }
     );
   }
-  return session;
+  return finished;
 };
 
 // Practice Round 1: score the basic answers; >= ROUND2_UNLOCK_SCORE unlocks Round 2.
@@ -806,20 +804,44 @@ const finalizeBasicRound = async (session: IInterviewSession, scored: IInterview
   const estimatedCount = scored.filter((t) => t.evalStatus === "estimated").length;
   text.summary += timeUpNote(session) + estimatedNote(estimatedCount);
 
-  session.status = session.timedOut ? "expired" : "completed";
-  session.score = score;
-  session.result = unlocked ? "pass" : "fail";
-  session.feedback = text.summary;
-  session.report = {
-    reportType: "candidate", basicScore, overallScore: basicScore, decision: unlocked ? "round2_unlocked" : "retry_round1",
-    summary: text.summary, strengths: text.strengths, areasToImprove: text.areasToImprove, learningPlan: text.learningPlan,
-    weakTopics, generatedBy: "fallback", estimatedCount: estimatedCount || undefined,
-  };
-  session.messages = [];
-  session.currentQuestionNumber = undefined;
-  session.currentQuestion = undefined;
-  await session.save();
-  return session;
+  const { session: finished } = await commitFinalResult(session, {
+    status: session.timedOut ? "expired" : "completed",
+    score,
+    result: unlocked ? "pass" : "fail",
+    feedback: text.summary,
+    report: {
+      reportType: "candidate", basicScore, overallScore: basicScore, decision: unlocked ? "round2_unlocked" : "retry_round1",
+      summary: text.summary, strengths: text.strengths, areasToImprove: text.areasToImprove, learningPlan: text.learningPlan,
+      weakTopics, generatedBy: "fallback", estimatedCount: estimatedCount || undefined,
+    },
+  });
+  return finished;
+};
+
+/**
+ * Atomic guard against double finalization: only the first writer moves the session from
+ * "in_progress" to "completed"/"expired". Any later writer gets committed=false and the stored result.
+ */
+const commitFinalResult = async (
+  session: IInterviewSession,
+  result: Pick<IInterviewSession, "status" | "score" | "result" | "feedback" | "report">,
+): Promise<{ session: IInterviewSession; committed: boolean }> => {
+  const finished = await InterviewSession.findOneAndUpdate(
+    { _id: session._id, status: "in_progress" },
+    {
+      $set: { ...result, turns: session.turns, messages: [] },
+      $unset: { currentQuestionNumber: 1, currentQuestion: 1 },
+    },
+    { new: true },
+  );
+  if (finished) {
+    console.log(`[interview] session ${session._id} finalized (${result.status})`);
+    return { session: finished, committed: true };
+  }
+  console.log(`[interview] session ${session._id} was already finalized; duplicate result discarded`);
+  const existing = await InterviewSession.findById(session._id);
+  if (!existing) throw new AppError("Interview session not found", 404);
+  return { session: existing, committed: false };
 };
 
 export const getSession = async (userId: string, sessionId: string): Promise<IInterviewSession> => {

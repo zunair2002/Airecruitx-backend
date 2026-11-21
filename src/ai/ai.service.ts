@@ -3,7 +3,6 @@
 import { AI_API_KEY, AI_BASE_URL, AI_CONCURRENCY, AI_JSON_SCHEMA, AI_MODEL, AI_RETRY_WINDOW_MS, AI_TIMEOUT_MS } from "../config/ai";
 import { EVAL_FAIRNESS, EVAL_SYSTEM, QGEN_DIFFICULTY, QGEN_SYSTEM, REPORT_SYSTEM } from "./prompts";
 import { calibrateScores } from "./calibration";
-import { acquireLock, cacheDel, cacheGet, cacheSet, releaseLock } from "../config/redis";
 import { AIQueue } from "./aiQueue";
 import { criteriaFor, questionScore, round1, Stage, verdictsFor } from "./scoring";
 import bankData from "./question_bank.json";
@@ -190,7 +189,7 @@ async function callModel<T>(opts: {
         continue;
       }
       if (isUnavailable(err)) {
-        cacheDel(WARM_KEY).catch(() => undefined); // server went cold: let the next warmUp poll again
+        warmUntil = 0; // server went cold: let the next warmUp poll again
         const delay = UNAVAILABLE_BACKOFF_MS[Math.min(waits, UNAVAILABLE_BACKOFF_MS.length - 1)];
         if (Date.now() + delay > deadline) throw err;
         waits++;
@@ -234,39 +233,33 @@ export function pickFromBank(p: { stage: Stage; level?: string; topics: string[]
 }
 
 // ------------------------------------------------------------------ public API
-// Redis: the "GPU is warm" flag and the warm-up lock are shared by all backend instances, so
-// only one instance polls the GPU server and none polls while it is known to be warm.
-const WARM_KEY = "ai:warm";
-const WARM_LOCK = "ai:warmup:lock";
+// In-memory "GPU is warm" flag (single backend instance). The shared `warming` promise makes
+// sure only one poller runs at a time, even when many interviews start together.
 const WARM_TTL_MS = 2 * 60_000; // serverless GPU scales down after a few idle minutes
+let warmUntil = 0;
 let warming: Promise<boolean> | null = null;
 
 /** Wake the GPU server (call at interview start; do not await). Polls /v1/models every 5s. */
 export function warmUp(maxWaitMs = AI_RETRY_WINDOW_MS): Promise<boolean> {
+  if (Date.now() < warmUntil) return Promise.resolve(true);
   if (warming) return warming; // one poller is enough for all interviews starting together
   warming = (async () => {
-    if (await cacheGet(WARM_KEY)) return true;
-    if (!(await acquireLock(WARM_LOCK, maxWaitMs))) return false; // another instance is polling
-    try {
-      const until = Date.now() + maxWaitMs;
-      while (Date.now() < until) {
-        try {
-          const res = await fetch(`${AI_BASE_URL}/v1/models`, {
-            headers: { Authorization: `Bearer ${AI_API_KEY}` },
-            signal: AbortSignal.timeout(Math.max(1000, Math.min(60_000, until - Date.now()))),
-          });
-          if (res.ok) {
-            await cacheSet(WARM_KEY, "1", WARM_TTL_MS);
-            return true;
-          }
-        } catch { /* still starting */ }
-        await sleep(5000);
-      }
-      console.warn(`[ai] warm-up: server not ready after ${maxWaitMs / 1000}s`);
-      return false;
-    } finally {
-      await releaseLock(WARM_LOCK);
+    const until = Date.now() + maxWaitMs;
+    while (Date.now() < until) {
+      try {
+        const res = await fetch(`${AI_BASE_URL}/v1/models`, {
+          headers: { Authorization: `Bearer ${AI_API_KEY}` },
+          signal: AbortSignal.timeout(Math.max(1000, Math.min(60_000, until - Date.now()))),
+        });
+        if (res.ok) {
+          warmUntil = Date.now() + WARM_TTL_MS;
+          return true;
+        }
+      } catch { /* still starting */ }
+      await sleep(5000);
     }
+    console.warn(`[ai] warm-up: server not ready after ${maxWaitMs / 1000}s`);
+    return false;
   })().finally(() => { warming = null; });
   return warming;
 }

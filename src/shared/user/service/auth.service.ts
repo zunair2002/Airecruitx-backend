@@ -61,15 +61,8 @@ export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: st
     emailOtpExpiresAt: new Date(Date.now() + OTP_VALIDITY_MS),
   });
 
-  try {
-    await sendOtpEmail(user.email, user.name, otp);
-  } catch (error) {
-    if (!(error instanceof AppError) || error.statusCode !== 503) throw error;
-    throw new AppError(
-      "Account created, but the verification email could not be queued. Please request a new code after the job service is available.",
-      503,
-    );
-  }
+  // Sent in the background (retried, failures logged); resendOtp covers a lost email.
+  await sendOtpEmail(user.email, user.name, otp);
 
   user.password = undefined;
   user.emailOtp = undefined;

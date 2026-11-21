@@ -1,6 +1,5 @@
 import { createHash } from "crypto";
 import { Request } from "express";
-import { incrementRateLimit } from "../config/redis";
 import { asyncHandler } from "../utils/asyncHandler";
 
 type Identifier = "ip" | "email";
@@ -27,24 +26,48 @@ const keyFor = (rule: LimitRule, value: string): string => {
   return `auth:rate-limit:${rule.name}:${digest}`;
 };
 
-/** Applies shared IP and/or account limits and responds with HTTP 429 on excess. */
+type RateLimitResult = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+};
+
+// In-memory fixed-window counters (single backend instance). Expired entries are swept every
+// minute, and immediately if the map grows unusually large between sweeps.
+const counters = new Map<string, { count: number; expiresAt: number }>();
+const SWEEP_INTERVAL_MS = 60_000;
+const MAX_ENTRIES_BEFORE_SWEEP = 10_000;
+
+const sweepExpired = (now = Date.now()): void => {
+  for (const [key, entry] of counters) {
+    if (entry.expiresAt <= now) counters.delete(key);
+  }
+};
+setInterval(sweepExpired, SWEEP_INTERVAL_MS).unref(); // unref: never keeps the process alive
+
+const incrementRateLimit = (key: string, limit: number, windowMs: number): RateLimitResult => {
+  const now = Date.now();
+  if (counters.size > MAX_ENTRIES_BEFORE_SWEEP) sweepExpired(now);
+
+  let entry = counters.get(key);
+  if (!entry || entry.expiresAt <= now) {
+    entry = { count: 0, expiresAt: now + windowMs };
+    counters.set(key, entry);
+  }
+  entry.count += 1;
+  return {
+    allowed: entry.count <= limit,
+    retryAfterSeconds: Math.max(1, Math.ceil((entry.expiresAt - now) / 1000)),
+  };
+};
+
+/** Applies IP and/or account limits and responds with HTTP 429 on excess. */
 export const authRateLimit = (...rules: LimitRule[]) =>
   asyncHandler(async (req, res, next) => {
-    const counters = await Promise.all(
-      rules.flatMap((rule) => {
-        const value = identifierValue(req, rule.identifier);
-        return value
-          ? [
-              incrementRateLimit(
-                keyFor(rule, value),
-                rule.limit,
-                rule.windowMs,
-              ),
-            ]
-          : [];
-      }),
-    );
-    const blocked = counters.filter((counter) => !counter.allowed);
+    const results = rules.flatMap((rule) => {
+      const value = identifierValue(req, rule.identifier);
+      return value ? [incrementRateLimit(keyFor(rule, value), rule.limit, rule.windowMs)] : [];
+    });
+    const blocked = results.filter((result) => !result.allowed);
     if (blocked.length > 0) {
       const retryAfterSeconds = Math.max(
         ...blocked.map((counter) => counter.retryAfterSeconds),

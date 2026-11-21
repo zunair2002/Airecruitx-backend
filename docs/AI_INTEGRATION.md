@@ -25,9 +25,9 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
    - Technical topics come from the job title and `requiredSkills`. Practice interviews use a CS-core mix.
    - The model gets 30 s to generate questions. If it is slow (cold GPU) or down, questions come from `src/ai/question_bank.json`, which holds 1,589 questions, so an interview can always start.
    - The GPU server is woken in the background as soon as the interview starts.
-2. **Answer.** The answer is saved, the answer-evaluation job is persisted in Redis, and the next question is returned immediately.
+2. **Answer.** The answer is saved, the next question is returned immediately, and the answer is evaluated in the background.
    - The evaluation returns a verdict, four criterion scores (0–10), feedback, an improvement tip and weak topics.
-3. **Last answer.** A durable finalization job waits for outstanding evaluation jobs (up to `AI_FINAL_WAIT_MS`), computes the scores, and queues report generation. The request keeps its existing response shape.
+3. **Last answer.** The request waits for outstanding evaluations (up to `AI_FINAL_WAIT_MS`). The backend then computes the scores, and the model writes the report. The response shape is unchanged.
 
 ## Scoring (deterministic, in `src/ai/scoring.ts`)
 
@@ -61,14 +61,17 @@ The interview module now uses the fine-tuned AIRecruitX model, served by vLLM wi
 - **When the fallback is used:** HR question sets and model failures get a deterministic report from `src/ai/report.ts`.
 - **What the API returns:** `buildSessionView` now also returns `report`, plus `verdict`, `criteria` and `improvementTip` per turn, and `totalQuestions`. The existing fields are unchanged.
 
-## Durable background jobs
+## Background work (in-process)
 
-BullMQ uses `REDIS_URL` for separate answer-evaluation, interview-finalization, report-generation, and email-delivery queues. Workers run alongside the backend API process; BullMQ resumes persisted waiting jobs after a process restart. OTP and organizational-interview invitation emails are queued rather than sent during the request.
+The backend runs as a single instance and keeps no external queue. MongoDB is the source of truth.
 
-- Set `REDIS_URL` in every backend instance and enable Redis persistence (AOF or an appropriate managed Redis persistence policy) in production.
-- Queue submissions return HTTP 503 if Redis is not configured or cannot accept a job. In particular, account/invitation state may already have been saved; retry the OTP/invitation action after Redis recovers.
-- Jobs retry up to three times with exponential backoff. Delivery is at-least-once: an email could be sent more than once if a worker stops after SMTP accepts it but before Redis records completion.
-- Pending answer evaluations and unfinished sessions are recovered from MongoDB when workers start and by the 30-second interview recovery sweep. Interview results continue to be stored in MongoDB; Redis is the durable work queue, not the source of truth for application data.
+- **Answer evaluation** runs as an in-process background task through the AI queue (at most `AI_CONCURRENCY` model requests at once). A failed evaluation marks the turn `pending_eval`; it is retried once more before the report, and if it still fails the score is estimated and flagged.
+- **Finalization and report generation** run in the request that submits the last answer (or in the timer sweep). Concurrent attempts for the same session share one run, and the final write is an atomic `in_progress` -> `completed`/`expired` update, so a session is never finalized twice.
+- **Interview timer:** `expiresAt` in MongoDB is enforced on every answer, and a sweep every 30 seconds (`src/config/interviewTimerScheduler.ts`) finishes timed-out sessions and restarts pending evaluations (for example after a restart).
+- **Emails** (OTP, organizational-interview invites) are sent in the background without blocking the request. They are retried twice (after 1 s and 5 s); a final failure is logged with recipient and kind only.
+- **Auth rate limits** are in-memory fixed-window counters per IP and per email, returning HTTP 429 with `Retry-After`.
+
+Because this state is in process memory, rate limits and in-flight tasks are per instance. Running several instances would need a shared store.
 
 ## Environment
 
@@ -81,7 +84,6 @@ BullMQ uses `REDIS_URL` for separate answer-evaluation, interview-finalization, 
 | `AI_QGEN_TIMEOUT_MS` | `30000` | Question generation; after this the bank is used |
 | `AI_FINAL_WAIT_MS` | `240000` | How long the last answer waits for evaluations |
 | `AI_CONCURRENCY` | `8` | Model requests in flight at once |
-| `REDIS_URL` | (unset) | Required for durable background jobs and shared Redis state |
 | `AI_JSON_SCHEMA` | `true` | Schema-constrained JSON from vLLM |
 | `INTERVIEW_BASIC_QUESTIONS` / `INTERVIEW_TECHNICAL_QUESTIONS` | `5` / `8` | |
 | `ROUND2_UNLOCK_SCORE` | `50` | Practice Round 1 score (0–100) needed for Round 2 |
@@ -104,4 +106,4 @@ The mock server uses the same API as the real deployment. Its scores are heurist
 
 - **Prompts.** `src/ai/prompts.ts` and the user-message layouts in `src/ai/ai.service.ts` must match the training data exactly. Do not reword them.
 - **Old in-progress sessions.** In-progress sessions from the old chat flow have no `selectedQuestions`. Starting again replaces them, and answering one returns 409 with a message to start a new interview.
-- **Background evaluations** use Redis-backed BullMQ jobs. Pending answer evaluations are recovered when workers start; a completed job updates the interview session in MongoDB.
+- **Background evaluations** run in memory. If the server restarts mid-interview, pending evaluations are restarted by the 30-second sweep (and at startup), or when the last answer is submitted.
