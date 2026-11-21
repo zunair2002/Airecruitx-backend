@@ -18,6 +18,7 @@ import {
   ORG_WARMUP_MINUTES, ROUND2_UNLOCK_SCORE, TECHNICAL_INTERVIEW_MINUTES, TECHNICAL_QUESTIONS, passScore100,
 } from "../../../config/ai";
 import { CLOSING_MESSAGE, isWarmup, warmupSelectedQuestions } from "../../../ai/warmupQuestions";
+import { EVAL_LEVEL, selectPracticeQuestions } from "../../../ai/practiceBank";
 import { emitToUser } from "../../../config/socket";
 import { assertPracticeAllowed, recordPracticeStart } from "./practiceUsage.service";
 
@@ -211,6 +212,13 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   if (!expired && inProgress?.currentQuestion && inProgress.selectedQuestions?.length && sameTrack && sameBasicSession) return inProgress;
   // Resuming (above) is free; a brand-new session counts against the plan's daily allowance.
   await assertPracticeAllowed(userId);
+  // Questions of the candidate's last 5 practice sessions of this round (read before the
+  // replaced session is deleted, so its questions are avoided too).
+  const recentSessions = await InterviewSession.find(
+    { userId, applicationId: { $exists: false }, visibility: "candidate", stage },
+    "selectedQuestions",
+  ).sort({ createdAt: -1 }).limit(5);
+  const questionsOf = (s: IInterviewSession) => (s.selectedQuestions ?? []).map((q) => q.question);
   if (inProgress && !expired) await inProgress.deleteOne();
   const legacy = await InterviewSession.findOne({
     userId, applicationId: { $exists: false }, visibility: "candidate", stage: { $exists: false }, status: UNFINISHED,
@@ -218,14 +226,19 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   if (legacy) await legacy.deleteOne();
 
   const role = TRACKS[track].role;
+  // Wake the GPU server now so the first answer is evaluated quickly (questions come from the bank).
   ai.warmUp().catch(() => undefined);
-  const questions = stage === "basic"
-    ? await ai.generateQuestions({ stage: "basic", role, topics: basicTopicsFor(), count: BASIC_QUESTIONS })
-    : await ai.generateQuestions({
-        stage: "technical", level: context.level ?? "intermediate", role, topics: [...TRACKS[track].topics], count: TECHNICAL_QUESTIONS,
-      });
-  const selectedQuestions = toSelected(questions, stage);
-  if (!selectedQuestions.length) throw new AppError("Could not prepare interview questions", 502);
+  // Fixed flow from src/ai/practice_questions.json (no model call):
+  //   basic: intro, 3 generic (different topics), closing · technical: 2 easy, 4 medium, 2 hard
+  const { questions, warnings } = selectPracticeQuestions(stage, track, {
+    recent: recentSessions.flatMap(questionsOf),
+    last: recentSessions[0] ? questionsOf(recentSessions[0]) : [],
+  });
+  for (const w of warnings) console.warn(`[practice] user ${userId}: ${w}`);
+  const selectedQuestions: ISelectedQuestion[] = questions.map((q) => ({
+    question: q.question, stage: q.stage, topic: q.topic, keyPoints: q.keyPoints, level: q.level, source: q.source,
+  }));
+  if (!selectedQuestions.length) throw new AppError("Practice questions are not available right now", 503);
 
   const session = await InterviewSession.create({
     userId,
@@ -393,7 +406,8 @@ export const processAnswerEvaluation = async ({
   const stage: InterviewStage = selected.stage ?? "technical";
   const ev = await ai.evaluateAnswer({
     stage,
-    level: session.level,
+    // practice questions carry their own level (easy/medium/hard), mapped to the model's vocabulary
+    level: selected.level ? EVAL_LEVEL[selected.level] : session.level,
     topic: selected.topic || topicFromText(selected.question),
     question: selected.question,
     keyPoints: keyPointsOf(selected),
@@ -489,6 +503,7 @@ export const submitAnswer = async (
         evalStatus: "pending" as const,
         marksPossible: current.marks,
         ...(current.kind ? { kind: current.kind } : {}),
+        ...(current.level ? { level: current.level } : {}),
       };
 
   const isLast = questionNumber >= selected.length;
@@ -1008,6 +1023,8 @@ export const buildSessionView = (session: IInterviewSession) => {
     questionNumber: session.currentQuestionNumber,
     question: session.currentQuestion,
     kind: (session.currentQuestionNumber && selected?.[session.currentQuestionNumber - 1]?.kind) || "pool",
+    // practice questions: easy / medium / hard / general (frontend badge); unset otherwise
+    level: session.currentQuestionNumber ? selected?.[session.currentQuestionNumber - 1]?.level : undefined,
     totalQuestions: selected?.length,
     ...(structured && selected?.length ? progressFor(selected, session.currentQuestionNumber) : {}),
     round: session.currentQuestionNumber ? questionRound(session.currentQuestionNumber, selected) : undefined,

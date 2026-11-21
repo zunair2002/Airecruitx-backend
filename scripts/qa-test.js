@@ -194,7 +194,136 @@ function unitTests() {
       ok: sc.hrDecision(7) === "shortlist" && sc.hrDecision(6.9) === "hold" && sc.hrDecision(5) === "hold" && sc.hrDecision(4.9) === "reject",
     })),
     test("thresholds: unlock 50, certificate 70", () => ({ ok: cfg.ROUND2_UNLOCK_SCORE === 50 && cfg.passScore100() === 70 })),
-  ]);
+  ]).then(practiceBankUnitTests);
+}
+
+// Practice question bank (src/ai/practice_questions.json): selection rules, checked on many random draws.
+async function practiceBankUnitTests() {
+  console.log("\n=== Unit: practice question bank ===");
+  const pb = require(path.join(ROOT, "src/ai/practiceBank"));
+  const data = require(path.join(ROOT, "src/ai/practice_questions.json"));
+  const norm = (q) => String(q).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const byQ = new Map();
+  for (const q of data) { const k = norm(q.question); byQ.set(k, [...(byQ.get(k) || []), q]); }
+  const entry = (q, pred) => (byQ.get(norm(q.question)) || []).find(pred);
+  const TRACK_IDS = ["frontend", "backend", "fullstack", "data_ai", "software_engineer"];
+  const RUNS = 40;
+
+  await test("practice bank: loads + validates (528 questions, no errors)", () => {
+    const logs = [];
+    const orig = { log: console.log, warn: console.warn, error: console.error };
+    console.log = console.warn = console.error = (m) => logs.push(String(m));
+    let ok;
+    try { ok = pb.validatePracticeBank(); } finally { Object.assign(console, orig); }
+    return { ok: ok === true && logs.some((l) => /loaded 528 practice questions \(0 error/.test(l)), detail: logs.join(" | ") };
+  });
+  await test(`practice bank: basic order intro / 3 generic (different topics) / closing (${RUNS} draws)`, () => {
+    let bad = "";
+    for (let i = 0; i < RUNS && !bad; i++) {
+      const { questions: qs } = pb.selectPracticeQuestions("basic", "backend");
+      const slots = qs.map((q) => entry(q, (e) => e.stage === "basic")?.slot);
+      const genericTopics = new Set(qs.slice(1, 4).map((q) => q.topic));
+      if (qs.length !== 5 || slots.join() !== "intro,generic,generic,generic,closing") bad = `slots ${slots}`;
+      else if (genericTopics.size !== 3) bad = `generic topics ${[...genericTopics]}`;
+      else if (!qs.every((q) => q.level === "general" && q.source === "bank" && q.stage === "basic" && q.keyPoints.length)) bad = "fields";
+      else if (new Set(qs.map((q) => norm(q.question))).size !== 5) bad = "duplicate";
+    }
+    return { ok: !bad, detail: bad || "all draws ok" };
+  });
+  await test(`practice bank: technical 2 easy / 4 medium / 2 hard, selected track only, no duplicates (${RUNS} draws x 5 tracks)`, () => {
+    let bad = "";
+    for (const track of TRACK_IDS) {
+      for (let i = 0; i < RUNS && !bad; i++) {
+        const { questions: qs, warnings } = pb.selectPracticeQuestions("technical", track);
+        const levels = qs.map((q) => q.level).join();
+        if (levels !== "easy,easy,medium,medium,medium,medium,hard,hard") bad = `${track}: levels ${levels}`;
+        else if (!qs.every((q) => entry(q, (e) => e.track === track && e.level === q.level && e.topic === q.topic))) bad = `${track}: question from another track/level`;
+        else if (new Set(qs.map((q) => norm(q.question))).size !== 8) bad = `${track}: duplicate`;
+        else if (warnings.length) bad = `${track}: unexpected warnings ${warnings}`;
+      }
+    }
+    return { ok: !bad, detail: bad || "all draws ok" };
+  });
+  await test("practice bank: no repeats from the last 5 sessions (generic + technical); intro/closing differ from the last session", () => {
+    let bad = "";
+    for (const stage of ["basic", "technical"]) {
+      const sessions = [];
+      for (let i = 0; i < 12 && !bad; i++) {
+        const prev = sessions.slice(-5);
+        const recent = prev.flat();
+        const last = prev.length ? prev[prev.length - 1] : [];
+        const { questions, warnings } = pb.selectPracticeQuestions(stage, "fullstack", { recent, last });
+        const qs = questions.map((q) => q.question);
+        const checked = stage === "basic" ? qs.slice(1, 4) : qs;
+        const repeated = checked.filter((q) => recent.map(norm).includes(norm(q)));
+        if (repeated.length) bad = `${stage} session ${i}: repeated ${repeated[0]}`;
+        else if (stage === "basic" && last.length && (norm(qs[0]) === norm(last[0]) || norm(qs[4]) === norm(last[4]))) bad = `basic session ${i}: intro/closing same as last session`;
+        else if (warnings.length) bad = `${stage} session ${i}: warnings ${warnings}`;
+        sessions.push(qs);
+      }
+    }
+    return { ok: !bad, detail: bad || "12 consecutive sessions per stage" };
+  });
+  await test("practice bank: whole track already asked -> reuses recent questions with a warning, order kept", () => {
+    const all = data.filter((q) => q.track === "backend").map((q) => q.question);
+    const { questions: qs, warnings } = pb.selectPracticeQuestions("technical", "backend", { recent: all, last: [] });
+    const levels = qs.map((q) => q.level).join();
+    return {
+      ok: levels === "easy,easy,medium,medium,medium,medium,hard,hard" && new Set(qs.map((q) => norm(q.question))).size === 8
+        && warnings.length === 3 && warnings.every((w) => /reusing questions from recent sessions/.test(w)),
+      detail: `levels ${levels}, warnings ${warnings.length}`,
+    };
+  });
+  await test("practice bank: evaluator level easy->beginner, medium->intermediate, hard->intermediate, basic general", () => ({
+    ok: pb.EVAL_LEVEL.easy === "beginner" && pb.EVAL_LEVEL.medium === "intermediate" && pb.EVAL_LEVEL.hard === "intermediate" && pb.EVAL_LEVEL.general === "general",
+    detail: JSON.stringify(pb.EVAL_LEVEL),
+  }));
+}
+
+// End to end: practice rounds take their questions from the bank (no question-generation call)
+// and every evaluation request carries the mapped level.
+async function practiceFlowTests() {
+  const u = await makeUser("candidate", "pbank");
+  const levelCount = (reqs) => reqs.reduce((m, r) => ({ ...m, [r.level]: (m[r.level] || 0) + 1 }), {});
+  const stats = async () => (await api("GET", "/__mock/stats", { base: MOCK })).json;
+
+  await api("POST", "/__mock/reset", { base: MOCK });
+  const basic = await runRound(u, "basic", 8, { track: "backend", tag: "pbank" });
+  const sBasic = await stats();
+  const basicDoc = await sessionDoc(basic.start.sessionId);
+  await test(`[${current_phase}] practice basic: bank questions, no generateQuestions call, eval level "general"`, () => {
+    const levels = levelCount(sBasic.evalRequests);
+    return {
+      ok: sBasic.qgen === 0 && basic.final.status === "completed" && basic.start.level === "general"
+        && basicDoc.selectedQuestions.length === 5 && basicDoc.selectedQuestions.every((q) => q.source === "bank" && q.level === "general")
+        && basicDoc.turns.every((t) => t.level === "general") && sBasic.evalRequests.length === 5 && levels.general === 5,
+      detail: `qgen ${sBasic.qgen}, view level ${basic.start.level}, eval levels ${JSON.stringify(levels)}, score ${basic.final.score}`,
+    };
+  });
+
+  const techRuns = [];
+  for (let i = 0; i < 2; i++) {
+    await api("POST", "/__mock/reset", { base: MOCK });
+    const run = await runRound(u, "technical", 8, { track: "backend", tag: `pbank-t${i}` });
+    techRuns.push({ run, st: await stats(), doc: await sessionDoc(run.start.sessionId) });
+  }
+  await test(`[${current_phase}] practice technical: 2 easy / 4 medium / 2 hard from the track, eval beginner x2 + intermediate x6, no qgen`, () => {
+    const { run, st, doc } = techRuns[0];
+    const levels = doc.selectedQuestions.map((q) => q.level).join();
+    const evalLevels = levelCount(st.evalRequests);
+    return {
+      ok: st.qgen === 0 && run.final.status === "completed" && run.start.level === "easy" && levels === "easy,easy,medium,medium,medium,medium,hard,hard"
+        && doc.turns.map((t) => t.level).join() === levels && st.evalRequests.length === 8 && evalLevels.beginner === 2 && evalLevels.intermediate === 6
+        && !evalLevels.expert && doc.track === "backend",
+      detail: `qgen ${st.qgen}, levels ${levels}, eval levels ${JSON.stringify(evalLevels)}, view level ${run.start.level}`,
+    };
+  });
+  await test(`[${current_phase}] practice technical: next session repeats no question, still no qgen`, () => {
+    const a = techRuns[0].doc.selectedQuestions.map((q) => q.question);
+    const b = techRuns[1].doc.selectedQuestions.map((q) => q.question);
+    const overlap = b.filter((q) => a.includes(q));
+    return { ok: overlap.length === 0 && new Set(b).size === 8 && techRuns[1].st.qgen === 0, detail: `overlap ${overlap.length}, qgen ${techRuns[1].st.qgen}` };
+  });
 }
 
 async function authTests() {
@@ -794,6 +923,7 @@ let qaConn = null;
     await rateLimitTests();
     await answerValidationTests();
     await fullFlowTests();
+    await practiceFlowTests();
     await orgInviteTests();
     await warmupTests();
     await retryTest();
