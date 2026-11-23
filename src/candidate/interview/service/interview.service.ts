@@ -46,6 +46,9 @@ const timerFields = (minutes: number) => {
 const isFinished = (status: IInterviewSession["status"]): boolean => status === "completed" || status === "expired";
 const UNFINISHED = { $nin: ["completed", "expired"] };
 
+// startPracticeRound won't resume an in-progress practice session with less time than this left.
+const MIN_RESUME_REMAINING_MS = 60_000;
+
 const isExpired = (s: Pick<IInterviewSession, "status" | "expiresAt">): boolean =>
   !isFinished(s.status) && !!s.expiresAt && Date.now() > s.expiresAt.getTime() + INTERVIEW_GRACE_MS;
 
@@ -207,7 +210,15 @@ export const startPracticeRound = async (userId: string, context: StartPracticeC
   });
   const sameTrack = !context.track || context.track === inProgress?.track;
   const sameBasicSession = stage !== "technical" || String(inProgress?.basicSessionId ?? "") === String(basicSession?._id ?? "");
-  const expired = Boolean(inProgress && isExpired(inProgress));
+  // A session with under a minute left (or already past its deadline) is not resumed: the
+  // candidate would get one question and then be timed out. Finish it (scored) and start fresh.
+  const expired = Boolean(
+    inProgress &&
+      (isExpired(inProgress) ||
+        (!isFinished(inProgress.status) &&
+          !!inProgress.expiresAt &&
+          inProgress.expiresAt.getTime() - Date.now() < MIN_RESUME_REMAINING_MS))
+  );
   if (inProgress && expired) expireInBackground(inProgress); // keep the timed-out attempt (scored)
   if (!expired && inProgress?.currentQuestion && inProgress.selectedQuestions?.length && sameTrack && sameBasicSession) return inProgress;
   // Resuming (above) is free; a brand-new session counts against the plan's daily allowance.

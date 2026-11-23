@@ -1,6 +1,6 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-export type ApplicationStatus = "pending" | "selected" | "rejected";
+export type ApplicationStatus = "pending" | "shortlisted" | "selected" | "rejected";
 
 // No fixed date/time — HR invites the candidate with a unique link valid for a
 // configurable window; the candidate takes the (AI-conducted) interview whenever they
@@ -137,7 +137,7 @@ const applicationSchema = new Schema<IApplication>(
     },
     status: {
       type: String,
-      enum: ["pending", "selected", "rejected"],
+      enum: ["pending", "shortlisted", "selected", "rejected"],
       required: true,
       default: "pending",
     },

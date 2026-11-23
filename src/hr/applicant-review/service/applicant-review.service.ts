@@ -159,16 +159,39 @@ const assertHrOwnsApplication = async (hrId: string, applicationId: string): Pro
   return application;
 };
 
-export const updateApplicationStatus = async (
-  hrId: string,
-  applicationId: string,
-  status: ApplicationStatus
-): Promise<IApplication> => {
-  if (!["pending", "selected", "rejected"].includes(status)) {
-    throw new AppError("Invalid status", 400);
-  }
+const APPLICATION_STATUSES: ApplicationStatus[] = ["pending", "shortlisted", "selected", "rejected"];
 
-  const application = await assertHrOwnsApplication(hrId, applicationId);
+// pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected.
+// "selected" additionally requires a completed AI or org interview (checked separately).
+const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+  pending: ["shortlisted", "rejected"],
+  shortlisted: ["selected", "rejected"],
+  selected: ["rejected"],
+  rejected: [],
+};
+
+const hasCompletedInterview = async (application: IApplication): Promise<boolean> => {
+  if (application.orgInterview?.status === "completed") return true;
+  const sessionIds = [application.interviewSessionId, application.orgInterviewSessionId].filter(
+    (id): id is Types.ObjectId => Boolean(id)
+  );
+  if (!sessionIds.length) return false;
+  return Boolean(await InterviewSession.exists({ _id: { $in: sessionIds }, status: "completed" }));
+};
+
+// Throws a 400 if `application` may not move to `status`. Same-status is a no-op and allowed.
+const assertStatusTransition = async (application: IApplication, status: ApplicationStatus) => {
+  if (application.status === status) return;
+  if (!ALLOWED_STATUS_TRANSITIONS[application.status]?.includes(status)) {
+    throw new AppError(`Cannot change application status from "${application.status}" to "${status}"`, 400);
+  }
+  if (status === "selected" && !(await hasCompletedInterview(application))) {
+    throw new AppError("Candidate can only be selected after completing the AI or organizational interview", 400);
+  }
+};
+
+const applyStatus = async (application: IApplication, status: ApplicationStatus) => {
+  if (application.status === status) return application;
   application.status = status;
   await application.save();
 
@@ -177,19 +200,53 @@ export const updateApplicationStatus = async (
     jobId: application.jobId,
     status: application.status,
   });
-
   return application;
 };
 
+export const updateApplicationStatus = async (
+  hrId: string,
+  applicationId: string,
+  status: ApplicationStatus
+): Promise<IApplication> => {
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new AppError("Invalid status", 400);
+  }
+
+  const application = await assertHrOwnsApplication(hrId, applicationId);
+  await assertStatusTransition(application, status);
+  return applyStatus(application, status);
+};
+
 // Lets HR shortlist/reject several applicants at once instead of one at a time.
+// All applications are validated first so a single invalid one doesn't leave the batch half-applied.
 export const bulkUpdateApplicationStatus = async (
   hrId: string,
   applicationIds: string[],
   status: ApplicationStatus
 ): Promise<IApplication[]> => {
-  const results: IApplication[] = [];
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new AppError("Invalid status", 400);
+  }
+
+  const applications: IApplication[] = [];
+  const failures: string[] = [];
   for (const applicationId of applicationIds) {
-    results.push(await updateApplicationStatus(hrId, applicationId, status));
+    const application = await assertHrOwnsApplication(hrId, applicationId);
+    try {
+      await assertStatusTransition(application, status);
+      applications.push(application);
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      failures.push(`${applicationId}: ${error.message}`);
+    }
+  }
+  if (failures.length) {
+    throw new AppError(`Status not updated. ${failures.join("; ")}`, 400);
+  }
+
+  const results: IApplication[] = [];
+  for (const application of applications) {
+    results.push(await applyStatus(application, status));
   }
   return results;
 };
