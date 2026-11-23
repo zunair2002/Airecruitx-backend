@@ -161,14 +161,18 @@ const assertHrOwnsApplication = async (hrId: string, applicationId: string): Pro
 
 const APPLICATION_STATUSES: ApplicationStatus[] = ["pending", "shortlisted", "selected", "rejected"];
 
-// pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected.
+// pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected;
+// rejected -> shortlisted.
 // "selected" additionally requires a completed AI or org interview (checked separately).
 const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   pending: ["shortlisted", "rejected"],
   shortlisted: ["selected", "rejected"],
   selected: ["rejected"],
-  rejected: [],
+  rejected: ["shortlisted"], // lets HR undo an accidental rejection
 };
+
+// Statuses HR may send an org-interview invite to.
+const ORG_INVITE_STATUSES: ApplicationStatus[] = ["shortlisted", "selected"];
 
 const hasCompletedInterview = async (application: IApplication): Promise<boolean> => {
   if (application.orgInterview?.status === "completed") return true;
@@ -374,8 +378,8 @@ export const inviteToOrgInterview = async (
 ): Promise<IApplication> => {
   const application = await assertHrOwnsApplication(hrId, applicationId);
 
-  if (application.status !== "selected") {
-    throw new AppError("Only selected candidates can be invited to an organizational interview", 400);
+  if (!ORG_INVITE_STATUSES.includes(application.status)) {
+    throw new AppError("Only shortlisted or selected candidates can be invited to an organizational interview", 400);
   }
   if (!Number.isFinite(validityDays) || validityDays <= 0) {
     throw new AppError("validityDays must be a positive number", 400);
@@ -443,6 +447,15 @@ export const bulkInviteToOrgInterview = async (
   // Check every job's question pool up front so a missing pool rejects the whole
   // batch instead of inviting half of it.
   const applications = await Promise.all(applicationIds.map((id) => assertHrOwnsApplication(hrId, id)));
+  const notEligible = applications.filter((a) => !ORG_INVITE_STATUSES.includes(a.status));
+  if (notEligible.length) {
+    throw new AppError(
+      `Only shortlisted or selected candidates can be invited to an organizational interview: ${notEligible
+        .map((a) => a._id.toString())
+        .join(", ")}`,
+      400
+    );
+  }
   const jobIds = [...new Set(applications.map((a) => a.jobId.toString()))];
   await Promise.all(jobIds.map(assertQuestionPool));
 
