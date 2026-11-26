@@ -3,7 +3,7 @@ import PDFDocument from "pdfkit";
 import cloudinary from "../../../config/cloudinary";
 import { Certificate, ICertificate } from "../model/certificate.model";
 import { InterviewSession } from "../../interview/model/interviewSession.model";
-import { User } from "../../../shared/user/model/user.model";
+import { User, effectivePlan } from "../../../shared/user/model/user.model";
 import { AppError } from "../../../utils/AppError";
 
 const getPassScore = (): number => {
@@ -119,14 +119,13 @@ export const generateCertificate = async (
   if (session.score < passScore) {
     throw new AppError(`Score must be at least ${passScore} to earn a certificate`, 403);
   }
-  if (!session.certificatePayment?.paid) {
-    throw new AppError("Payment is required before the certificate can be issued", 402);
-  }
-
   // Name always comes from the authenticated user's DB record, never from the request body.
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError("User not found", 404);
+  }
+  if (!session.certificatePayment?.paid && effectivePlan(user) !== "premium") {
+    throw new AppError("Payment is required before the certificate can be issued", 402);
   }
 
   const certId = `AIRX-${crypto.randomUUID().split("-")[0].toUpperCase()}`;

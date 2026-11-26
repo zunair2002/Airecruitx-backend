@@ -2,6 +2,7 @@ import { InterviewSession } from "../../interview/model/interviewSession.model";
 import { AppError } from "../../../utils/AppError";
 import { getStripeClient } from "../../../config/stripe";
 import { recordCertificatePayment } from "../../../shared/billing/service/billing.service";
+import { User, effectivePlan } from "../../../shared/user/model/user.model";
 
 const getPassScore = (): number => {
   const raw = process.env.CERTIFICATE_PASS_SCORE;
@@ -50,6 +51,14 @@ export const createCertificateCheckout = async (
     throw new AppError("Certificate is already paid for", 409);
   }
 
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+  if (effectivePlan(user) === "premium") {
+    throw new AppError("This certificate is included with Premium. Generate it directly.", 409);
+  }
+
   const stripe = getStripeClient();
   const baseUrl = getAppBaseUrl();
 
@@ -66,8 +75,10 @@ export const createCertificateCheckout = async (
         quantity: 1,
       },
     ],
-    success_url: `${baseUrl}/?payment=success&sessionId=${sessionId}&stripeSessionId={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/?payment=cancelled&sessionId=${sessionId}`,
+    // Keep the candidate on the result that started checkout, rather than
+    // sending them to the public landing page after Stripe returns.
+    success_url: `${baseUrl}/candidate/interview/result?sessionId=${encodeURIComponent(sessionId)}&checkout=success&stripeSessionId={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/candidate/interview/result?sessionId=${encodeURIComponent(sessionId)}&checkout=cancelled`,
   });
 
   if (!checkoutSession.url) {
@@ -89,6 +100,14 @@ export const confirmCertificatePayment = async (
     throw new AppError("Interview session not found", 404);
   }
   if (session.certificatePayment?.paid) {
+    return { paid: true };
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError("User not found", 404);
+  }
+  if (effectivePlan(user) === "premium") {
     return { paid: true };
   }
   if (!session.certificatePayment?.stripeSessionId) {

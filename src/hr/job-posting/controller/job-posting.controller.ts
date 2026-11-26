@@ -33,6 +33,20 @@ export const listMyJobsHandler = asyncHandler(async (req: Request, res: Response
   res.status(200).json({ success: true, data: jobs });
 });
 
+export const updateJobStatusHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { status } = req.body ?? {};
+  if (status !== "open" && status !== "closed") {
+    throw new AppError('status must be "open" or "closed"', 400);
+  }
+
+  const job = await jobPostingService.setJobStatus(
+    req.user!._id.toString(),
+    req.params.jobId,
+    status
+  );
+  res.status(200).json({ success: true, data: job });
+});
+
 // Replaces the whole organizational-interview question pool for a job from an
 // uploaded PDF/DOCX ("Q: / A: / Marks:" per question — see
 // orgInterviewQuestionSet.service.ts) instead of HR typing each question into a form.

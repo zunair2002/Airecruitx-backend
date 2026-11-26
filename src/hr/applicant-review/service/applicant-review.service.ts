@@ -161,6 +161,19 @@ const assertHrOwnsApplication = async (hrId: string, applicationId: string): Pro
 
 const APPLICATION_STATUSES: ApplicationStatus[] = ["pending", "shortlisted", "selected", "rejected"];
 
+const applicationStatusNotification = (status: ApplicationStatus): string => {
+  switch (status) {
+    case "selected":
+      return "Congratulations — your application has been selected. The hiring team will contact you about the next steps.";
+    case "rejected":
+      return "Update on your application: after review, the hiring team will not be moving forward at this time.";
+    case "shortlisted":
+      return "Good news — your application has been shortlisted for further review.";
+    default:
+      return "Your application status has been updated by the hiring team.";
+  }
+};
+
 // pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected;
 // rejected -> shortlisted.
 // "selected" additionally requires a completed AI or org interview (checked separately).
@@ -198,6 +211,13 @@ const applyStatus = async (application: IApplication, status: ApplicationStatus)
   if (application.status === status) return application;
   application.status = status;
   await application.save();
+
+  // Save the HR decision so it is visible in the candidate's notification
+  // inbox even if they were offline when the real-time event was emitted.
+  await notifyUser(
+    application.candidateId.toString(),
+    applicationStatusNotification(application.status)
+  );
 
   emitToUser(application.candidateId.toString(), "application:status", {
     applicationId: application._id,
