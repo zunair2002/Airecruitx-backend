@@ -1,5 +1,5 @@
 import { Course, CourseTier, ICourse } from "../model/course.model";
-import { User } from "../../../shared/user/model/user.model";
+import { User, effectivePlan } from "../../../shared/user/model/user.model";
 import { AppError } from "../../../utils/AppError";
 
 export type CourseInput = {
@@ -16,10 +16,10 @@ export type CourseInput = {
  */
 export const listCoursesForCandidate = async (userId: string) => {
   const [user, courses] = await Promise.all([
-    User.findById(userId).select("plan").lean(),
+    User.findById(userId).select("plan planExpiresAt").lean(),
     Course.find({ isActive: true }).sort({ createdAt: -1 }).lean(),
   ]);
-  const premium = user?.plan === "premium";
+  const premium = effectivePlan(user) === "premium";
   return courses.map((course) => {
     const tier = course.tier ?? "free";
     if (tier === "premium" && !premium) {

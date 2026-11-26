@@ -1,4 +1,5 @@
-import { User, IUser, UserRole } from "../../../shared/user/model/user.model";
+import { User, IUser, UserRole, UserPlan } from "../../../shared/user/model/user.model";
+import { setPlanByAdmin } from "../../../shared/billing/service/billing.service";
 import { AppError } from "../../../utils/AppError";
 import { logActivity } from "../../activity-log/service/activity-log.service";
 
@@ -88,4 +89,19 @@ export const deleteUser = async (adminId: string, userId: string): Promise<void>
     name: user.name,
     email: user.email,
   });
+};
+
+export const setUserPlan = async (
+  adminId: string,
+  userId: string,
+  plan: UserPlan,
+  expiresAt: Date | null
+): Promise<IUser> => {
+  const { user, from } = await setPlanByAdmin(userId, plan, expiresAt);
+  await logActivity(adminId, "admin", "user.plan-change", "User", userId, {
+    from,
+    to: plan,
+    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+  });
+  return user;
 };

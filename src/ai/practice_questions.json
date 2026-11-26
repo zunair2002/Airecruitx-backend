@@ -1,0 +1,6338 @@
+[
+ {
+  "stage": "basic",
+  "slot": "intro",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Tell me about yourself.",
+  "key_points": [
+   "Brief education or professional background",
+   "Relevant skills or projects linked to the role",
+   "Short statement of current goal or interest in this role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "intro",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Walk me through your resume.",
+  "key_points": [
+   "Chronological, concise overview",
+   "Highlights of the most relevant experience or projects",
+   "Explains transitions or choices briefly"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Why did you choose computer science as your field?",
+  "key_points": [
+   "Genuine personal motivation",
+   "An example or moment that sparked interest",
+   "Connection to current goals"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Why should we hire you?",
+  "key_points": [
+   "Matches own skills to job requirements",
+   "Evidence such as a project or result",
+   "Mentions attitude or value added to the team"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Briefly describe your final year project.",
+  "key_points": [
+   "Problem the project solves",
+   "Own role and technologies used",
+   "Result, challenge or learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "How would your friends or classmates describe you?",
+  "key_points": [
+   "Two or three relevant qualities",
+   "Short example supporting each",
+   "Qualities useful at work"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "What are your hobbies or interests outside work?",
+  "key_points": [
+   "Genuine interests",
+   "What the hobby says about the candidate (discipline, creativity, teamwork)",
+   "Kept brief"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What are your greatest strengths?",
+  "key_points": [
+   "One to three relevant strengths",
+   "Evidence from a real situation",
+   "Link to how it helps in this role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What is your biggest weakness?",
+  "key_points": [
+   "Honest, real weakness that is not critical for the role",
+   "Shows self-awareness",
+   "Concrete steps taken to improve"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What skill are you currently trying to improve?",
+  "key_points": [
+   "A specific skill",
+   "How the candidate is learning it",
+   "Why it matters for their career"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "Tell me about an achievement you are proud of.",
+  "key_points": [
+   "Specific achievement",
+   "Own actions and effort",
+   "Measurable or visible result"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "How do you handle criticism of your work?",
+  "key_points": [
+   "Positive attitude toward feedback",
+   "Example of receiving and applying criticism",
+   "Result or learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What makes you different from other candidates?",
+  "key_points": [
+   "A distinctive combination of skills or experience",
+   "Evidence",
+   "Relevance to the employer"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "Describe a mistake you made and what you learned from it.",
+  "key_points": [
+   "Owns the mistake honestly",
+   "Explains how it was fixed",
+   "Clear learning and changed behaviour"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "How do you learn a new technology quickly?",
+  "key_points": [
+   "A clear learning process",
+   "Hands-on practice",
+   "An example of learning something fast"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What would your previous supervisor or teacher say about you?",
+  "key_points": [
+   "Realistic, specific qualities",
+   "Reference to actual feedback",
+   "One area to improve can show honesty"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "Tell me about a time you went beyond what was expected.",
+  "key_points": [
+   "Clear situation and normal expectation",
+   "Extra effort taken",
+   "Impact of that effort"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you handle pressure or stressful situations?",
+  "key_points": [
+   "A method for staying calm and organised",
+   "Real example of working under pressure",
+   "Positive outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you prioritise when you have multiple deadlines?",
+  "key_points": [
+   "Clear prioritisation method (urgency/importance, impact)",
+   "Communication with stakeholders",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "Tell me about a time you missed a deadline.",
+  "key_points": [
+   "Honest ownership",
+   "What was done to limit the impact",
+   "Lesson and changed approach"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you manage your time during a busy day?",
+  "key_points": [
+   "Planning routine",
+   "Tools or techniques",
+   "Handling interruptions"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "What would you do if you realised you could not finish a task on time?",
+  "key_points": [
+   "Inform stakeholders early",
+   "Propose options (scope cut, help, new timeline)",
+   "Learn for future estimates"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you stay focused on long or boring tasks?",
+  "key_points": [
+   "Practical techniques",
+   "Connecting the task to its purpose",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "Describe a situation where you had to work under a very tight deadline.",
+  "key_points": [
+   "Situation and time limit",
+   "Actions taken to meet it",
+   "Result and learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you deal with interruptions while working?",
+  "key_points": [
+   "Judge urgency of interruption",
+   "Protect focus time",
+   "Communicate politely"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you balance quality and speed in your work?",
+  "key_points": [
+   "Understands trade-off",
+   "Decides based on impact and risk",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "pressure_time_management",
+  "level": "general",
+  "question": "How do you prepare for an important presentation or meeting?",
+  "key_points": [
+   "Understanding the audience and goal",
+   "Preparation steps",
+   "Practice and backup plans"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "Which subject did you enjoy most in your degree and why?",
+  "key_points": [
+   "Names a subject",
+   "Specific reason or example from the course",
+   "Link to career interest"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "What was the most challenging part of your final year project?",
+  "key_points": [
+   "Specific technical or team challenge",
+   "Steps taken to solve it",
+   "Result and learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "How did you divide work in your project team?",
+  "key_points": [
+   "Method for dividing tasks (skills, modules)",
+   "Tools for coordination",
+   "How progress was tracked"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "Have you done any internship? What did you learn there?",
+  "key_points": [
+   "Role and company context",
+   "Tasks performed",
+   "Concrete skills or lessons learned"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "Tell me about a personal project you built outside your coursework.",
+  "key_points": [
+   "What was built and why",
+   "Technologies and own decisions",
+   "Outcome or learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "What programming languages are you most comfortable with?",
+  "key_points": [
+   "Names one or two main languages honestly",
+   "Evidence of use (projects)",
+   "Willingness to learn others"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "How do you keep your technical skills up to date?",
+  "key_points": [
+   "Specific sources or routines",
+   "Hands-on practice",
+   "Recent example of something learned"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "What did you learn from working in group projects at university?",
+  "key_points": [
+   "Teamwork lessons (communication, planning)",
+   "Example of a challenge",
+   "How it applies at work"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "If you could redo your final year project, what would you change?",
+  "key_points": [
+   "Honest reflection",
+   "Specific technical or process improvements",
+   "Shows growth"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "education_projects",
+  "level": "general",
+  "question": "How do you approach a problem you have never seen before?",
+  "key_points": [
+   "Understand and break down the problem",
+   "Research and experiment",
+   "Ask for help at the right time"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "adaptability",
+  "level": "general",
+  "question": "How do you react to sudden changes in priorities?",
+  "key_points": [
+   "Accepts change calmly",
+   "Clarifies new priority and impact",
+   "Example of adjusting plans"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "adaptability",
+  "level": "general",
+  "question": "Tell me about a time you had to learn something completely new quickly.",
+  "key_points": [
+   "Situation requiring fast learning",
+   "Learning approach",
+   "Outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "adaptability",
+  "level": "general",
+  "question": "Describe a time you failed and what you learned from it.",
+  "key_points": [
+   "Honest failure",
+   "Ownership",
+   "Lesson and changed behaviour"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "adaptability",
+  "level": "general",
+  "question": "What's the most significant change you've had to adapt to at work or university?",
+  "key_points": [
+   "Describes the change",
+   "Steps taken to adapt",
+   "Outcome or growth"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "adaptability",
+  "level": "general",
+  "question": "How do you stay updated with industry trends?",
+  "key_points": [
+   "Specific sources",
+   "Regular habit",
+   "Example of applying something new"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "What kind of growth opportunities are you looking for?",
+  "key_points": [
+   "Specific skills or responsibilities to grow into",
+   "Realistic expectations",
+   "Link to this role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "What skills do you hope to develop in your next role?",
+  "key_points": [
+   "Specific technical and soft skills",
+   "Why they matter",
+   "Connection to the role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "What are your long-term career aspirations?",
+  "key_points": [
+   "Clear direction",
+   "Realistic steps",
+   "Link to current role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "Where do you see yourself in 5 years?",
+  "key_points": [
+   "Realistic professional goal",
+   "Growth in skills and responsibility",
+   "Alignment with company"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "How does this role fit into your career path?",
+  "key_points": [
+   "Understanding of the role",
+   "Connection to past experience",
+   "Connection to future goals"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "conflict_resolution",
+  "level": "general",
+  "question": "Tell me about a conflict you had with a coworker and how you resolved it.",
+  "key_points": [
+   "Specific conflict",
+   "Calm, respectful approach (listening, private discussion)",
+   "Resolution and outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "conflict_resolution",
+  "level": "general",
+  "question": "What would you do if you disagreed with your manager?",
+  "key_points": [
+   "Respectful private discussion",
+   "Uses evidence or reasoning",
+   "Accepts final decision professionally"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "conflict_resolution",
+  "level": "general",
+  "question": "Describe a time you handled a difficult situation professionally.",
+  "key_points": [
+   "Clear difficult situation",
+   "Calm, professional actions",
+   "Outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "conflict_resolution",
+  "level": "general",
+  "question": "How do you respond when a teammate isn't pulling their weight?",
+  "key_points": [
+   "Talk privately first",
+   "Understand the cause",
+   "Escalate fairly if needed"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "conflict_resolution",
+  "level": "general",
+  "question": "How do you deal with feedback that you disagree with?",
+  "key_points": [
+   "Listens fully and stays open",
+   "Asks questions / shares view respectfully",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "culture_fit",
+  "level": "general",
+  "question": "What are your expectations from leadership in a company?",
+  "key_points": [
+   "Clear, reasonable expectations (clarity, feedback, support)",
+   "Shows own responsibility too",
+   "Link to growth"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "culture_fit",
+  "level": "general",
+  "question": "What type of company culture do you thrive in?",
+  "key_points": [
+   "Describes specific cultural traits",
+   "Reason/example why it suits them",
+   "Fit with this company"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "culture_fit",
+  "level": "general",
+  "question": "Describe a time you felt out of place in a workplace or team culture.",
+  "key_points": [
+   "Honest situation",
+   "Effort to adapt or connect",
+   "Learning"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "culture_fit",
+  "level": "general",
+  "question": "How do you contribute to a positive team environment?",
+  "key_points": [
+   "Specific behaviours (helping, recognising others, communication)",
+   "Example",
+   "Impact"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "leadership",
+  "level": "general",
+  "question": "How do you delegate tasks effectively?",
+  "key_points": [
+   "Matches tasks to strengths",
+   "Clear expectations and deadlines",
+   "Follow-up without micromanaging"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "leadership",
+  "level": "general",
+  "question": "Describe a time you led a project or team.",
+  "key_points": [
+   "Team and goal context",
+   "Leadership actions (planning, motivating, resolving issues)",
+   "Outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "leadership",
+  "level": "general",
+  "question": "How do you motivate others in a leadership role?",
+  "key_points": [
+   "Understands individual motivation",
+   "Recognition and clear goals",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "leadership",
+  "level": "general",
+  "question": "Tell me about a time you mentored someone.",
+  "key_points": [
+   "Who and what was taught",
+   "How it was taught",
+   "Result for the mentee"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "leadership",
+  "level": "general",
+  "question": "What makes a good leader in your opinion?",
+  "key_points": [
+   "Two or three clear qualities",
+   "Explanation or example",
+   "Personal connection"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "motivation",
+  "level": "general",
+  "question": "What drives your passion for this field?",
+  "key_points": [
+   "Genuine source of motivation",
+   "Example",
+   "Connection to the role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "motivation",
+  "level": "general",
+  "question": "Tell me about a time you were highly motivated to achieve a goal.",
+  "key_points": [
+   "Specific goal",
+   "Actions showing motivation",
+   "Result"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "motivation",
+  "level": "general",
+  "question": "How do you stay motivated during repetitive tasks?",
+  "key_points": [
+   "Connects to purpose",
+   "Practical techniques",
+   "Looks for improvements or automation"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "motivation",
+  "level": "general",
+  "question": "What motivates you to come to work every day?",
+  "key_points": [
+   "Genuine motivators (learning, impact, team)",
+   "Example",
+   "Professional tone"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "team_collaboration",
+  "level": "general",
+  "question": "How do you build trust with new teammates?",
+  "key_points": [
+   "Reliability (deliver on promises)",
+   "Open communication and helping others",
+   "Example"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "team_collaboration",
+  "level": "general",
+  "question": "Describe a project where teamwork was essential to success.",
+  "key_points": [
+   "Project and team context",
+   "Own role and collaboration methods",
+   "Result"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "team_collaboration",
+  "level": "general",
+  "question": "How do you handle disagreements within a team?",
+  "key_points": [
+   "Listen to all sides",
+   "Focus on facts and team goal",
+   "Agree on a decision and move on"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "team_collaboration",
+  "level": "general",
+  "question": "Tell me about a time you worked well within a team.",
+  "key_points": [
+   "Context and goal",
+   "Specific contribution and cooperation",
+   "Outcome"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "team_collaboration",
+  "level": "general",
+  "question": "What role do you usually play in group settings?",
+  "key_points": [
+   "Identifies a role honestly",
+   "Example",
+   "Flexibility to take other roles"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "work_style",
+  "level": "general",
+  "question": "How do you ensure productivity when working remotely?",
+  "key_points": [
+   "Routine and dedicated workspace",
+   "Communication tools and visibility",
+   "Example or results"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "work_style",
+  "level": "general",
+  "question": "Do you prefer working independently or in teams? Why?",
+  "key_points": [
+   "Honest preference",
+   "Reason",
+   "Shows ability to do both"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "work_style",
+  "level": "general",
+  "question": "What tools or methods help you stay organized?",
+  "key_points": [
+   "Named tools",
+   "How they are used",
+   "Result"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "work_style",
+  "level": "general",
+  "question": "Describe your ideal workday.",
+  "key_points": [
+   "Productive structure",
+   "Mix of focus work and collaboration",
+   "Realistic"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "generic",
+  "topic": "work_style",
+  "level": "general",
+  "question": "How do you organize and prioritize your daily tasks?",
+  "key_points": [
+   "Daily planning routine",
+   "Prioritisation method",
+   "Adjusting to changes"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "intro",
+  "topic": "self_introduction",
+  "level": "general",
+  "question": "Please introduce yourself.",
+  "key_points": [
+   "Brief education or professional background",
+   "Relevant skills or projects linked to the role",
+   "Short statement of current goal or interest in this role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "strengths_weaknesses",
+  "level": "general",
+  "question": "What is one thing you would like us to remember about you?",
+  "key_points": [
+   "One clear, memorable strength or quality",
+   "Short evidence or example",
+   "Link to the value they would bring to the role"
+  ]
+ },
+ {
+  "stage": "basic",
+  "slot": "closing",
+  "topic": "career_goals",
+  "level": "general",
+  "question": "Why do you think you are ready to start your professional career?",
+  "key_points": [
+   "Skills and knowledge gained from studies or projects",
+   "Evidence of readiness (internship, project, teamwork)",
+   "Positive attitude and willingness to learn"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is HTML and what is it used for?",
+  "key_points": [
+   "Markup language for structuring web page content",
+   "Uses elements/tags such as headings, paragraphs, links, images",
+   "Browser reads HTML to display the page"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between HTML, CSS and JavaScript?",
+  "key_points": [
+   "HTML gives structure/content",
+   "CSS gives styling and layout",
+   "JavaScript adds behaviour and interactivity"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between block and inline elements in HTML?",
+  "key_points": [
+   "Block elements start on a new line and take full width (div, p)",
+   "Inline elements stay in the line and take only needed width (span, a)",
+   "Width/height mostly apply to block elements"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What are semantic HTML tags? Give two examples.",
+  "key_points": [
+   "Tags that describe the meaning of content",
+   "Examples: header, nav, main, article, footer, section",
+   "Help accessibility and SEO"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the purpose of the alt attribute on an image?",
+  "key_points": [
+   "Text alternative describing the image",
+   "Read by screen readers for accessibility",
+   "Shown if the image fails to load"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What are the three ways to add CSS to a web page?",
+  "key_points": [
+   "Inline style attribute",
+   "Internal style tag in the head",
+   "External .css file linked with link tag"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the CSS box model?",
+  "key_points": [
+   "Content, padding, border and margin",
+   "Padding is inside the border, margin outside",
+   "Determines total size and spacing of an element"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between a class and an id selector in CSS?",
+  "key_points": [
+   "Class selector uses a dot and can be reused on many elements",
+   "Id selector uses # and should be unique on the page",
+   "Id has higher specificity than class"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between margin and padding?",
+  "key_points": [
+   "Padding is space inside the border around content",
+   "Margin is space outside the border between elements",
+   "Background colour covers padding but not margin"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a responsive website?",
+  "key_points": [
+   "Layout adapts to different screen sizes",
+   "Uses flexible layouts, relative units and media queries",
+   "Works well on mobile, tablet and desktop"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a media query in CSS?",
+  "key_points": [
+   "Applies CSS rules only when a condition is true",
+   "Usually based on screen width, e.g. @media (max-width: 600px)",
+   "Used to build responsive designs"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is Flexbox used for?",
+  "key_points": [
+   "One-dimensional CSS layout (row or column)",
+   "Aligns and distributes space between items",
+   "Uses properties like justify-content and align-items"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is the difference between let, const and var in JavaScript?",
+  "key_points": [
+   "var is function-scoped, let and const are block-scoped",
+   "const cannot be reassigned, let can",
+   "var is hoisted and initialised as undefined"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What are the primitive data types in JavaScript?",
+  "key_points": [
+   "string, number, boolean",
+   "undefined, null",
+   "bigint and symbol"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is the difference between == and === in JavaScript?",
+  "key_points": [
+   "== compares values after type conversion",
+   "=== compares value and type without conversion",
+   "=== is preferred to avoid unexpected results"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a function in JavaScript?",
+  "key_points": [
+   "Reusable block of code that performs a task",
+   "Can take parameters and return a value",
+   "Defined with function keyword or arrow syntax"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is an arrow function?",
+  "key_points": [
+   "Shorter syntax for writing functions using =>",
+   "Does not have its own this; uses this of the surrounding scope",
+   "Commonly used for callbacks"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is an array and how do you add an item to it in JavaScript?",
+  "key_points": [
+   "Ordered list of values accessed by index starting at 0",
+   "push adds to the end, unshift adds to the start",
+   "Arrays can hold mixed types"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is an object in JavaScript?",
+  "key_points": [
+   "Collection of key-value pairs (properties)",
+   "Values can be data or functions (methods)",
+   "Accessed with dot or bracket notation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the DOM?",
+  "key_points": [
+   "Document Object Model: tree representation of the HTML page",
+   "JavaScript uses it to read and change elements",
+   "Changes to the DOM update what the user sees"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "How do you select an element by its id in JavaScript?",
+  "key_points": [
+   "document.getElementById('id')",
+   "or document.querySelector('#id')",
+   "Returns the element or null if not found"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is an event listener?",
+  "key_points": [
+   "Function that runs when an event happens on an element",
+   "Added with addEventListener, e.g. 'click'",
+   "Used to make pages interactive"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is React?",
+  "key_points": [
+   "JavaScript library for building user interfaces",
+   "UI is built from reusable components",
+   "Uses a virtual DOM to update the page efficiently"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a component in React?",
+  "key_points": [
+   "Reusable, independent piece of UI",
+   "Usually a function that returns JSX",
+   "Can receive props and keep its own state"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is JSX?",
+  "key_points": [
+   "Syntax extension that lets you write HTML-like code in JavaScript",
+   "Compiled to React.createElement calls",
+   "Uses className instead of class"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What are props in React?",
+  "key_points": [
+   "Inputs passed from a parent to a child component",
+   "Read-only inside the child",
+   "Used to make components reusable"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is state in React?",
+  "key_points": [
+   "Data that a component manages and that can change",
+   "Updating state re-renders the component",
+   "In function components managed with useState"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "easy",
+  "question": "What is Git and why do developers use it?",
+  "key_points": [
+   "Distributed version control system",
+   "Tracks changes and history of code",
+   "Lets teams work together using branches and merges"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "easy",
+  "question": "What is the difference between git commit and git push?",
+  "key_points": [
+   "commit saves changes to the local repository",
+   "push uploads local commits to the remote repository",
+   "Commits can be made offline; push needs the remote"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "security",
+  "level": "easy",
+  "question": "What is the difference between HTTP and HTTPS?",
+  "key_points": [
+   "HTTPS is HTTP encrypted with TLS/SSL",
+   "Protects data from being read or changed in transit",
+   "Browsers show a lock icon for HTTPS"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "Explain CSS specificity with an example.",
+  "key_points": [
+   "Decides which rule wins when rules conflict",
+   "Order: inline > id > class/attribute/pseudo-class > element",
+   "!important overrides normal specificity; later rule wins on a tie"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between position relative, absolute and fixed?",
+  "key_points": [
+   "relative moves an element from its normal position",
+   "absolute positions relative to the nearest positioned ancestor",
+   "fixed positions relative to the viewport and stays on scroll"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "When would you use CSS Grid instead of Flexbox?",
+  "key_points": [
+   "Grid is two-dimensional (rows and columns)",
+   "Flexbox is one-dimensional",
+   "Grid suits full page or card layouts; Flexbox suits aligning items in a row/column"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between display none and visibility hidden?",
+  "key_points": [
+   "display:none removes the element from layout",
+   "visibility:hidden hides it but keeps its space",
+   "Both hide content from view"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What does mobile-first design mean?",
+  "key_points": [
+   "Design and write CSS for small screens first",
+   "Add styles for larger screens with min-width media queries",
+   "Keeps mobile layout simple and fast"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is hoisting in JavaScript?",
+  "key_points": [
+   "Declarations are moved to the top of their scope before execution",
+   "var is hoisted as undefined; function declarations are fully hoisted",
+   "let/const are hoisted but in the temporal dead zone until declared"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is a closure in JavaScript?",
+  "key_points": [
+   "A function that remembers variables from its outer scope",
+   "Works even after the outer function has returned",
+   "Used for data privacy and function factories"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "Explain the difference between map, filter and reduce.",
+  "key_points": [
+   "map transforms each item and returns a new array of same length",
+   "filter returns items that pass a condition",
+   "reduce combines items into a single value"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between null and undefined?",
+  "key_points": [
+   "undefined: variable declared but not assigned",
+   "null: intentional empty value set by the programmer",
+   "typeof null is 'object', typeof undefined is 'undefined'"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is a Promise in JavaScript?",
+  "key_points": [
+   "Object representing a future result of an async operation",
+   "States: pending, fulfilled, rejected",
+   "Handled with then/catch or async/await"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "How does async/await work?",
+  "key_points": [
+   "async function always returns a Promise",
+   "await pauses inside the function until the Promise settles",
+   "Errors are handled with try/catch"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the event loop in JavaScript?",
+  "key_points": [
+   "JavaScript runs on a single thread with a call stack",
+   "Async callbacks wait in queues (microtask, task)",
+   "Event loop moves them to the stack when it is empty"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What does the spread operator do?",
+  "key_points": [
+   "... expands an array or object into individual elements",
+   "Used to copy or merge arrays/objects",
+   "Creates a shallow copy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is destructuring in JavaScript?",
+  "key_points": [
+   "Extracting values from arrays or objects into variables",
+   "const {name} = user; const [a, b] = arr",
+   "Supports default values and renaming"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is event bubbling?",
+  "key_points": [
+   "Event triggers on the target then moves up through its ancestors",
+   "stopPropagation stops it from bubbling",
+   "Allows event delegation on a parent element"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is event delegation?",
+  "key_points": [
+   "Attach one listener to a parent instead of many children",
+   "Use event.target to find which child was clicked",
+   "Works for elements added later and saves memory"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between localStorage, sessionStorage and cookies?",
+  "key_points": [
+   "localStorage persists until cleared; sessionStorage ends with the tab",
+   "Cookies are sent with every HTTP request and can expire",
+   "Cookies are small (~4KB); storage holds more (~5MB)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you make an API call from the browser?",
+  "key_points": [
+   "Use fetch (or a library like axios) with a URL",
+   "Handle the returned Promise with then or async/await",
+   "Parse JSON response and handle errors"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the virtual DOM in React?",
+  "key_points": [
+   "Lightweight copy of the real DOM kept in memory",
+   "React compares old and new virtual DOM (diffing)",
+   "Only changed parts are updated in the real DOM"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "Explain the useEffect hook.",
+  "key_points": [
+   "Runs side effects after render (API calls, subscriptions)",
+   "Dependency array controls when it re-runs",
+   "Return function is used for cleanup"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "Why do we need keys when rendering lists in React?",
+  "key_points": [
+   "Keys help React identify which items changed, added or removed",
+   "Should be unique and stable, e.g. an id",
+   "Using index as key can cause bugs when list order changes"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between controlled and uncontrolled components?",
+  "key_points": [
+   "Controlled: input value stored in React state and updated via onChange",
+   "Uncontrolled: DOM keeps the value, read with a ref",
+   "Controlled inputs make validation easier"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is lifting state up in React?",
+  "key_points": [
+   "Moving shared state to the closest common parent",
+   "Parent passes state and setter as props to children",
+   "Keeps sibling components in sync"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is prop drilling and how can you avoid it?",
+  "key_points": [
+   "Passing props through many levels that do not use them",
+   "Avoid with Context API",
+   "Or a state library such as Redux/Zustand"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the Context API in React?",
+  "key_points": [
+   "Shares data across components without passing props",
+   "createContext, Provider and useContext",
+   "Good for theme, auth user, language"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How does routing work in a React or Next.js app?",
+  "key_points": [
+   "Maps URLs to components/pages",
+   "React Router uses Route components; Next.js uses file-based routing",
+   "Navigation happens without full page reload"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between client-side and server-side rendering?",
+  "key_points": [
+   "CSR: browser downloads JS and builds the page",
+   "SSR: server sends ready HTML for each request",
+   "SSR helps first load speed and SEO"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is web accessibility and how can you improve it?",
+  "key_points": [
+   "Making sites usable for people with disabilities",
+   "Semantic HTML, alt text, labels, keyboard navigation",
+   "Good colour contrast and ARIA where needed"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How can you improve the loading speed of a web page?",
+  "key_points": [
+   "Compress and lazy-load images",
+   "Minify and bundle CSS/JS, code splitting",
+   "Use caching and a CDN"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is CORS?",
+  "key_points": [
+   "Browser security rule for requests to a different origin",
+   "Server must allow the origin with Access-Control-Allow-Origin header",
+   "Otherwise the browser blocks the response"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is a REST API from a frontend developer's view?",
+  "key_points": [
+   "Backend exposes resources at URLs",
+   "Frontend uses HTTP methods GET, POST, PUT, DELETE",
+   "Data is usually exchanged as JSON"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What do HTTP status codes 200, 404 and 500 mean?",
+  "key_points": [
+   "200 OK: request succeeded",
+   "404 Not Found: resource does not exist",
+   "500 Internal Server Error: problem on the server"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "medium",
+  "question": "What is a merge conflict in Git and how do you resolve it?",
+  "key_points": [
+   "Happens when two branches change the same lines",
+   "Git marks the conflict in the file",
+   "Edit to keep the correct code, then add and commit"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "medium",
+  "question": "What is the difference between git merge and git rebase?",
+  "key_points": [
+   "merge combines branches with a merge commit and keeps history",
+   "rebase moves commits on top of another branch for linear history",
+   "Do not rebase shared/public branches"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "medium",
+  "question": "What is a pull request?",
+  "key_points": [
+   "Request to merge a branch into another, e.g. into main",
+   "Teammates review the code and comment",
+   "Checks/tests can run before merging"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "medium",
+  "question": "Why is code review useful?",
+  "key_points": [
+   "Finds bugs early",
+   "Improves code quality and consistency",
+   "Shares knowledge within the team"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "security",
+  "level": "medium",
+  "question": "What is XSS (cross-site scripting)?",
+  "key_points": [
+   "Attacker injects malicious script into a web page",
+   "Script runs in other users' browsers and can steal data",
+   "Prevent by escaping output and not using innerHTML with user input"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "security",
+  "level": "medium",
+  "question": "Where should a frontend store an authentication token?",
+  "key_points": [
+   "httpOnly cookie protects the token from JavaScript (XSS)",
+   "localStorage is simple but readable by any script",
+   "Use HTTPS and short expiry"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "security",
+  "level": "medium",
+  "question": "Why should you never put secret keys in frontend code?",
+  "key_points": [
+   "Frontend code is downloaded and readable by anyone",
+   "Keys can be stolen and misused",
+   "Keep secrets on the server and use environment variables there"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between synchronous and asynchronous code?",
+  "key_points": [
+   "Synchronous runs line by line and blocks",
+   "Asynchronous starts a task and continues without waiting",
+   "Results handled with callbacks, Promises or async/await"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "A React component re-renders too often. How would you find and fix the cause?",
+  "key_points": [
+   "Use React DevTools Profiler to see what re-renders",
+   "Check changing props/state and new object/function props each render",
+   "Fix with React.memo, useMemo/useCallback or moving state down"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "Explain useMemo and useCallback and when not to use them.",
+  "key_points": [
+   "useMemo caches a computed value; useCallback caches a function",
+   "Both depend on a dependency array",
+   "Overusing adds complexity; use only for expensive work or stable references"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "What happens when you type a URL in the browser and press Enter?",
+  "key_points": [
+   "DNS lookup finds the server IP",
+   "TCP/TLS connection and HTTP request",
+   "Server responds with HTML; browser parses, loads CSS/JS and renders the page"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "Your useEffect calls an API in an infinite loop. Why and how do you fix it?",
+  "key_points": [
+   "Effect updates state that is also in its dependency array",
+   "Or a new object/function is created every render",
+   "Fix the dependency array or memoise values; add cleanup"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you design a reusable form with validation in React?",
+  "key_points": [
+   "Controlled inputs with state for values and errors",
+   "Validate on change/submit and show messages",
+   "Can use a library like React Hook Form with a schema (Zod/Yup)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How does the browser render a page, and what is a reflow?",
+  "key_points": [
+   "Builds DOM and CSSOM, combines into render tree",
+   "Layout (reflow) calculates positions, then paint",
+   "Changing size/position triggers reflow, which is costly"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement infinite scrolling in a React list?",
+  "key_points": [
+   "Detect when the user is near the bottom (IntersectionObserver)",
+   "Fetch the next page and append items",
+   "Handle loading state, end of data and avoid duplicate requests"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "What is debouncing and where would you use it?",
+  "key_points": [
+   "Delays a function until the user stops triggering it for a set time",
+   "Used for search input and resize events",
+   "Reduces unnecessary API calls"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "hard",
+  "question": "Predict the output: for (var i=0;i<3;i++) setTimeout(()=>console.log(i),0). Why?",
+  "key_points": [
+   "Prints 3, 3, 3",
+   "var is function-scoped so all callbacks share one i",
+   "Using let creates a new i per iteration and prints 0, 1, 2"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "hard",
+  "question": "How do Promise.all and Promise.allSettled differ?",
+  "key_points": [
+   "Promise.all rejects as soon as one promise rejects",
+   "Promise.allSettled waits for all and returns each result status",
+   "Use allSettled when partial failures are acceptable"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "hard",
+  "question": "What is the difference between a shallow copy and a deep copy of an object?",
+  "key_points": [
+   "Shallow copy copies top-level properties; nested objects are shared",
+   "Deep copy duplicates nested objects too",
+   "Use structuredClone or careful recursion for deep copy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "programming",
+  "level": "hard",
+  "question": "How does the this keyword behave in different JavaScript functions?",
+  "key_points": [
+   "In a method, this is the object calling it",
+   "In a regular function it is undefined in strict mode (or global)",
+   "Arrow functions take this from the surrounding scope; bind/call/apply set it"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you manage global state in a large React app?",
+  "key_points": [
+   "Keep local state local and lift only what is shared",
+   "Context for small global data; Redux/Zustand for complex state",
+   "Use a data-fetching library (React Query) for server state"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you make a slow page with many images load faster?",
+  "key_points": [
+   "Lazy-load images below the fold",
+   "Serve compressed modern formats and correct sizes",
+   "Use a CDN, caching and placeholders"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you handle errors from API calls in a React app?",
+  "key_points": [
+   "Use try/catch or .catch and check response status",
+   "Show user-friendly messages and loading states",
+   "Error boundaries for render errors; retry where sensible"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you protect a frontend app against XSS and CSRF?",
+  "key_points": [
+   "Escape/sanitise user content; avoid dangerouslySetInnerHTML",
+   "Content Security Policy",
+   "For CSRF: SameSite cookies and CSRF tokens"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement protected routes in a React app?",
+  "key_points": [
+   "Check if the user is logged in (token/session) before rendering",
+   "Redirect to login if not authenticated",
+   "Server must still verify the token on every API call"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "hard",
+  "question": "How would you structure folders in a medium-sized React project?",
+  "key_points": [
+   "Group by feature or by type (components, hooks, services)",
+   "Keep reusable UI components separate",
+   "Central API layer and consistent naming"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "web",
+  "level": "hard",
+  "question": "What is code splitting and why is it useful?",
+  "key_points": [
+   "Splits the JS bundle into smaller chunks",
+   "Loads code only when needed (React.lazy, dynamic import)",
+   "Reduces initial load time"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "frontend",
+  "topic": "software_engineering",
+  "level": "hard",
+  "question": "How would you test a React component?",
+  "key_points": [
+   "Unit test with Jest and React Testing Library",
+   "Test behaviour: render, user events, expected output",
+   "Mock API calls; add end-to-end tests with Cypress/Playwright"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a backend in a web application?",
+  "key_points": [
+   "Server-side part of the application",
+   "Handles business logic, database and authentication",
+   "Exposes APIs that the frontend calls"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is an API?",
+  "key_points": [
+   "Application Programming Interface",
+   "Set of rules for how programs communicate",
+   "Web APIs expose endpoints over HTTP"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a REST API?",
+  "key_points": [
+   "API style using HTTP and resources identified by URLs",
+   "Uses methods GET, POST, PUT/PATCH, DELETE",
+   "Stateless; usually exchanges JSON"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What are the main HTTP methods and their uses?",
+  "key_points": [
+   "GET reads data",
+   "POST creates data",
+   "PUT/PATCH updates, DELETE removes"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between PUT and PATCH?",
+  "key_points": [
+   "PUT replaces the whole resource",
+   "PATCH updates only some fields",
+   "Both are used for updates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What do status codes 200, 201, 400, 401 and 404 mean?",
+  "key_points": [
+   "200 OK, 201 Created",
+   "400 Bad Request (invalid input), 401 Unauthorized (not logged in)",
+   "404 Not Found"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is JSON?",
+  "key_points": [
+   "JavaScript Object Notation: text format for data",
+   "Key-value pairs and arrays",
+   "Common format for API requests and responses"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is Node.js?",
+  "key_points": [
+   "JavaScript runtime outside the browser",
+   "Built on Chrome's V8 engine",
+   "Non-blocking, event-driven; good for APIs"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is Express.js?",
+  "key_points": [
+   "Minimal web framework for Node.js",
+   "Handles routing and middleware",
+   "Used to build REST APIs quickly"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a route in Express?",
+  "key_points": [
+   "Maps an HTTP method and URL path to a handler function",
+   "Example: app.get('/users', handler)",
+   "Handler receives req and res"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between req.params, req.query and req.body?",
+  "key_points": [
+   "params: values in the URL path, e.g. /users/:id",
+   "query: values after ? in the URL",
+   "body: data sent in the request body (POST/PUT)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is npm?",
+  "key_points": [
+   "Node Package Manager",
+   "Installs and manages packages listed in package.json",
+   "Runs scripts like npm run dev"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the purpose of package.json?",
+  "key_points": [
+   "Describes the project (name, version)",
+   "Lists dependencies and devDependencies",
+   "Defines npm scripts"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is an environment variable and why use it?",
+  "key_points": [
+   "Value set outside the code, e.g. in a .env file",
+   "Stores config like database URL and secret keys",
+   "Keeps secrets out of source code"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a database?",
+  "key_points": [
+   "Organised collection of data",
+   "Managed by a DBMS",
+   "Allows storing, querying and updating data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is the difference between SQL and NoSQL databases?",
+  "key_points": [
+   "SQL: tables with fixed schema and relations (MySQL, PostgreSQL)",
+   "NoSQL: flexible formats like documents (MongoDB)",
+   "SQL uses SQL language; NoSQL scales easily horizontally"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a primary key?",
+  "key_points": [
+   "Column that uniquely identifies each row",
+   "Cannot be null or duplicated",
+   "Example: user id"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a foreign key?",
+  "key_points": [
+   "Column that refers to the primary key of another table",
+   "Creates a relationship between tables",
+   "Keeps referential integrity"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What does CRUD stand for?",
+  "key_points": [
+   "Create, Read, Update, Delete",
+   "Basic operations on data",
+   "Map to INSERT/SELECT/UPDATE/DELETE or POST/GET/PUT/DELETE"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "Write a SQL query to get all users older than 18.",
+  "key_points": [
+   "SELECT * FROM users",
+   "WHERE age > 18",
+   "Can select specific columns instead of *"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is MongoDB?",
+  "key_points": [
+   "NoSQL document database",
+   "Stores data as JSON-like documents (BSON) in collections",
+   "Flexible schema"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a document and a collection in MongoDB?",
+  "key_points": [
+   "Document: one record stored as key-value pairs",
+   "Collection: group of documents, like a table",
+   "Each document has a unique _id"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is Mongoose?",
+  "key_points": [
+   "ODM library for MongoDB in Node.js",
+   "Defines schemas and models",
+   "Adds validation and helper methods"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "easy",
+  "question": "What is the difference between authentication and authorization?",
+  "key_points": [
+   "Authentication: verifying who the user is (login)",
+   "Authorization: what the user is allowed to do",
+   "Authentication comes first"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "easy",
+  "question": "Why should passwords be hashed?",
+  "key_points": [
+   "Stored passwords are not readable if the database leaks",
+   "Hashing is one-way",
+   "Use a slow algorithm with salt like bcrypt"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "easy",
+  "question": "What is a JWT?",
+  "key_points": [
+   "JSON Web Token used for authentication",
+   "Has header, payload and signature",
+   "Server verifies the signature on each request"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "easy",
+  "question": "What is middleware in Express?",
+  "key_points": [
+   "Function that runs between the request and the route handler",
+   "Has access to req, res and next",
+   "Used for logging, auth, parsing JSON"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "easy",
+  "question": "What is the client-server model?",
+  "key_points": [
+   "Client sends requests (browser/app)",
+   "Server processes and returns responses",
+   "They communicate over a network, e.g. HTTP"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between GET and POST requests?",
+  "key_points": [
+   "GET retrieves data; parameters in the URL",
+   "POST sends data in the body to create something",
+   "GET should not change data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "easy",
+  "question": "What is the MVC pattern?",
+  "key_points": [
+   "Model: data and database logic",
+   "View: what the user sees",
+   "Controller: handles requests and connects model and view"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How does middleware order matter in Express?",
+  "key_points": [
+   "Middleware runs in the order it is registered",
+   "Body parser and auth must run before routes that need them",
+   "Error-handling middleware is added last"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you handle errors in an Express app?",
+  "key_points": [
+   "Use try/catch in async handlers or a wrapper",
+   "Pass errors to next(err)",
+   "Central error middleware returns a consistent JSON response and status"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What does it mean that REST is stateless?",
+  "key_points": [
+   "Each request contains all information needed",
+   "Server does not keep client session between requests",
+   "Makes scaling easier; auth sent with each request (e.g. token)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How would you validate input in an API?",
+  "key_points": [
+   "Check required fields, types and formats",
+   "Use a library like Joi/Zod or express-validator",
+   "Return 400 with clear error messages"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is pagination and how would you implement it in an API?",
+  "key_points": [
+   "Returning data in pages instead of all at once",
+   "Use limit and page/skip (or cursor)",
+   "Return total count or next cursor"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between 401 and 403?",
+  "key_points": [
+   "401: not authenticated (missing or invalid token)",
+   "403: authenticated but not allowed",
+   "Both are client errors"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is CORS and how do you enable it in Express?",
+  "key_points": [
+   "Browser blocks cross-origin requests unless server allows them",
+   "Server sends Access-Control-Allow-Origin headers",
+   "Use the cors middleware with allowed origins"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How does Node.js handle many requests with a single thread?",
+  "key_points": [
+   "Event loop with non-blocking I/O",
+   "Slow I/O is handled asynchronously by the system",
+   "CPU-heavy work can block the loop"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between process.nextTick, setTimeout and setImmediate?",
+  "key_points": [
+   "nextTick runs before other queued callbacks",
+   "setTimeout runs after a minimum delay in the timers phase",
+   "setImmediate runs in the check phase after I/O"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you upload files in a Node.js API?",
+  "key_points": [
+   "Use multipart/form-data",
+   "Middleware like Multer parses the file",
+   "Store in cloud storage (e.g. Cloudinary/S3) and save the URL"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is normalization?",
+  "key_points": [
+   "Organising tables to reduce redundancy",
+   "Normal forms: 1NF, 2NF, 3NF",
+   "Avoids update, insert and delete anomalies"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is a JOIN? Explain INNER and LEFT JOIN.",
+  "key_points": [
+   "Combines rows from tables using a related column",
+   "INNER JOIN returns only matching rows",
+   "LEFT JOIN returns all left rows plus matches (NULL if none)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is an index and why is it used?",
+  "key_points": [
+   "Data structure that speeds up searches on columns",
+   "Avoids scanning the whole table",
+   "Slows writes and uses extra space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the difference between WHERE and HAVING?",
+  "key_points": [
+   "WHERE filters rows before grouping",
+   "HAVING filters groups after GROUP BY",
+   "HAVING can use aggregate functions"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What are ACID properties?",
+  "key_points": [
+   "Atomicity: all or nothing",
+   "Consistency, Isolation",
+   "Durability: committed data survives failures"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is a transaction?",
+  "key_points": [
+   "Group of operations treated as one unit",
+   "Either all succeed (commit) or none (rollback)",
+   "Example: money transfer between accounts"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "Write a SQL query to count users in each city.",
+  "key_points": [
+   "SELECT city, COUNT(*) FROM users",
+   "GROUP BY city",
+   "Can add ORDER BY count"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "How do you model a one-to-many relationship in MongoDB?",
+  "key_points": [
+   "Embed child documents if small and always read together",
+   "Reference by storing the parent _id in children",
+   "Use populate (Mongoose) or $lookup to join"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the aggregation pipeline in MongoDB?",
+  "key_points": [
+   "Sequence of stages that process documents",
+   "Stages like $match, $group, $sort, $project",
+   "Used for reports and calculations"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the N+1 query problem?",
+  "key_points": [
+   "One query for a list, then one query per item",
+   "Causes many database calls and slow responses",
+   "Fix with joins, populate or batching"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "How does JWT authentication work in an API?",
+  "key_points": [
+   "User logs in; server signs a token with a secret",
+   "Client sends token in Authorization header or cookie",
+   "Server verifies signature and expiry on each request"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "What is SQL injection and how do you prevent it?",
+  "key_points": [
+   "Attacker inserts SQL through user input",
+   "Can read or delete data",
+   "Prevent with parameterised queries/ORM and input validation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "What is rate limiting and why is it important?",
+  "key_points": [
+   "Limits number of requests per user/IP in a time window",
+   "Protects against brute force and abuse",
+   "Returns 429 Too Many Requests"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "What is role-based access control?",
+  "key_points": [
+   "Permissions given according to user role (admin, HR, candidate)",
+   "Checked on every protected route",
+   "Middleware verifies role before the handler"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "How should you store secrets like database passwords in production?",
+  "key_points": [
+   "Environment variables or a secrets manager",
+   "Never commit them to Git",
+   "Different secrets per environment"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "Why do we separate routes, controllers and services?",
+  "key_points": [
+   "Routes map URLs",
+   "Controllers handle request/response; services contain business logic",
+   "Makes code easier to test, reuse and maintain"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is caching and where can it be used in a backend?",
+  "key_points": [
+   "Storing frequently used data for faster access",
+   "In memory, Redis, HTTP cache or CDN",
+   "Needs invalidation when data changes"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is the difference between monolithic and microservice architecture?",
+  "key_points": [
+   "Monolith: one deployable application",
+   "Microservices: small independent services communicating over APIs",
+   "Microservices scale independently but add complexity"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is a webhook?",
+  "key_points": [
+   "HTTP callback sent by one system to another when an event happens",
+   "Example: payment provider notifies your server",
+   "Receiver should verify the signature"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What are WebSockets and when would you use them?",
+  "key_points": [
+   "Persistent two-way connection between client and server",
+   "Server can push data without a request",
+   "Used for chat, notifications, live updates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is API versioning and why is it useful?",
+  "key_points": [
+   "Keeping old and new API versions, e.g. /api/v1",
+   "Lets clients upgrade without breaking",
+   "Can use URL path or headers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is logging and why is it important in a backend?",
+  "key_points": [
+   "Recording events and errors",
+   "Helps debugging and monitoring",
+   "Avoid logging passwords or sensitive data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between async/await and callbacks in Node.js?",
+  "key_points": [
+   "Callbacks pass a function to run later; can cause callback hell",
+   "async/await uses Promises with readable code",
+   "Errors handled with try/catch"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the difference between DELETE, TRUNCATE and DROP?",
+  "key_points": [
+   "DELETE removes selected rows (can use WHERE)",
+   "TRUNCATE removes all rows quickly",
+   "DROP removes the whole table"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is a background job and when do you need one?",
+  "key_points": [
+   "Work done outside the request-response cycle",
+   "For slow tasks like emails, reports, AI calls",
+   "Keeps API responses fast"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is a unique constraint?",
+  "key_points": [
+   "Ensures no two rows have the same value in a column",
+   "Example: unique email",
+   "Database rejects duplicates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "How would you send emails from a Node.js application?",
+  "key_points": [
+   "Use a library like Nodemailer with SMTP or an email service",
+   "Send asynchronously so requests stay fast",
+   "Handle failures and retries"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "medium",
+  "question": "What is horizontal vs vertical scaling?",
+  "key_points": [
+   "Vertical: bigger machine (more CPU/RAM)",
+   "Horizontal: more machines behind a load balancer",
+   "Horizontal needs stateless servers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "medium",
+  "question": "What is the purpose of HTTPS for an API?",
+  "key_points": [
+   "Encrypts data between client and server",
+   "Protects tokens and passwords in transit",
+   "Verifies server identity with a certificate"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between authentication with sessions and with tokens?",
+  "key_points": [
+   "Session: server stores session, client keeps a session id cookie",
+   "Token: client keeps a signed token; server stores nothing",
+   "Tokens suit APIs and multiple servers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "Two requests try to update the same record at the same time. How do you avoid wrong data?",
+  "key_points": [
+   "Race condition",
+   "Use atomic updates or transactions",
+   "Optimistic locking with a version field or database locks"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "A query is slow on a large table. How would you investigate it?",
+  "key_points": [
+   "Use EXPLAIN to see the query plan",
+   "Check for full table scans and missing indexes",
+   "Add proper index, select fewer columns, paginate"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you design a secure login system?",
+  "key_points": [
+   "Hash passwords with bcrypt and verify on login",
+   "Issue short-lived token; use httpOnly cookie or Authorization header",
+   "Rate limit login, verify email (OTP), log suspicious attempts"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you design an API for a simple job portal?",
+  "key_points": [
+   "Resources: users, jobs, applications",
+   "Endpoints like GET /jobs, POST /jobs, POST /jobs/:id/apply",
+   "Auth with roles, validation, pagination"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you handle a long-running task requested through an API?",
+  "key_points": [
+   "Do not block the request",
+   "Start a background job and return 202 with a job id",
+   "Client polls status or gets a WebSocket notification"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "Your API depends on an external service that is sometimes down. How do you handle it?",
+  "key_points": [
+   "Timeouts on calls",
+   "Retries with backoff",
+   "Fallback or graceful error; log and monitor"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "When would you choose SQL over MongoDB for a project?",
+  "key_points": [
+   "Strong relationships and complex joins",
+   "Need for strict schema and ACID transactions",
+   "Reporting with complex queries"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you implement refresh tokens?",
+  "key_points": [
+   "Short-lived access token and long-lived refresh token",
+   "Refresh token stored securely (httpOnly cookie) and saved/rotated on server",
+   "Revoke refresh token on logout or theft"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you make an API idempotent and why?",
+  "key_points": [
+   "Same request repeated gives the same result",
+   "GET/PUT/DELETE should be idempotent",
+   "For POST use an idempotency key to avoid duplicate payments/orders"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you design file upload for large files?",
+  "key_points": [
+   "Upload directly to cloud storage with signed URLs",
+   "Chunked upload and size/type validation",
+   "Store only the file URL/metadata in the database"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "What is a database deadlock and how can it be avoided?",
+  "key_points": [
+   "Two transactions wait for locks held by each other",
+   "Database aborts one transaction",
+   "Access tables in same order, keep transactions short"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you debug a Node.js server that suddenly uses 100% CPU?",
+  "key_points": [
+   "Check logs and recent changes",
+   "Profile with Node inspector or clinic",
+   "Look for blocking loops or heavy synchronous code; move to worker threads"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you prevent duplicate processing if a request is sent twice?",
+  "key_points": [
+   "Unique constraint or idempotency key",
+   "Atomic check-and-update in the database",
+   "Return the existing result for duplicates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you protect an API from brute-force and abuse?",
+  "key_points": [
+   "Rate limiting per IP and per account",
+   "Account lockout or CAPTCHA after failures",
+   "Monitoring and alerts"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you design a notification system for a web app?",
+  "key_points": [
+   "Store notifications in the database",
+   "Push in real time with WebSockets",
+   "Email for important events; mark as read"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "Explain the difference between embedding and referencing in MongoDB with a trade-off.",
+  "key_points": [
+   "Embedding: faster reads, one query, but document size limit and duplication",
+   "Referencing: normalised, flexible, needs extra queries/populate",
+   "Choose by access pattern and data growth"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement search with filters in a REST API?",
+  "key_points": [
+   "Accept query parameters (keyword, filters, sort, page)",
+   "Build the database query from validated parameters",
+   "Index searched fields; return paginated results"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you test a REST API?",
+  "key_points": [
+   "Unit test services with mocked dependencies",
+   "Integration tests for endpoints (e.g. Jest + Supertest)",
+   "Test success, validation errors and auth cases"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "security",
+  "level": "hard",
+  "question": "What would you do if a secret API key was accidentally pushed to GitHub?",
+  "key_points": [
+   "Revoke/rotate the key immediately",
+   "Remove it from code and history",
+   "Move secrets to environment variables and check logs for misuse"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "backend",
+  "topic": "architecture",
+  "level": "hard",
+  "question": "How would you deploy a Node.js API to production?",
+  "key_points": [
+   "Build and run with environment variables",
+   "Use a process manager or container (PM2/Docker)",
+   "HTTPS, logging, monitoring and health checks"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a full stack developer?",
+  "key_points": [
+   "Works on both frontend and backend",
+   "Also handles database and deployment basics",
+   "Understands how all parts connect"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the MERN stack?",
+  "key_points": [
+   "MongoDB, Express, React, Node.js",
+   "JavaScript used on frontend and backend",
+   "React talks to an Express API that uses MongoDB"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between frontend and backend?",
+  "key_points": [
+   "Frontend: what users see and interact with in the browser",
+   "Backend: server, business logic and database",
+   "They communicate through APIs"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is HTTP?",
+  "key_points": [
+   "Protocol for communication between client and server",
+   "Request-response model",
+   "Uses methods like GET and POST and status codes"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a URL made of?",
+  "key_points": [
+   "Protocol (https)",
+   "Domain name and optional port",
+   "Path, query string and fragment"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the difference between a library and a framework?",
+  "key_points": [
+   "Library: you call it when needed (e.g. React)",
+   "Framework: calls your code and gives structure (e.g. Next.js, Angular)",
+   "Framework has more rules"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is a single page application (SPA)?",
+  "key_points": [
+   "Loads one HTML page and updates content with JavaScript",
+   "No full page reload when navigating",
+   "Examples built with React or Vue"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the use of the useState hook?",
+  "key_points": [
+   "Adds state to a function component",
+   "Returns current value and a setter",
+   "Calling the setter re-renders the component"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "How does a React frontend get data from a Node.js backend?",
+  "key_points": [
+   "Makes HTTP requests with fetch or axios",
+   "Backend returns JSON",
+   "Frontend stores it in state and renders it"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is an endpoint?",
+  "key_points": [
+   "A specific URL of an API with a method",
+   "Example: GET /api/jobs",
+   "Performs one operation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is JavaScript and where does it run?",
+  "key_points": [
+   "Programming language of the web",
+   "Runs in browsers",
+   "Runs on servers with Node.js"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is the difference between an array and an object?",
+  "key_points": [
+   "Array: ordered list accessed by index",
+   "Object: key-value pairs accessed by key",
+   "Both are reference types"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a loop? Name two types in JavaScript.",
+  "key_points": [
+   "Repeats code while a condition is true",
+   "for, while, for...of, forEach",
+   "Used to process lists"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a callback function?",
+  "key_points": [
+   "Function passed as an argument to another function",
+   "Called later, e.g. after an event or async task",
+   "Example: setTimeout(callback, 1000)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is the difference between let and const?",
+  "key_points": [
+   "Both are block-scoped",
+   "const cannot be reassigned",
+   "let can be reassigned"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is TypeScript?",
+  "key_points": [
+   "JavaScript with static types",
+   "Compiled to JavaScript",
+   "Catches type errors before running"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a schema in a database?",
+  "key_points": [
+   "Defines the structure of data",
+   "Tables/collections, fields and types",
+   "Mongoose schema defines document shape in MongoDB"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is the difference between a table and a collection?",
+  "key_points": [
+   "Table: rows and columns in SQL with fixed schema",
+   "Collection: group of documents in MongoDB",
+   "Collections allow flexible fields"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "How do you insert a document in MongoDB using Mongoose?",
+  "key_points": [
+   "Create from a model: Model.create(data)",
+   "Or new Model(data).save()",
+   "Returns the saved document with _id"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is the _id field in MongoDB?",
+  "key_points": [
+   "Unique identifier of each document",
+   "Automatically created as an ObjectId",
+   "Acts like a primary key"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a query in a database?",
+  "key_points": [
+   "Request to read or change data",
+   "SQL uses SELECT/INSERT/UPDATE/DELETE",
+   "MongoDB uses find, insertOne, updateOne, deleteOne"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is Git branching?",
+  "key_points": [
+   "Separate line of development",
+   "Work on features without changing main",
+   "Merged back after review"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is GitHub?",
+  "key_points": [
+   "Online hosting for Git repositories",
+   "Supports pull requests and code review",
+   "Used for team collaboration"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What does deployment mean?",
+  "key_points": [
+   "Making an application available to users on a server",
+   "Includes building and configuring the app",
+   "Examples: Vercel, Render, cloud servers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is the difference between development and production environments?",
+  "key_points": [
+   "Development: local, for building and testing",
+   "Production: live environment used by real users",
+   "Different configuration and secrets"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is a .gitignore file?",
+  "key_points": [
+   "Lists files Git should not track",
+   "Examples: node_modules, .env, build folders",
+   "Keeps secrets and large files out of the repository"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is cloud computing?",
+  "key_points": [
+   "Using computing resources over the internet",
+   "Pay for what you use",
+   "Examples: AWS, Azure, Google Cloud"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is JSON and why is it used between frontend and backend?",
+  "key_points": [
+   "Lightweight text format for data",
+   "Easy to read and parse in JavaScript",
+   "Standard format for API data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "easy",
+  "question": "What is a domain name and DNS?",
+  "key_points": [
+   "Domain: human-readable name of a website",
+   "DNS translates the domain to an IP address",
+   "Like a phone book of the internet"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "easy",
+  "question": "What is the purpose of npm install?",
+  "key_points": [
+   "Installs packages listed in package.json",
+   "Creates node_modules folder",
+   "Updates package-lock.json"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "Explain the flow of a login request from React to the database and back.",
+  "key_points": [
+   "React sends credentials to POST /login",
+   "Express validates input, finds user and compares bcrypt hash",
+   "Server returns token/cookie; React stores auth state and redirects"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you keep a user logged in after page refresh?",
+  "key_points": [
+   "Store token in httpOnly cookie or storage",
+   "On load call a /me endpoint to get the user",
+   "Redirect to login if the token is invalid or expired"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How would you protect certain pages so only logged-in users can see them?",
+  "key_points": [
+   "Frontend checks auth state and redirects",
+   "Backend middleware verifies token on every protected API",
+   "Role checks for admin-only pages"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you handle loading and error states when fetching data in React?",
+  "key_points": [
+   "Keep loading, data and error in state",
+   "Show spinner while loading and message on error",
+   "Use try/catch or a library like React Query"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between Next.js and plain React?",
+  "key_points": [
+   "Next.js is a React framework",
+   "Adds file-based routing, SSR/SSG and API routes",
+   "Better SEO and performance options"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you pass data from a child to a parent component in React?",
+  "key_points": [
+   "Parent passes a callback function as a prop",
+   "Child calls the callback with the data",
+   "Parent updates its state"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is CORS and why do you face it in full stack apps?",
+  "key_points": [
+   "Frontend and backend run on different origins (ports/domains)",
+   "Browser blocks the response unless the server allows the origin",
+   "Enable CORS on the backend for the frontend URL"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How do you upload an image from React to a Node.js backend?",
+  "key_points": [
+   "Use a file input and FormData",
+   "Send multipart request with fetch/axios",
+   "Backend parses with Multer and stores in cloud storage"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What are environment variables in frontend vs backend?",
+  "key_points": [
+   "Backend env vars stay secret on the server",
+   "Frontend env vars (e.g. NEXT_PUBLIC_) are bundled and public",
+   "Never put secrets in frontend env vars"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between REST and GraphQL?",
+  "key_points": [
+   "REST: many endpoints, fixed response shapes",
+   "GraphQL: one endpoint, client asks exactly the fields it needs",
+   "GraphQL avoids over-fetching but adds complexity"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is real-time communication and how can you add it to an app?",
+  "key_points": [
+   "Server pushes updates instantly",
+   "Use WebSockets/Socket.IO",
+   "Used for chat and notifications"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between synchronous and asynchronous functions in Node.js?",
+  "key_points": [
+   "Sync functions block until done",
+   "Async functions let other work continue",
+   "Use async versions for file and network I/O"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "How do you handle errors in async/await code?",
+  "key_points": [
+   "Wrap await in try/catch",
+   "Or add .catch to the Promise",
+   "Send a proper error response to the client"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What are higher-order functions?",
+  "key_points": [
+   "Functions that take or return functions",
+   "Examples: map, filter, reduce",
+   "Make code reusable and concise"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What are modules in JavaScript?",
+  "key_points": [
+   "Files that export and import code",
+   "ES modules: import/export; CommonJS: require/module.exports",
+   "Help organise code"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between interface and type in TypeScript?",
+  "key_points": [
+   "Both describe object shapes",
+   "Interfaces can be extended and merged",
+   "Types can describe unions and other complex types"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "How do you update a document in MongoDB?",
+  "key_points": [
+   "updateOne/findByIdAndUpdate with a filter and update",
+   "Use operators like $set and $push",
+   "Option { new: true } returns updated document in Mongoose"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is populate in Mongoose?",
+  "key_points": [
+   "Replaces referenced ObjectIds with the actual documents",
+   "Works like a join",
+   "Used for references between collections"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "How would you design the database for a blog with users, posts and comments?",
+  "key_points": [
+   "Users, posts and comments collections/tables",
+   "Post references author; comment references post and user",
+   "Index fields used for lookups"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is indexing in MongoDB?",
+  "key_points": [
+   "Index on fields to speed up queries",
+   "Created with createIndex or schema index option",
+   "Unique indexes prevent duplicates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the difference between find and findOne?",
+  "key_points": [
+   "find returns all matching documents (array/cursor)",
+   "findOne returns the first match or null",
+   "Both accept a filter"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "How do you prevent duplicate emails when users sign up?",
+  "key_points": [
+   "Unique index on email",
+   "Check before creating the user",
+   "Handle duplicate key error and return a clear message"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is Docker?",
+  "key_points": [
+   "Packages an app with its dependencies into a container",
+   "Runs the same on any machine",
+   "Image is the template; container is a running instance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is the difference between a Docker image and a container?",
+  "key_points": [
+   "Image: read-only template built from a Dockerfile",
+   "Container: running instance of an image",
+   "Many containers can run from one image"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is CI/CD?",
+  "key_points": [
+   "Continuous Integration: automatically build and test on each push",
+   "Continuous Delivery/Deployment: automatically release",
+   "Tools: GitHub Actions, Jenkins"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "How would you deploy a MERN application?",
+  "key_points": [
+   "Frontend on Vercel/Netlify, backend on Render/VPS/cloud",
+   "Database on MongoDB Atlas",
+   "Set environment variables and allowed CORS origins"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is a reverse proxy?",
+  "key_points": [
+   "Server in front of the app that forwards requests",
+   "Examples: Nginx",
+   "Handles HTTPS, load balancing and static files"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is a load balancer?",
+  "key_points": [
+   "Distributes traffic across multiple servers",
+   "Improves availability and performance",
+   "Removes unhealthy servers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is git stash used for?",
+  "key_points": [
+   "Temporarily saves uncommitted changes",
+   "Lets you switch branches with a clean working tree",
+   "git stash pop brings changes back"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is a CDN?",
+  "key_points": [
+   "Content Delivery Network of servers worldwide",
+   "Serves static files from a location near the user",
+   "Faster loading and less server load"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the difference between cookies and JWT in localStorage for auth?",
+  "key_points": [
+   "httpOnly cookies cannot be read by JavaScript (safer from XSS)",
+   "localStorage tokens are easy but exposed to scripts",
+   "Cookies need CSRF protection"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "How does pagination work between frontend and backend?",
+  "key_points": [
+   "Frontend sends page and limit",
+   "Backend uses skip/limit and returns items plus total",
+   "Frontend shows pages or loads more"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is server-side validation and why is client-side validation not enough?",
+  "key_points": [
+   "Client validation improves user experience",
+   "It can be bypassed by calling the API directly",
+   "Server must validate all input"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the role of a package-lock.json file?",
+  "key_points": [
+   "Locks exact versions of installed packages",
+   "Makes installs the same on every machine",
+   "Should be committed to Git"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What is the difference between git pull and git fetch?",
+  "key_points": [
+   "fetch downloads remote changes without merging",
+   "pull = fetch + merge into current branch",
+   "fetch is safer to inspect first"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What is the purpose of a health check endpoint?",
+  "key_points": [
+   "Simple endpoint like /health returning OK",
+   "Used by hosting and monitoring tools",
+   "Detects if the server is down"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "medium",
+  "question": "What are WebSockets compared to HTTP polling?",
+  "key_points": [
+   "Polling: client asks repeatedly",
+   "WebSocket: one persistent two-way connection",
+   "WebSockets are faster and use fewer requests"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between == and === and why does it matter in APIs?",
+  "key_points": [
+   "== converts types; === checks type and value",
+   "IDs from URLs are strings, so comparisons may fail",
+   "Use === and convert types explicitly"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is a transaction and does MongoDB support it?",
+  "key_points": [
+   "Group of operations that all succeed or all fail",
+   "MongoDB supports multi-document transactions on replica sets",
+   "Single-document updates are already atomic"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "medium",
+  "question": "What are logs and monitoring in a deployed app?",
+  "key_points": [
+   "Logs record events and errors",
+   "Monitoring tracks uptime, errors and performance",
+   "Alerts when something goes wrong"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "Design the main pieces of a simple e-commerce cart in a MERN app.",
+  "key_points": [
+   "React state/context for cart UI",
+   "API endpoints for products, cart and orders",
+   "Validate prices and stock on the server; save orders in database"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement role-based dashboards (admin, HR, candidate) in a full stack app?",
+  "key_points": [
+   "Store role on the user and include it in the token/session",
+   "Frontend routes/layouts per role",
+   "Backend middleware checks role on every API"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "How would you design a schema for job applications so one candidate cannot apply twice?",
+  "key_points": [
+   "Applications collection with jobId and candidateId",
+   "Compound unique index on (jobId, candidateId)",
+   "Handle duplicate key error in the API"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you optimise a full stack app that is slow on first load?",
+  "key_points": [
+   "Measure with Lighthouse and network tab",
+   "Code splitting, image optimisation, caching, CDN",
+   "Optimise slow API queries with indexes and pagination"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you secure a full stack application end to end?",
+  "key_points": [
+   "HTTPS, hashed passwords, secure token storage",
+   "Input validation, rate limiting, role checks",
+   "Secrets in environment variables; dependency updates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement real-time notifications in a React + Node app?",
+  "key_points": [
+   "Socket.IO server; client connects after login",
+   "Server emits events to a user's room",
+   "Store notifications in database for offline users"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "hard",
+  "question": "How would you set up a CI/CD pipeline for a MERN project?",
+  "key_points": [
+   "On push: install, lint, test, build (GitHub Actions)",
+   "Deploy automatically to staging/production",
+   "Use secrets for env variables and rollback on failure"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "hard",
+  "question": "How would you containerise a Node.js API with Docker?",
+  "key_points": [
+   "Write a Dockerfile: base Node image, copy package files, npm install, copy code",
+   "Expose the port and set the start command",
+   "Use .dockerignore and environment variables"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "A form submits twice when the user double-clicks. How do you fix it on both sides?",
+  "key_points": [
+   "Disable the button while the request is in progress",
+   "Backend uses idempotency key or unique constraint",
+   "Return the existing record for duplicates"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "How would you handle data that changes often but is read a lot, like a job list?",
+  "key_points": [
+   "Cache results with short expiry",
+   "Invalidate cache when jobs change",
+   "Index and paginate queries"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you handle file uploads securely?",
+  "key_points": [
+   "Check file type and size on the server",
+   "Store files in cloud storage, not in the code folder",
+   "Generate safe file names; scan or restrict executable files"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "hard",
+  "question": "Your app works locally but fails after deployment. How do you debug it?",
+  "key_points": [
+   "Check server logs and build output",
+   "Compare environment variables and versions",
+   "Check CORS, database connection and file paths"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you design an API and UI for search with filters and sorting?",
+  "key_points": [
+   "UI keeps filters in state/URL query",
+   "API accepts validated query params and builds the query",
+   "Indexes and pagination for performance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "programming",
+  "level": "hard",
+  "question": "How would you structure a large full stack project for a team?",
+  "key_points": [
+   "Separate frontend and backend folders or repos",
+   "Feature-based modules with shared types/API layer",
+   "Linting, formatting, code reviews and tests"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "How would you migrate the database when a field name changes in production?",
+  "key_points": [
+   "Write a migration script",
+   "Support both old and new field during transition",
+   "Back up data and test on staging first"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement forgot password securely?",
+  "key_points": [
+   "Send a one-time token/OTP to the registered email",
+   "Token is random, hashed in database and expires quickly",
+   "Invalidate after use and do not reveal if email exists"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "cloud_devops",
+  "level": "hard",
+  "question": "How would you scale a Node.js app when traffic grows?",
+  "key_points": [
+   "Run multiple instances behind a load balancer",
+   "Keep servers stateless; shared store for sessions",
+   "Cache, optimise database, use CDN"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you implement optimistic UI updates?",
+  "key_points": [
+   "Update the UI immediately before the server responds",
+   "Send the request in the background",
+   "Roll back and show an error if it fails"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "security",
+  "level": "hard",
+  "question": "How would you prevent one user from editing another user's data?",
+  "key_points": [
+   "Check ownership on the server (resource.userId === user.id)",
+   "Do not trust ids sent from the client",
+   "Return 403 for unauthorised access"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "fullstack",
+  "topic": "web",
+  "level": "hard",
+  "question": "How would you add automated testing to a full stack project?",
+  "key_points": [
+   "Unit tests for functions and components",
+   "API tests with Supertest",
+   "End-to-end tests with Cypress/Playwright in CI"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is machine learning?",
+  "key_points": [
+   "Computers learn patterns from data",
+   "Make predictions without being explicitly programmed for each rule",
+   "Part of artificial intelligence"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is the difference between AI, machine learning and deep learning?",
+  "key_points": [
+   "AI: broad field of making machines intelligent",
+   "ML: subset that learns from data",
+   "Deep learning: ML using neural networks with many layers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is supervised learning?",
+  "key_points": [
+   "Learning from labelled data (input with correct output)",
+   "Model learns to map inputs to outputs",
+   "Examples: classification and regression"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is unsupervised learning?",
+  "key_points": [
+   "Learning from data without labels",
+   "Finds patterns or groups",
+   "Example: clustering customers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is the difference between classification and regression?",
+  "key_points": [
+   "Classification predicts a category (spam/not spam)",
+   "Regression predicts a number (house price)",
+   "Both are supervised learning"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What are features and labels?",
+  "key_points": [
+   "Features: input variables used for prediction",
+   "Label: the target value to predict",
+   "Example: house size (feature), price (label)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "Why do we split data into training and test sets?",
+  "key_points": [
+   "Train the model on one part",
+   "Test on unseen data to check real performance",
+   "Detects overfitting"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is a dataset?",
+  "key_points": [
+   "Collection of data used for analysis or training",
+   "Rows are examples, columns are features",
+   "Can be tables, images, text"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is linear regression?",
+  "key_points": [
+   "Predicts a number using a straight-line relationship",
+   "y = mx + c (or weighted sum of features)",
+   "Fitted by minimising error"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is accuracy in classification?",
+  "key_points": [
+   "Correct predictions divided by total predictions",
+   "Simple overall measure",
+   "Can be misleading for imbalanced data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is a neural network?",
+  "key_points": [
+   "Model made of layers of connected neurons",
+   "Each connection has a weight",
+   "Learns by adjusting weights during training"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "easy",
+  "question": "What is a model in machine learning?",
+  "key_points": [
+   "Mathematical function learned from data",
+   "Takes inputs and gives predictions",
+   "Created by training an algorithm"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "Why is Python popular for data science and AI?",
+  "key_points": [
+   "Simple, readable syntax",
+   "Rich libraries: NumPy, pandas, scikit-learn, PyTorch",
+   "Large community"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is the difference between a list and a tuple in Python?",
+  "key_points": [
+   "List is mutable (can change)",
+   "Tuple is immutable",
+   "Lists use [], tuples use ()"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a dictionary in Python?",
+  "key_points": [
+   "Stores key-value pairs",
+   "Keys are unique",
+   "Fast lookup by key"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is NumPy used for?",
+  "key_points": [
+   "Fast numerical computing in Python",
+   "Provides n-dimensional arrays",
+   "Vectorised maths operations"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is pandas used for?",
+  "key_points": [
+   "Data analysis and manipulation",
+   "DataFrame and Series structures",
+   "Reading CSV/Excel, cleaning and grouping data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a DataFrame?",
+  "key_points": [
+   "Table-like structure in pandas",
+   "Rows and labelled columns",
+   "Each column can have a different type"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "How do you read a CSV file in pandas?",
+  "key_points": [
+   "import pandas as pd",
+   "df = pd.read_csv('file.csv')",
+   "df.head() shows the first rows"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "easy",
+  "question": "What is a Jupyter Notebook?",
+  "key_points": [
+   "Interactive environment for code, output and notes",
+   "Runs code in cells",
+   "Popular for data analysis and experiments"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is data cleaning?",
+  "key_points": [
+   "Fixing or removing incorrect, missing or duplicate data",
+   "Standardising formats",
+   "Needed for reliable analysis"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What are missing values and how can you handle them?",
+  "key_points": [
+   "Empty or null entries in data",
+   "Remove rows/columns or fill (mean, median, mode)",
+   "Choice depends on how much is missing"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is the difference between structured and unstructured data?",
+  "key_points": [
+   "Structured: organised in rows and columns (tables)",
+   "Unstructured: text, images, audio, video",
+   "Unstructured needs extra processing"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is data visualisation and why is it useful?",
+  "key_points": [
+   "Showing data as charts and graphs",
+   "Helps see patterns and trends quickly",
+   "Tools: Matplotlib, Seaborn, Power BI"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is the mean, median and mode?",
+  "key_points": [
+   "Mean: average",
+   "Median: middle value when sorted",
+   "Mode: most frequent value"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is big data?",
+  "key_points": [
+   "Data too large or fast for traditional tools",
+   "Described by volume, velocity, variety",
+   "Processed with tools like Spark and Hadoop"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is SQL and why do data analysts use it?",
+  "key_points": [
+   "Language to query relational databases",
+   "Select, filter, group and join data",
+   "Most company data is stored in SQL databases"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "Write a SQL query to get the average salary from an employees table.",
+  "key_points": [
+   "SELECT AVG(salary)",
+   "FROM employees",
+   "Can add WHERE or GROUP BY"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What does GROUP BY do in SQL?",
+  "key_points": [
+   "Groups rows that have the same value in a column",
+   "Used with aggregate functions (COUNT, SUM, AVG)",
+   "Gives one result per group"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "easy",
+  "question": "What is a CSV file?",
+  "key_points": [
+   "Comma-separated values text file",
+   "Each line is a row, values separated by commas",
+   "Common format for datasets"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is overfitting and how can you prevent it?",
+  "key_points": [
+   "Model learns training data too well, including noise",
+   "High training accuracy but poor test accuracy",
+   "Prevent with more data, regularisation, simpler model, cross-validation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is underfitting?",
+  "key_points": [
+   "Model is too simple to learn the pattern",
+   "Poor results on both training and test data",
+   "Fix with a more complex model or better features"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "Explain precision and recall.",
+  "key_points": [
+   "Precision: of predicted positives, how many are correct",
+   "Recall: of actual positives, how many were found",
+   "Trade-off between them"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a confusion matrix?",
+  "key_points": [
+   "Table of true positives, true negatives, false positives, false negatives",
+   "Shows where the classifier makes mistakes",
+   "Used to compute precision, recall and accuracy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is the F1 score?",
+  "key_points": [
+   "Harmonic mean of precision and recall",
+   "Useful for imbalanced classes",
+   "Ranges from 0 to 1"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is cross-validation?",
+  "key_points": [
+   "Split data into k folds",
+   "Train on k-1 folds and test on the remaining fold, repeat",
+   "Gives a more reliable performance estimate"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a decision tree?",
+  "key_points": [
+   "Model that splits data using feature questions",
+   "Leaves give the prediction",
+   "Easy to interpret but can overfit"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is the difference between a decision tree and a random forest?",
+  "key_points": [
+   "Random forest uses many decision trees",
+   "Each tree trained on random samples and features",
+   "Averages/votes results, reducing overfitting"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is k-means clustering?",
+  "key_points": [
+   "Unsupervised algorithm that makes k groups",
+   "Assigns points to nearest centre, then updates centres",
+   "Repeats until centres stop changing"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is logistic regression?",
+  "key_points": [
+   "Classification algorithm for binary outcomes",
+   "Uses sigmoid to output a probability",
+   "Threshold (e.g. 0.5) gives the class"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is feature scaling and why is it needed?",
+  "key_points": [
+   "Bringing features to a similar range",
+   "Normalisation (0-1) or standardisation (mean 0, std 1)",
+   "Needed for distance-based and gradient-based models"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is feature engineering?",
+  "key_points": [
+   "Creating or transforming input features",
+   "Examples: extracting date parts, encoding categories",
+   "Often improves model performance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "How do you handle categorical data in machine learning?",
+  "key_points": [
+   "Convert categories to numbers",
+   "One-hot encoding or label encoding",
+   "One-hot avoids fake order between categories"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is gradient descent?",
+  "key_points": [
+   "Optimisation method to minimise the loss",
+   "Updates weights in the direction that reduces error",
+   "Learning rate controls step size"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a loss function?",
+  "key_points": [
+   "Measures how wrong the model's predictions are",
+   "Examples: mean squared error, cross-entropy",
+   "Training tries to minimise it"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is an activation function in a neural network?",
+  "key_points": [
+   "Adds non-linearity to neurons",
+   "Examples: ReLU, sigmoid, softmax",
+   "Lets the network learn complex patterns"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is the bias-variance trade-off?",
+  "key_points": [
+   "Bias: error from too simple a model (underfitting)",
+   "Variance: error from too sensitive a model (overfitting)",
+   "Good model balances both"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a hyperparameter?",
+  "key_points": [
+   "Setting chosen before training, not learned",
+   "Examples: learning rate, number of trees, epochs",
+   "Tuned with grid/random search and validation set"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a validation set?",
+  "key_points": [
+   "Separate data used during development",
+   "Used to tune hyperparameters and choose the model",
+   "Test set is kept for the final check"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is natural language processing?",
+  "key_points": [
+   "AI field for understanding human language",
+   "Tasks: sentiment analysis, translation, chatbots",
+   "Uses tokenisation and language models"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is a large language model (LLM)?",
+  "key_points": [
+   "Neural network trained on huge amounts of text",
+   "Predicts the next token",
+   "Can answer questions, summarise and generate text"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is fine-tuning a model?",
+  "key_points": [
+   "Further training a pre-trained model on a specific dataset",
+   "Adapts it to a new task",
+   "Needs less data and compute than training from scratch"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "How do you remove duplicate rows in pandas?",
+  "key_points": [
+   "df.drop_duplicates()",
+   "Can choose columns with subset",
+   "keep='first' keeps the first occurrence"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "How do you filter rows in a pandas DataFrame?",
+  "key_points": [
+   "Boolean indexing: df[df['age'] > 18]",
+   "Combine conditions with & and |",
+   "df.query() is another option"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What does groupby do in pandas?",
+  "key_points": [
+   "Splits data into groups by column values",
+   "Applies aggregation like mean or sum",
+   "Combines results into a new table"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between merge and concat in pandas?",
+  "key_points": [
+   "merge joins tables on key columns like SQL JOIN",
+   "concat stacks DataFrames along rows or columns",
+   "merge supports inner, left, right, outer"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is a list comprehension in Python?",
+  "key_points": [
+   "Short way to create a list from an iterable",
+   "[x*2 for x in nums if x > 0]",
+   "More readable and often faster than a loop"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "medium",
+  "question": "What is the difference between a NumPy array and a Python list?",
+  "key_points": [
+   "NumPy array has one data type and fixed size",
+   "Supports fast vectorised operations",
+   "Uses less memory for numbers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is an outlier and how can you detect it?",
+  "key_points": [
+   "Value very different from others",
+   "Detect with box plots, IQR or z-score",
+   "Decide whether to remove, cap or keep it"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is the difference between correlation and causation?",
+  "key_points": [
+   "Correlation: two variables move together",
+   "Causation: one variable causes the other",
+   "Correlation alone does not prove cause"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is ETL?",
+  "key_points": [
+   "Extract data from sources",
+   "Transform: clean and reshape",
+   "Load into a database or data warehouse"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is a data warehouse?",
+  "key_points": [
+   "Central store of cleaned, structured data for analysis",
+   "Combines data from many sources",
+   "Used for reporting and BI"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is standard deviation?",
+  "key_points": [
+   "Measures how spread out values are from the mean",
+   "Low value: data close to mean",
+   "Square root of variance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is exploratory data analysis (EDA)?",
+  "key_points": [
+   "First analysis to understand a dataset",
+   "Summary statistics, distributions, missing values",
+   "Visualisations to find patterns and problems"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "medium",
+  "question": "What is Apache Spark used for?",
+  "key_points": [
+   "Distributed processing of large datasets",
+   "Works in memory, faster than classic MapReduce",
+   "Supports SQL, ML and streaming"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "Write a SQL query to find the top 5 highest-paid employees.",
+  "key_points": [
+   "SELECT name, salary FROM employees",
+   "ORDER BY salary DESC",
+   "LIMIT 5 (or TOP 5)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is a JOIN and why is it useful for analysis?",
+  "key_points": [
+   "Combines rows from tables using a common column",
+   "INNER, LEFT, RIGHT joins",
+   "Brings related data together, e.g. orders with customers"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the difference between WHERE and HAVING in SQL?",
+  "key_points": [
+   "WHERE filters rows before grouping",
+   "HAVING filters groups after aggregation",
+   "HAVING works with COUNT/SUM/AVG"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is an imbalanced dataset and how do you handle it?",
+  "key_points": [
+   "One class has far more examples than another",
+   "Use resampling (oversample/undersample) or class weights",
+   "Use precision, recall, F1 instead of accuracy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "medium",
+  "question": "What is data leakage?",
+  "key_points": [
+   "Information from the test set or future leaks into training",
+   "Gives unrealistically good results",
+   "Split data before preprocessing; fit scalers on training data only"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "Your model has 98% accuracy but performs badly in real use. What could be wrong?",
+  "key_points": [
+   "Imbalanced data makes accuracy misleading",
+   "Data leakage or test set not like real data",
+   "Check precision/recall, confusion matrix and data distribution"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you build a model to predict whether an email is spam?",
+  "key_points": [
+   "Collect labelled emails and clean text",
+   "Convert text to features (TF-IDF or embeddings)",
+   "Train a classifier, evaluate with precision/recall, then deploy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you choose between a simple model and a complex model?",
+  "key_points": [
+   "Start with a simple baseline",
+   "Compare on validation data",
+   "Prefer the simpler model if performance is similar (interpretability, speed)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "Explain how backpropagation trains a neural network.",
+  "key_points": [
+   "Forward pass computes predictions and loss",
+   "Backward pass computes gradients using the chain rule",
+   "Weights updated with gradient descent"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "What are vanishing gradients and how can they be reduced?",
+  "key_points": [
+   "Gradients become very small in deep networks",
+   "Early layers learn very slowly",
+   "Use ReLU, good initialisation, batch normalisation, residual connections"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you deploy a trained machine learning model for a web app?",
+  "key_points": [
+   "Save the model and load it in an API service",
+   "Expose a prediction endpoint (FastAPI/Flask)",
+   "Monitor performance and retrain when data changes"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "What is regularisation? Compare L1 and L2.",
+  "key_points": [
+   "Adds a penalty on large weights to reduce overfitting",
+   "L1 (Lasso) can make some weights zero (feature selection)",
+   "L2 (Ridge) shrinks weights smoothly"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you evaluate a model that gives scores to interview answers?",
+  "key_points": [
+   "Compare with human-graded answers",
+   "Use metrics like mean absolute error and agreement on verdicts",
+   "Check fairness and consistency across groups"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "What is transfer learning and when would you use it?",
+  "key_points": [
+   "Reuse a model pre-trained on a large dataset",
+   "Fine-tune on your smaller dataset",
+   "Useful when data or compute is limited"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "What is model drift and how do you handle it?",
+  "key_points": [
+   "Real-world data changes over time",
+   "Model performance drops",
+   "Monitor metrics and retrain with new data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "hard",
+  "question": "You get a messy dataset with missing values, duplicates and wrong types. What is your plan?",
+  "key_points": [
+   "Explore with info/describe and check missing/duplicates",
+   "Fix types, remove duplicates, handle missing values sensibly",
+   "Document steps and validate the cleaned data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "hard",
+  "question": "How would you analyse why sales dropped last month?",
+  "key_points": [
+   "Compare with previous periods and break down by product/region",
+   "Check data quality and external factors",
+   "Visualise and test hypotheses before concluding"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "big_data",
+  "level": "hard",
+  "question": "How would you process a dataset too large to fit in memory?",
+  "key_points": [
+   "Read in chunks (pandas chunksize)",
+   "Use efficient types and select needed columns",
+   "Use distributed tools like Spark or a database"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "Write a SQL query to find the second-highest salary.",
+  "key_points": [
+   "SELECT MAX(salary) FROM employees",
+   "WHERE salary < (SELECT MAX(salary) FROM employees)",
+   "Or use ORDER BY DESC with LIMIT 1 OFFSET 1"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "What are window functions in SQL? Give an example.",
+  "key_points": [
+   "Calculations across related rows without grouping them",
+   "Use OVER (PARTITION BY ... ORDER BY ...)",
+   "Examples: ROW_NUMBER, RANK, running totals"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you detect bias in a machine learning model?",
+  "key_points": [
+   "Compare performance across groups (gender, region)",
+   "Check training data representation",
+   "Use fairness metrics and remove sensitive features or rebalance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "When would you use a ROC curve and AUC?",
+  "key_points": [
+   "Evaluate binary classifiers across thresholds",
+   "Plots true positive rate vs false positive rate",
+   "AUC near 1 means good separation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "programming",
+  "level": "hard",
+  "question": "How would you make a slow pandas script faster?",
+  "key_points": [
+   "Use vectorised operations instead of loops/apply",
+   "Use suitable data types and filter early",
+   "Use chunks or tools like Polars/Spark for large data"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "How would you build a simple recommendation system?",
+  "key_points": [
+   "Collaborative filtering using user-item ratings",
+   "Or content-based using item features",
+   "Evaluate with held-out data; handle new users (cold start)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "data_ai",
+  "topic": "ai_ml",
+  "level": "hard",
+  "question": "Explain the train, validation and test workflow for building a model.",
+  "key_points": [
+   "Train on training set",
+   "Tune hyperparameters and select model with validation set",
+   "Report final performance once on the test set"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is an array?",
+  "key_points": [
+   "Collection of elements stored in contiguous memory",
+   "Accessed by index in O(1)",
+   "Fixed size in many languages"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is the difference between an array and a linked list?",
+  "key_points": [
+   "Array: contiguous memory, fast index access",
+   "Linked list: nodes with pointers, no index access",
+   "Linked list inserts/deletes easily without shifting"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is a stack?",
+  "key_points": [
+   "Linear data structure following LIFO",
+   "Operations: push, pop, peek",
+   "Used for undo, function calls, expression evaluation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is a queue?",
+  "key_points": [
+   "Linear data structure following FIFO",
+   "Operations: enqueue, dequeue",
+   "Used for scheduling and BFS"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is Big O notation?",
+  "key_points": [
+   "Describes how running time or memory grows with input size",
+   "Focuses on the worst case",
+   "Examples: O(1), O(n), O(n^2)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is the time complexity of linear search and binary search?",
+  "key_points": [
+   "Linear search: O(n)",
+   "Binary search: O(log n)",
+   "Binary search needs a sorted array"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is recursion?",
+  "key_points": [
+   "A function calling itself",
+   "Needs a base case to stop",
+   "Example: factorial"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is a binary tree?",
+  "key_points": [
+   "Tree where each node has at most two children",
+   "Left and right child",
+   "Top node is the root"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is a hash table?",
+  "key_points": [
+   "Stores key-value pairs",
+   "Hash function maps keys to positions",
+   "Average O(1) search, insert and delete"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "Name two sorting algorithms.",
+  "key_points": [
+   "Bubble sort, selection sort, insertion sort",
+   "Merge sort, quick sort",
+   "Different time complexities"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is object-oriented programming?",
+  "key_points": [
+   "Programming based on objects that contain data and methods",
+   "Main pillars: encapsulation, inheritance, polymorphism, abstraction",
+   "Models real-world entities"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is the difference between a class and an object?",
+  "key_points": [
+   "Class: blueprint or template",
+   "Object: instance created from a class",
+   "Many objects can be created from one class"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is encapsulation?",
+  "key_points": [
+   "Bundling data and methods in a class",
+   "Restricting direct access with private fields",
+   "Access through public methods (getters/setters)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is inheritance?",
+  "key_points": [
+   "A class reuses properties and methods of another class",
+   "Child (subclass) extends parent (superclass)",
+   "Promotes code reuse"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is polymorphism?",
+  "key_points": [
+   "One interface, many forms",
+   "Method overriding (runtime) and overloading (compile time)",
+   "Same method call behaves differently per object"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is abstraction?",
+  "key_points": [
+   "Showing only essential features and hiding details",
+   "Achieved with abstract classes and interfaces",
+   "Reduces complexity"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is a constructor?",
+  "key_points": [
+   "Special method called when an object is created",
+   "Initialises object fields",
+   "Has the same name as the class in Java/C++"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What are access modifiers?",
+  "key_points": [
+   "Control visibility of class members",
+   "public, private, protected",
+   "Support encapsulation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a DBMS?",
+  "key_points": [
+   "Software to store, manage and retrieve data",
+   "Examples: MySQL, PostgreSQL, MongoDB",
+   "Handles security, backup and concurrency"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a primary key?",
+  "key_points": [
+   "Uniquely identifies each row in a table",
+   "Cannot be null",
+   "Only one primary key per table"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is the difference between a primary key and a foreign key?",
+  "key_points": [
+   "Primary key identifies rows in its own table",
+   "Foreign key refers to a primary key in another table",
+   "Foreign key creates relationships"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is SQL?",
+  "key_points": [
+   "Structured Query Language",
+   "Used to create, read, update and delete data in relational databases",
+   "Commands: SELECT, INSERT, UPDATE, DELETE"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "easy",
+  "question": "What is a relational database?",
+  "key_points": [
+   "Stores data in tables with rows and columns",
+   "Tables are related with keys",
+   "Uses SQL"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "easy",
+  "question": "What is an operating system?",
+  "key_points": [
+   "Software that manages hardware and resources",
+   "Provides services to applications",
+   "Examples: Windows, Linux, macOS"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "easy",
+  "question": "What is the difference between a process and a program?",
+  "key_points": [
+   "Program: passive code stored on disk",
+   "Process: program in execution",
+   "A process has its own memory and state"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "easy",
+  "question": "What is a thread?",
+  "key_points": [
+   "Smallest unit of execution within a process",
+   "Threads of a process share memory",
+   "Enable doing multiple tasks concurrently"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "easy",
+  "question": "What is RAM and how is it different from storage?",
+  "key_points": [
+   "RAM: fast, temporary memory for running programs",
+   "Storage (HDD/SSD): permanent, slower",
+   "RAM is cleared when power is off"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "easy",
+  "question": "What is multitasking?",
+  "key_points": [
+   "Running multiple tasks seemingly at the same time",
+   "CPU switches quickly between tasks",
+   "Managed by the OS scheduler"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "easy",
+  "question": "What is a graph?",
+  "key_points": [
+   "Set of nodes (vertices) connected by edges",
+   "Can be directed or undirected, weighted or not",
+   "Used for maps, networks, social connections"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "easy",
+  "question": "What is method overloading?",
+  "key_points": [
+   "Same method name with different parameters in a class",
+   "Decided at compile time",
+   "Example: add(int, int) and add(double, double)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How does binary search work?",
+  "key_points": [
+   "Works on a sorted array",
+   "Compare target with middle element and discard half",
+   "Repeats until found or range is empty; O(log n)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "Explain how merge sort works and its time complexity.",
+  "key_points": [
+   "Divide array into halves recursively",
+   "Sort and merge the halves",
+   "O(n log n) time, needs extra space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How does quick sort work?",
+  "key_points": [
+   "Choose a pivot and partition smaller and larger elements",
+   "Recursively sort the partitions",
+   "Average O(n log n), worst O(n^2)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is the difference between BFS and DFS?",
+  "key_points": [
+   "BFS explores level by level using a queue",
+   "DFS goes deep first using a stack/recursion",
+   "BFS finds shortest path in unweighted graphs"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How do you reverse a linked list?",
+  "key_points": [
+   "Use three pointers: previous, current, next",
+   "Point current.next to previous while moving forward",
+   "O(n) time, O(1) space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How do you check if a string is a palindrome?",
+  "key_points": [
+   "Compare characters from both ends moving inward",
+   "Or compare string with its reverse",
+   "O(n) time"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is a binary search tree?",
+  "key_points": [
+   "Binary tree where left values are smaller and right values larger",
+   "Search, insert, delete O(log n) on average",
+   "Can become O(n) if unbalanced"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is a hash collision and how is it handled?",
+  "key_points": [
+   "Two keys map to the same index",
+   "Chaining: store a list at each index",
+   "Open addressing: find another free slot"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How would you find duplicates in an array?",
+  "key_points": [
+   "Use a hash set and check if an item was seen",
+   "O(n) time, O(n) space",
+   "Or sort first then compare neighbours, O(n log n)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is the difference between time complexity and space complexity?",
+  "key_points": [
+   "Time: how running time grows with input",
+   "Space: how memory use grows with input",
+   "Often a trade-off between them"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is a heap?",
+  "key_points": [
+   "Complete binary tree with heap property",
+   "Min-heap: parent smaller than children; max-heap the opposite",
+   "Used for priority queues; insert/remove O(log n)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is dynamic programming? Give an example.",
+  "key_points": [
+   "Solves problems by storing results of overlapping subproblems",
+   "Memoization (top-down) or tabulation (bottom-up)",
+   "Example: Fibonacci, knapsack"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "How do you find the middle of a linked list in one pass?",
+  "key_points": [
+   "Use slow and fast pointers",
+   "Slow moves one step, fast moves two",
+   "When fast reaches the end, slow is at the middle"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is the difference between method overloading and overriding?",
+  "key_points": [
+   "Overloading: same name, different parameters, same class",
+   "Overriding: subclass redefines parent method with same signature",
+   "Overloading is compile-time; overriding is runtime polymorphism"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is the difference between an abstract class and an interface?",
+  "key_points": [
+   "Abstract class can have state and implemented methods",
+   "Interface defines a contract (methods to implement)",
+   "A class can implement many interfaces but extend one class (Java)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is composition and why is it often preferred over inheritance?",
+  "key_points": [
+   "Composition: class contains objects of other classes (has-a)",
+   "More flexible and less tightly coupled",
+   "Avoids deep inheritance hierarchies"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What are the SOLID principles?",
+  "key_points": [
+   "Single responsibility, Open/closed",
+   "Liskov substitution, Interface segregation",
+   "Dependency inversion"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is the Single Responsibility Principle?",
+  "key_points": [
+   "A class should have only one reason to change",
+   "Each class does one job",
+   "Makes code easier to maintain and test"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is a static method or variable?",
+  "key_points": [
+   "Belongs to the class, not to objects",
+   "Shared by all instances",
+   "Called using the class name"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is the difference between shallow copy and deep copy of an object?",
+  "key_points": [
+   "Shallow copy copies references of nested objects",
+   "Deep copy creates new nested objects",
+   "Changes to nested data affect shallow copies"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "medium",
+  "question": "What is a design pattern? Name one.",
+  "key_points": [
+   "Reusable solution to a common design problem",
+   "Examples: Singleton, Factory, Observer",
+   "Makes design easier to communicate"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is normalization and why is it needed?",
+  "key_points": [
+   "Organising data to reduce redundancy",
+   "1NF, 2NF, 3NF",
+   "Prevents insert, update and delete anomalies"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What are ACID properties?",
+  "key_points": [
+   "Atomicity, Consistency",
+   "Isolation, Durability",
+   "Guarantee reliable transactions"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "Explain INNER JOIN and LEFT JOIN.",
+  "key_points": [
+   "INNER JOIN returns only matching rows from both tables",
+   "LEFT JOIN returns all rows from left table and matches from right",
+   "Non-matching right values become NULL"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is an index in a database?",
+  "key_points": [
+   "Structure that speeds up data retrieval",
+   "Like an index in a book",
+   "Makes writes slower and uses space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is the difference between DELETE and TRUNCATE?",
+  "key_points": [
+   "DELETE removes selected rows and can use WHERE",
+   "TRUNCATE removes all rows quickly",
+   "DELETE can be rolled back more easily in transactions"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "What is an ER diagram?",
+  "key_points": [
+   "Entity-Relationship diagram",
+   "Shows entities, attributes and relationships",
+   "Used to design databases"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "medium",
+  "question": "Write a SQL query to count employees in each department.",
+  "key_points": [
+   "SELECT department, COUNT(*)",
+   "FROM employees",
+   "GROUP BY department"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is the difference between a process and a thread?",
+  "key_points": [
+   "Process has its own memory space",
+   "Threads share the memory of their process",
+   "Thread creation and switching are cheaper"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is a deadlock?",
+  "key_points": [
+   "Processes wait forever for resources held by each other",
+   "Conditions: mutual exclusion, hold and wait, no preemption, circular wait",
+   "Prevent by breaking one condition"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is virtual memory?",
+  "key_points": [
+   "Uses disk space as an extension of RAM",
+   "Programs see a large continuous address space",
+   "Pages moved between RAM and disk"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is paging?",
+  "key_points": [
+   "Memory divided into fixed-size pages and frames",
+   "Pages of a process map to frames in RAM",
+   "Avoids external fragmentation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is CPU scheduling? Name two algorithms.",
+  "key_points": [
+   "Decides which process gets the CPU next",
+   "FCFS, Shortest Job First, Round Robin, Priority",
+   "Aims for fairness and good response time"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is a context switch?",
+  "key_points": [
+   "Saving the state of one process/thread and loading another",
+   "Allows multitasking",
+   "Has overhead"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is a race condition?",
+  "key_points": [
+   "Result depends on timing of threads accessing shared data",
+   "Leads to wrong results",
+   "Prevent with locks/mutexes or atomic operations"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is a mutex?",
+  "key_points": [
+   "Lock that allows only one thread into a critical section",
+   "Thread must lock before and unlock after",
+   "Prevents race conditions"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is the difference between a mutex and a semaphore?",
+  "key_points": [
+   "Mutex: one thread at a time, owned by locking thread",
+   "Semaphore: counter allowing a limited number of threads",
+   "Binary semaphore is similar to a mutex"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "What is the difference between a stack and a queue? Give a use of each.",
+  "key_points": [
+   "Stack is LIFO; queue is FIFO",
+   "Stack: undo, recursion",
+   "Queue: printer jobs, BFS"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "medium",
+  "question": "Explain the two-sum problem and an efficient solution.",
+  "key_points": [
+   "Find two numbers that add up to a target",
+   "Use a hash map to store seen numbers and their index",
+   "O(n) time instead of O(n^2)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "medium",
+  "question": "What is the difference between multiprogramming and multiprocessing?",
+  "key_points": [
+   "Multiprogramming: many programs in memory share one CPU",
+   "Multiprocessing: system with multiple CPUs/cores",
+   "Multiprocessing gives true parallelism"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How would you detect a cycle in a linked list?",
+  "key_points": [
+   "Floyd's slow and fast pointers",
+   "If they meet, there is a cycle",
+   "O(n) time and O(1) space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How would you find the shortest path in a weighted graph?",
+  "key_points": [
+   "Dijkstra's algorithm for non-negative weights",
+   "Uses a priority queue and distance table",
+   "Bellman-Ford handles negative weights"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How would you check if brackets in a string are balanced?",
+  "key_points": [
+   "Use a stack",
+   "Push opening brackets; on closing, pop and check match",
+   "Balanced if stack is empty at the end"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "Compare merge sort and quick sort. When would you choose each?",
+  "key_points": [
+   "Both average O(n log n)",
+   "Merge sort is stable and always O(n log n) but needs extra memory",
+   "Quick sort is in-place and fast in practice but worst case O(n^2)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How would you find the k largest elements in a large array?",
+  "key_points": [
+   "Use a min-heap of size k",
+   "Replace the smallest when a larger element comes",
+   "O(n log k) time"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How do you find the lowest common ancestor in a binary search tree?",
+  "key_points": [
+   "Start from the root",
+   "If both values smaller go left, if both larger go right",
+   "Otherwise current node is the LCA"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "Solve the climbing stairs problem (1 or 2 steps) and explain the approach.",
+  "key_points": [
+   "Ways(n) = Ways(n-1) + Ways(n-2)",
+   "Use dynamic programming or two variables",
+   "O(n) time, O(1) space"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "What is an LRU cache and how can you implement it?",
+  "key_points": [
+   "Removes the least recently used item when full",
+   "Hash map plus doubly linked list",
+   "Get and put in O(1)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "hard",
+  "question": "Design classes for a simple library management system.",
+  "key_points": [
+   "Classes like Book, Member, Loan, Library",
+   "Relationships: member borrows books through loans",
+   "Methods for borrow/return; apply encapsulation"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "hard",
+  "question": "Explain the Singleton pattern and one problem with it.",
+  "key_points": [
+   "Ensures only one instance of a class with global access",
+   "Private constructor and static getInstance",
+   "Problems: global state, hard to test, thread safety"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "hard",
+  "question": "Explain dependency injection and why it helps.",
+  "key_points": [
+   "Objects receive their dependencies from outside",
+   "Reduces tight coupling",
+   "Makes testing easier with mocks"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "oop",
+  "level": "hard",
+  "question": "Give an example of violating the Liskov Substitution Principle.",
+  "key_points": [
+   "Subclass should work wherever the parent is used",
+   "Example: Square extending Rectangle breaks setWidth/setHeight behaviour",
+   "Fix by redesigning the hierarchy"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "Normalise a table that stores student name, course name and teacher name in one row.",
+  "key_points": [
+   "Identify repeating groups and dependencies",
+   "Split into Student, Course, Teacher and Enrollment tables",
+   "Link with primary and foreign keys"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "What are isolation levels in transactions?",
+  "key_points": [
+   "Read uncommitted, read committed, repeatable read, serializable",
+   "Higher isolation prevents more anomalies",
+   "But reduces concurrency"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dbms",
+  "level": "hard",
+  "question": "Write a SQL query to find departments with more than 5 employees.",
+  "key_points": [
+   "SELECT department, COUNT(*) FROM employees",
+   "GROUP BY department",
+   "HAVING COUNT(*) > 5"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "hard",
+  "question": "How can deadlock be prevented or avoided?",
+  "key_points": [
+   "Break one of the four Coffman conditions",
+   "Lock ordering or timeouts",
+   "Banker's algorithm for avoidance"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "hard",
+  "question": "What is thrashing in an operating system?",
+  "key_points": [
+   "Too much time spent swapping pages instead of executing",
+   "Happens when RAM is not enough for active processes",
+   "Reduce by lowering multiprogramming or adding memory"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "hard",
+  "question": "Explain the producer-consumer problem and how to solve it.",
+  "key_points": [
+   "Producer adds to a shared buffer; consumer removes",
+   "Must avoid overflow, underflow and races",
+   "Use semaphores/mutex or a thread-safe queue"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "dsa",
+  "level": "hard",
+  "question": "How would you design an algorithm to check if two strings are anagrams?",
+  "key_points": [
+   "Same characters with same counts",
+   "Count characters with a hash map or array",
+   "O(n) time; or sort both strings O(n log n)"
+  ]
+ },
+ {
+  "stage": "technical",
+  "track": "software_engineer",
+  "topic": "os",
+  "level": "hard",
+  "question": "What happens when a program runs out of memory?",
+  "key_points": [
+   "OS may use virtual memory/swap and slow down",
+   "Allocation fails or process is killed (out of memory)",
+   "Fix memory leaks, process data in chunks"
+  ]
+ }
+]

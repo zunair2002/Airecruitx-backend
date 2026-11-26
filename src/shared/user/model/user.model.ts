@@ -5,6 +5,18 @@ export type UserRole = "candidate" | "hr" | "admin";
 export type AuthProvider = "password" | "google";
 export type UserPlan = "free" | "premium";
 export const USER_PLANS: UserPlan[] = ["free", "premium"];
+export type PlanSource = "stripe" | "admin";
+
+// Premium bought through Stripe Billing (kept in sync by the billing webhook and the
+// post-checkout confirm call). Stripe stays the source of truth for the subscription itself.
+export interface IUserSubscription {
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  status?: string; // Stripe subscription status: active, trialing, past_due, canceled, ...
+  currentPeriodEnd?: Date;
+  cancelAtPeriodEnd?: boolean;
+  updatedAt?: Date;
+}
 
 export interface IUser extends Document {
   firebaseUid?: string;
@@ -22,6 +34,11 @@ export interface IUser extends Document {
   isActive: boolean;
   // Candidate subscription tier: gates premium courses and the daily practice-interview limit.
   plan: UserPlan;
+  // When premium ends (Stripe: end of the paid period; admin grant: optional end date).
+  // Unset means no end date. Read the plan through effectivePlan() so a lapsed date counts as free.
+  planExpiresAt?: Date;
+  planSource?: PlanSource;
+  subscription?: IUserSubscription;
   // Start times of brand-new practice sessions, kept apart from the sessions themselves
   // (which get deleted when replaced) so the daily allowance can't be reset by
   // abandoning a session. Capped to the most recent entries; see practiceUsage.service.ts.
@@ -114,6 +131,22 @@ const userSchema = new Schema<IUser>(
       required: true,
       default: "free",
     },
+    planExpiresAt: { type: Date, required: false },
+    planSource: { type: String, enum: ["stripe", "admin"], required: false },
+    subscription: {
+      type: new Schema<IUserSubscription>(
+        {
+          stripeCustomerId: { type: String },
+          stripeSubscriptionId: { type: String },
+          status: { type: String },
+          currentPeriodEnd: { type: Date },
+          cancelAtPeriodEnd: { type: Boolean },
+          updatedAt: { type: Date },
+        },
+        { _id: false }
+      ),
+      required: false,
+    },
     practiceStarts: {
       type: [Date],
       default: undefined,
@@ -162,4 +195,17 @@ userSchema.methods.comparePassword = function (candidate: string): Promise<boole
   return bcrypt.compare(candidate, this.password);
 };
 
+// Billing webhooks look a user up by their Stripe customer / subscription id.
+userSchema.index({ "subscription.stripeCustomerId": 1 }, { sparse: true });
+userSchema.index({ "subscription.stripeSubscriptionId": 1 }, { sparse: true });
+// Hourly sweep for premium plans whose end date has passed (config/planExpiryScheduler.ts).
+userSchema.index({ plan: 1, planExpiresAt: 1 });
+
 export const User = model<IUser>("User", userSchema);
+
+/** The plan in force right now: premium only while planExpiresAt (if any) is in the future. */
+export const effectivePlan = (user: Pick<IUser, "plan" | "planExpiresAt"> | null | undefined): UserPlan => {
+  if (user?.plan !== "premium") return "free";
+  if (user.planExpiresAt && new Date(user.planExpiresAt).getTime() <= Date.now()) return "free";
+  return "premium";
+};

@@ -1,4 +1,4 @@
-import { Job, IJob } from "../../../shared/job/model/job.model";
+import { Job, IJob, JobStatus } from "../../../shared/job/model/job.model";
 import { AppError } from "../../../utils/AppError";
 import cloudinary from "../../../config/cloudinary";
 import { extractTextFromFile } from "../../../shared/util/extractTextFromFile";
@@ -81,4 +81,21 @@ export const createJob = async (hrId: string, input: CreateJobInput): Promise<IJ
 
 export const listJobsForHr = async (hrId: string): Promise<IJob[]> => {
   return Job.find({ hrId }).sort({ createdAt: -1 });
+};
+
+/** Closes or reopens a posting without deleting its applications or interview data. */
+export const setJobStatus = async (
+  hrId: string,
+  jobId: string,
+  status: JobStatus
+): Promise<IJob> => {
+  const job = await Job.findOne({ _id: jobId, hrId });
+  if (!job) {
+    throw new AppError("Job not found", 404);
+  }
+  if (job.status !== status) {
+    job.status = status;
+    await job.save();
+  }
+  return job;
 };

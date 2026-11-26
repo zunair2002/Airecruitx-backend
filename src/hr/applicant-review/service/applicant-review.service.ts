@@ -142,7 +142,12 @@ export const getApplicationReport = async (hrId: string, applicationId: string) 
       : null,
   ]);
 
-  return { application, interviewSession, orgInterviewSession };
+  // Org interview: warm-up answers come back as "introduction" (no score); turns = pool questions only
+  return {
+    application,
+    interviewSession,
+    orgInterviewSession: orgInterviewSession ? interviewService.buildHrSessionView(orgInterviewSession) : null,
+  };
 };
 
 const assertHrOwnsApplication = async (hrId: string, applicationId: string): Promise<IApplication> => {
@@ -154,37 +159,118 @@ const assertHrOwnsApplication = async (hrId: string, applicationId: string): Pro
   return application;
 };
 
-export const updateApplicationStatus = async (
-  hrId: string,
-  applicationId: string,
-  status: ApplicationStatus
-): Promise<IApplication> => {
-  if (!["pending", "selected", "rejected"].includes(status)) {
-    throw new AppError("Invalid status", 400);
-  }
+const APPLICATION_STATUSES: ApplicationStatus[] = ["pending", "shortlisted", "selected", "rejected"];
 
-  const application = await assertHrOwnsApplication(hrId, applicationId);
+const applicationStatusNotification = (status: ApplicationStatus): string => {
+  switch (status) {
+    case "selected":
+      return "Congratulations — your application has been selected. The hiring team will contact you about the next steps.";
+    case "rejected":
+      return "Update on your application: after review, the hiring team will not be moving forward at this time.";
+    case "shortlisted":
+      return "Good news — your application has been shortlisted for further review.";
+    default:
+      return "Your application status has been updated by the hiring team.";
+  }
+};
+
+// pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected;
+// rejected -> shortlisted.
+// "selected" additionally requires a completed AI or org interview (checked separately).
+const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
+  pending: ["shortlisted", "rejected"],
+  shortlisted: ["selected", "rejected"],
+  selected: ["rejected"],
+  rejected: ["shortlisted"], // lets HR undo an accidental rejection
+};
+
+// Statuses HR may send an org-interview invite to.
+const ORG_INVITE_STATUSES: ApplicationStatus[] = ["shortlisted", "selected"];
+
+const hasCompletedInterview = async (application: IApplication): Promise<boolean> => {
+  if (application.orgInterview?.status === "completed") return true;
+  const sessionIds = [application.interviewSessionId, application.orgInterviewSessionId].filter(
+    (id): id is Types.ObjectId => Boolean(id)
+  );
+  if (!sessionIds.length) return false;
+  return Boolean(await InterviewSession.exists({ _id: { $in: sessionIds }, status: "completed" }));
+};
+
+// Throws a 400 if `application` may not move to `status`. Same-status is a no-op and allowed.
+const assertStatusTransition = async (application: IApplication, status: ApplicationStatus) => {
+  if (application.status === status) return;
+  if (!ALLOWED_STATUS_TRANSITIONS[application.status]?.includes(status)) {
+    throw new AppError(`Cannot change application status from "${application.status}" to "${status}"`, 400);
+  }
+  if (status === "selected" && !(await hasCompletedInterview(application))) {
+    throw new AppError("Candidate can only be selected after completing the AI or organizational interview", 400);
+  }
+};
+
+const applyStatus = async (application: IApplication, status: ApplicationStatus) => {
+  if (application.status === status) return application;
   application.status = status;
   await application.save();
+
+  // Save the HR decision so it is visible in the candidate's notification
+  // inbox even if they were offline when the real-time event was emitted.
+  await notifyUser(
+    application.candidateId.toString(),
+    applicationStatusNotification(application.status)
+  );
 
   emitToUser(application.candidateId.toString(), "application:status", {
     applicationId: application._id,
     jobId: application.jobId,
     status: application.status,
   });
-
   return application;
 };
 
+export const updateApplicationStatus = async (
+  hrId: string,
+  applicationId: string,
+  status: ApplicationStatus
+): Promise<IApplication> => {
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new AppError("Invalid status", 400);
+  }
+
+  const application = await assertHrOwnsApplication(hrId, applicationId);
+  await assertStatusTransition(application, status);
+  return applyStatus(application, status);
+};
+
 // Lets HR shortlist/reject several applicants at once instead of one at a time.
+// All applications are validated first so a single invalid one doesn't leave the batch half-applied.
 export const bulkUpdateApplicationStatus = async (
   hrId: string,
   applicationIds: string[],
   status: ApplicationStatus
 ): Promise<IApplication[]> => {
-  const results: IApplication[] = [];
+  if (!APPLICATION_STATUSES.includes(status)) {
+    throw new AppError("Invalid status", 400);
+  }
+
+  const applications: IApplication[] = [];
+  const failures: string[] = [];
   for (const applicationId of applicationIds) {
-    results.push(await updateApplicationStatus(hrId, applicationId, status));
+    const application = await assertHrOwnsApplication(hrId, applicationId);
+    try {
+      await assertStatusTransition(application, status);
+      applications.push(application);
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      failures.push(`${applicationId}: ${error.message}`);
+    }
+  }
+  if (failures.length) {
+    throw new AppError(`Status not updated. ${failures.join("; ")}`, 400);
+  }
+
+  const results: IApplication[] = [];
+  for (const application of applications) {
+    results.push(await applyStatus(application, status));
   }
   return results;
 };
@@ -312,8 +398,8 @@ export const inviteToOrgInterview = async (
 ): Promise<IApplication> => {
   const application = await assertHrOwnsApplication(hrId, applicationId);
 
-  if (application.status !== "selected") {
-    throw new AppError("Only selected candidates can be invited to an organizational interview", 400);
+  if (!ORG_INVITE_STATUSES.includes(application.status)) {
+    throw new AppError("Only shortlisted or selected candidates can be invited to an organizational interview", 400);
   }
   if (!Number.isFinite(validityDays) || validityDays <= 0) {
     throw new AppError("validityDays must be a positive number", 400);
@@ -381,6 +467,15 @@ export const bulkInviteToOrgInterview = async (
   // Check every job's question pool up front so a missing pool rejects the whole
   // batch instead of inviting half of it.
   const applications = await Promise.all(applicationIds.map((id) => assertHrOwnsApplication(hrId, id)));
+  const notEligible = applications.filter((a) => !ORG_INVITE_STATUSES.includes(a.status));
+  if (notEligible.length) {
+    throw new AppError(
+      `Only shortlisted or selected candidates can be invited to an organizational interview: ${notEligible
+        .map((a) => a._id.toString())
+        .join(", ")}`,
+      400
+    );
+  }
   const jobIds = [...new Set(applications.map((a) => a.jobId.toString()))];
   await Promise.all(jobIds.map(assertQuestionPool));
 

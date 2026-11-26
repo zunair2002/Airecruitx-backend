@@ -7,7 +7,9 @@ import { connectDB } from "./config/db";
 import { initSocket } from "./config/socket";
 import { startOrgInterviewExpiryScheduler } from "./config/orgInterviewExpiryScheduler";
 import { startInterviewTimerScheduler } from "./config/interviewTimerScheduler";
+import { startPlanExpiryScheduler } from "./config/planExpiryScheduler";
 import "./config/firebase";
+import { validatePracticeBank } from "./ai/practiceBank";
 import dns from "dns";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -15,12 +17,15 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
+  // Practice questions (src/ai/practice_questions.json): loaded + validated once; problems are logged
+  validatePracticeBank();
   await connectDB();
 
   const httpServer = http.createServer(app);
   initSocket(httpServer);
   startOrgInterviewExpiryScheduler();
   startInterviewTimerScheduler();
+  startPlanExpiryScheduler();
 
   httpServer.listen(PORT, () => {
     console.log(`Airecruitx backend running on port ${PORT}`);
