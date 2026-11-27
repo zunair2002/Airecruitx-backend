@@ -1,5 +1,6 @@
 import mammoth from "mammoth";
 import { AppError } from "../../utils/AppError";
+
 type PdfJs = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
 // TypeScript (CommonJS) import() ko require() bana deta hai, jo .mjs par fail hota hai.
@@ -8,10 +9,18 @@ const nativeImport = new Function("specifier", "return import(specifier)") as (
   specifier: string
 ) => Promise<PdfJs>;
 
+// Sirf Vercel ko batane ke liye ke ye files function ke saath bhejni hain.
+// Ye lines kabhi kuch load nahi karti, sirf file ka path dhoondti hain.
+try {
+  require.resolve("pdfjs-dist/legacy/build/pdf.mjs");
+  require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+} catch {
+  // ignore
+}
 
-// this project's own `pdfkit` dependency for certificates).
+// pdfjs-dist is ESM-only, so it's loaded via a dynamic import from this CommonJS project.
 const parsePdf = async (buffer: Buffer): Promise<string> => {
-const pdfjsLib = await nativeImport("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjsLib = await nativeImport("pdfjs-dist/legacy/build/pdf.mjs");
 
   // Text extraction only (getTextContent) — the renderer/JS-eval paths that would
   // matter for a malicious PDF are never invoked, so nothing further needs disabling.
@@ -27,11 +36,7 @@ const pdfjsLib = await nativeImport("pdfjs-dist/legacy/build/pdf.mjs");
     for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
       const page = await doc.getPage(pageNumber);
       const content = await page.getTextContent();
-      // Each item carries hasEOL — whether pdf.js detected a line break right after
-      // it — so line structure from the original document is preserved instead of
-      // every line on the page being joined into one continuous run of text. That
-      // structure matters here: line-based parsing (e.g. the "Q:/A:/Marks:" question
-      // pool format) would otherwise see one giant blob with no line boundaries.
+      // hasEOL preserves line structure (needed for line-based parsing like "Q:/A:/Marks:").
       const pageText = content.items
         .map((item: any) => ("str" in item ? item.str + (item.hasEOL ? "\n" : " ") : ""))
         .join("");
