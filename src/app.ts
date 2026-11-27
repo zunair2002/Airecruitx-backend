@@ -40,6 +40,7 @@ import { asyncHandler } from "./utils/asyncHandler";
 import { AppError } from "./utils/AppError";
 import { keyPointsFromReference, topicFromText } from "./ai/topics";
 import { evaluateAnswer } from "./ai/ai.service";
+import { ensureDB } from "./config/db";
 
 const app: Application = express();
 
@@ -50,6 +51,18 @@ if (Number.isInteger(trustProxyHops) && trustProxyHops >= 0) {
 
 app.use(requestLogger);
 app.use(cors());
+
+// Serverless (Vercel): har request se pehle MongoDB connection ensure karo
+app.use(async (req, _res, next) => {
+  if (req.path === "/health") return next();
+  try {
+    await ensureDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Stripe signs the raw body, so its webhook must be read before express.json() parses it.
 app.post("/api/billing/webhook", express.raw({ type: "application/json", limit: "1mb" }), stripeWebhookHandler);
 app.use(express.json());
