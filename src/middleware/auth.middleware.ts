@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 
 interface JwtPayload {
   id: string;
+  version?: number;
 }
 
 export const requireAuth = asyncHandler(
@@ -36,6 +37,7 @@ export const requireAuth = asyncHandler(
     if (!user) {
       throw new AppError("User profile not found", 404);
     }
+    if ((decoded.version ?? 0) !== (user.sessionVersion ?? 0)) throw new AppError("Session expired. Sign in again.", 401);
     if (!user.isActive) {
       throw new AppError("Account is deactivated", 403);
     }

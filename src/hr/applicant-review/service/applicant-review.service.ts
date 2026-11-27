@@ -174,13 +174,13 @@ const applicationStatusNotification = (status: ApplicationStatus): string => {
   }
 };
 
-// pending -> shortlisted | rejected; shortlisted -> selected | rejected; selected -> rejected;
+// pending -> shortlisted | rejected; shortlisted -> selected | rejected;
 // rejected -> shortlisted.
 // "selected" additionally requires a completed AI or org interview (checked separately).
 const ALLOWED_STATUS_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   pending: ["shortlisted", "rejected"],
   shortlisted: ["selected", "rejected"],
-  selected: ["rejected"],
+  selected: [],
   rejected: ["shortlisted"], // lets HR undo an accidental rejection
 };
 
@@ -199,6 +199,8 @@ const hasCompletedInterview = async (application: IApplication): Promise<boolean
 // Throws a 400 if `application` may not move to `status`. Same-status is a no-op and allowed.
 const assertStatusTransition = async (application: IApplication, status: ApplicationStatus) => {
   if (application.status === status) return;
+  if ((application.status === "selected" && status === "rejected") || (application.status === "rejected" && status === "selected"))
+    throw new AppError("A different final decision was already recorded.", 409);
   if (!ALLOWED_STATUS_TRANSITIONS[application.status]?.includes(status)) {
     throw new AppError(`Cannot change application status from "${application.status}" to "${status}"`, 400);
   }
@@ -209,22 +211,30 @@ const assertStatusTransition = async (application: IApplication, status: Applica
 
 const applyStatus = async (application: IApplication, status: ApplicationStatus) => {
   if (application.status === status) return application;
-  application.status = status;
-  await application.save();
+  const updated = await Application.findOneAndUpdate(
+    { _id: application._id, jobId: application.jobId, status: application.status },
+    { $set: { status } },
+    { new: true },
+  );
+  if (!updated) {
+    const current = await Application.findById(application._id);
+    if (current?.status === status) return current;
+    throw new AppError("Application status changed. Refresh the application.", 409);
+  }
 
   // Save the HR decision so it is visible in the candidate's notification
   // inbox even if they were offline when the real-time event was emitted.
   await notifyUser(
     application.candidateId.toString(),
-    applicationStatusNotification(application.status)
+    applicationStatusNotification(updated.status)
   );
 
   emitToUser(application.candidateId.toString(), "application:status", {
     applicationId: application._id,
     jobId: application.jobId,
-    status: application.status,
+    status: updated.status,
   });
-  return application;
+  return updated;
 };
 
 export const updateApplicationStatus = async (

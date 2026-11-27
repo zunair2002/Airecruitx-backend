@@ -22,7 +22,12 @@ import {
 } from "../../../middleware/authRateLimit.middleware";
 import { uploadCandidateAvatar } from "../../../middleware/upload.middleware";
 
+import { requestReset, verifyReset, completeReset } from "../controller/passwordReset";
+
 const router = Router();
+router.post("/password-reset/request", resendOtpRateLimit, requestReset);
+router.post("/password-reset/verify", verifyEmailRateLimit, verifyReset);
+router.post("/password-reset/complete", loginRateLimit, completeReset);
 
 router.post("/signup", signupRateLimit, signupHandler);
 router.post("/verify-email", verifyEmailRateLimit, verifyEmailHandler);
