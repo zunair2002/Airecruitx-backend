@@ -18,6 +18,11 @@ try {
   // ignore
 }
 
+const g = globalThis as any;
+if (typeof g.DOMMatrix === "undefined") g.DOMMatrix = class DOMMatrix {};
+if (typeof g.ImageData === "undefined") g.ImageData = class ImageData {};
+if (typeof g.Path2D === "undefined") g.Path2D = class Path2D {};
+
 // pdfjs-dist is ESM-only, so it's loaded via a dynamic import from this CommonJS project.
 const parsePdf = async (buffer: Buffer): Promise<string> => {
   const pdfjsLib = await nativeImport("pdfjs-dist/legacy/build/pdf.mjs");
