@@ -5,7 +5,15 @@ let io: SocketIOServer | undefined;
 
 export const initSocket = (httpServer: HttpServer): SocketIOServer => {
   io = new SocketIOServer(httpServer, {
-    cors: { origin: "*" },
+    cors: {
+      credentials: true,
+      origin(origin, callback) {
+        const allowed = !origin || origin === "https://airecruitx.vercel.app"
+          || origin === process.env.APP_BASE_URL?.replace(/\/$/, "")
+          || /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(origin);
+        callback(null, allowed);
+      },
+    },
   });
 
   io.on("connection", (socket) => {

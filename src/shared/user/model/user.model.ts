@@ -47,6 +47,12 @@ export interface IUser extends Document {
   // accounts start false and must confirm ownership of the email via OTP before they
   // can log in — see auth.service.ts's verifyEmail/resendOtp.
   emailVerified: boolean;
+  sessionVersion?: number;
+  resetCodeHash?: string;
+  resetGrantHash?: string;
+  resetExpiresAt?: Date;
+  resetRequestedAt?: Date;
+  resetAttempts?: number;
   emailOtp?: string;
   emailOtpExpiresAt?: Date;
   createdAt: Date;
@@ -157,6 +163,12 @@ const userSchema = new Schema<IUser>(
       required: true,
       default: false,
     },
+    sessionVersion: { type: Number, default: 0 },
+    resetCodeHash: { type: String, select: false },
+    resetGrantHash: { type: String, select: false },
+    resetExpiresAt: { type: Date, select: false },
+    resetRequestedAt: { type: Date, select: false },
+    resetAttempts: { type: Number, select: false },
     emailOtp: {
       type: String,
       required: false,

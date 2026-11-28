@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import jwt from "jsonwebtoken";
 import { firebaseAuth } from "../../../config/firebase";
 import { User, IUser, UserRole } from "../model/user.model";
@@ -16,29 +17,24 @@ interface LoginInput {
   password: string;
 }
 
-const generateToken = (userId: string) => {
+const generateToken = (userId: string, version = 0) => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new AppError("JWT_SECRET is not defined in the environment", 500);
   }
-  return jwt.sign({ id: userId }, secret, {
+  return jwt.sign({ id: userId, version }, secret, {
     expiresIn: "1d", // Token expires in 1 day
   });
 };
 
 const OTP_VALIDITY_MS = 10 * 60 * 1000; // 10 minutes
 
-const generateOtp = (): string => String(Math.floor(100000 + Math.random() * 900000));
+const generateOtp = (): string => String(randomInt(100000, 1000000));
 
 // Creates the account but does NOT log the candidate in — password-based signups must
 // verify ownership of the email (via the OTP just sent) before they get a session; see
 // verifyEmail below, which is where the token is actually issued. Google accounts skip
 // all of this (see googleLogin) since Google has already verified the email.
-//
-// The OTP is returned here (not just emailed) so the controller can echo it back in
-// non-production environments — purely a local-dev convenience for when the SMTP
-// account is unreachable/rate-limited (e.g. Gmail's daily send cap), so testing the
-// signup flow never has to block on that. Never exposed when NODE_ENV=production.
 export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: string }> => {
   const { name, email, password, role } = input;
 
@@ -61,8 +57,9 @@ export const signup = async (input: SignupInput): Promise<{ user: IUser; otp: st
     emailOtpExpiresAt: new Date(Date.now() + OTP_VALIDITY_MS),
   });
 
-  // Sent in the background (retried, failures logged); resendOtp covers a lost email.
-  await sendOtpEmail(user.email, user.name, otp);
+  // Wait for SMTP acceptance so failures are visible and resend can recover.
+  // The unverified account remains available to the resend endpoint after a failure.
+  await sendOtpEmail(user.email, otp, "signup");
 
   user.password = undefined;
   user.emailOtp = undefined;
@@ -92,7 +89,7 @@ export const verifyEmail = async (
   user.emailOtpExpiresAt = undefined;
   await user.save();
 
-  const token = generateToken(user._id.toString());
+  const token = generateToken(user._id.toString(), user.sessionVersion);
   return { token, user };
 };
 
@@ -110,7 +107,7 @@ export const resendOtp = async (email: string): Promise<{ otp: string }> => {
   user.emailOtpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS);
   await user.save();
 
-  await sendOtpEmail(user.email, user.name, otp);
+  await sendOtpEmail(user.email, otp, "resend");
   return { otp };
 };
 
@@ -140,7 +137,7 @@ export const login = async (
     throw new AppError("Please verify your email before logging in", 403);
   }
 
-  const token = generateToken(user._id.toString());
+  const token = generateToken(user._id.toString(), user.sessionVersion);
 
   user.password = undefined;
   return { token, user };
@@ -174,7 +171,7 @@ export const googleLogin = async (
       throw new AppError("Account is deactivated", 403);
     }
     // Existing Google user: no password involved, just issue our own session token.
-    const token = generateToken(existing._id.toString());
+    const token = generateToken(existing._id.toString(), existing.sessionVersion);
     return { token, user: existing };
   }
 
@@ -190,7 +187,7 @@ export const googleLogin = async (
     emailVerified: true,
   });
 
-  const token = generateToken(newUser._id.toString());
+  const token = generateToken(newUser._id.toString(), newUser.sessionVersion);
   return { token, user: newUser };
 };
 

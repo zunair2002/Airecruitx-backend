@@ -1,27 +1,34 @@
+import { AppError } from "../../utils/AppError";
 import nodemailer from "nodemailer";
 
 // Lazily created so missing SMTP configuration only fails the email send, not app startup.
-let transporter: nodemailer.Transporter | null = null;
+const transports: Partial<Record<"otp" | "general", nodemailer.Transporter>> = {};
 
-const getTransporter = (): nodemailer.Transporter => {
-  if (transporter) return transporter;
+const getTransporter = (channel: "otp" | "general" = "general"): nodemailer.Transporter => {
+  const cached = transports[channel];
+  if (cached) return cached;
 
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if (!user || !pass) {
-    throw new Error("SMTP_USER/SMTP_PASS are not configured — cannot send email");
+    throw Object.assign(new Error("Missing SMTP configuration"), { code: "ECONFIG" });
   }
 
-  transporter = nodemailer.createTransport({
+  const transporter = nodemailer.createTransport({
     service: "gmail",
+    pool: true,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     auth: { user, pass },
   });
+  transports[channel] = transporter;
   return transporter;
 };
 
-const send = async (to: string, subject: string, html: string): Promise<void> => {
+const send = async (to: string, subject: string, html: string, channel: "otp" | "general" = "general") => {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  await getTransporter().sendMail({ from, to, subject, html });
+  return getTransporter(channel).sendMail({ from, to, subject, html });
 };
 
 // Waits between attempts: first try immediately, then retry after 1 s and after 5 s.
@@ -53,17 +60,30 @@ const sendInBackground = (kind: string, to: string, subject: string, html: strin
 
 // Sent right after a password-based signup (and again on resend) — the candidate/HR
 // enters this code to prove they own the email before they can log in.
-export const sendOtpEmail = async (to: string, name: string, otp: string): Promise<void> => {
-  sendInBackground(
-    "otp",
-    to,
-    "Verify your email — Airecruitx",
-    `<p>Hi ${name},</p>
-     <p>Your verification code is:</p>
-     <p style="font-size:28px; font-weight:bold; letter-spacing:4px;">${otp}</p>
-     <p>This code expires in 10 minutes. If you didn't create an Airecruitx account, you can ignore this email.</p>`
-  );
-};
+type OtpFlow = "signup" | "resend" | "forgot-password";
+
+export const sendOtpEmail = (to: string, otp: string, flow: "signup" | "resend") =>
+  deliverCode(to, "Verify your email - Airecruitx", otp, flow);
+
+export async function deliverCode(to: string, subject: string, code: string, flow: OtpFlow): Promise<void> {
+  const started = Date.now();
+  const context = { flow, revision: process.env.VERCEL_GIT_COMMIT_SHA || "unknown" };
+  console.info("[otp] SMTP submitting", context);
+  try {
+    const info = await send(to, subject, `<p>Your code is <strong>${code}</strong>.</p><p>It expires in 10 minutes.</p>`, "otp");
+    const responseCode = Number(/^([0-9]{3})/.exec(info.response || "")?.[1]) || undefined;
+    if (!info.accepted?.some((recipient: string) => recipient.toLowerCase() === to.toLowerCase())) {
+      throw Object.assign(new Error("Recipient not accepted"), { code: "ERECIPIENT", responseCode });
+    }
+    console.info("[otp] SMTP accepted", { ...context, elapsedMs: Date.now() - started, responseCode, messageId: info.messageId });
+  } catch (error) {
+    const failure = error as { code?: string; responseCode?: number };
+    console.error("[otp] SMTP failed", { ...context, elapsedMs: Date.now() - started, code: failure.code, responseCode: failure.responseCode });
+    throw new AppError(flow === "signup"
+      ? "Account created. Use resend verification code to try email delivery again."
+      : "Email submission failed. Please request a new code.", 503);
+  }
+}
 
 // Sent when HR invites a candidate to a self-paced AI interview: no fixed time, just
 // a personal link valid until expiresAt — the candidate can start it whenever suits them.
